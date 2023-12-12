@@ -1,9 +1,12 @@
-# RESTful API Node Typescript Server Boilerplate
+# Decked Out 2 backend API
 
-[![Node.js CI](https://github.com/saisilinus/node-express-mongoose-typescript-boilerplate/actions/workflows/node.js.yml/badge.svg)](https://github.com/saisilinus/node-express-mongoose-typescript-boilerplate/actions/workflows/node.js.yml)
-[![codecov](https://codecov.io/gh/saisilinus/node-express-mongoose-typescript-boilerplate/branch/master/graph/badge.svg?token=UYJAL9KTMD)](https://codecov.io/gh/saisilinus/node-express-mongoose-typescript-boilerplate)
+Description: TODO
 
-By running a single command, you will get a production-ready Node.js TypeScript app installed and fully configured on your machine. The app comes with many built-in features, such as authentication using JWT, request validation, unit and integration tests, continuous integration, docker support, API documentation, pagination, etc. For more details, check the features list below.
+
+### Generated using RESTful API Node Typescript Server Boilerplate
+
+See https://github.com/saisilinus/node-express-mongoose-typescript-boilerplate for details.
+
 
 ## Not Compatible with Node.js v19
 
@@ -14,12 +17,14 @@ As a result, this app is not compatible with Node.js >=19. You can add support t
 
 ## Table of Contents
 
-- [RESTful API Node Typescript Server Boilerplate](#restful-api-node-typescript-server-boilerplate)
+- [Decked Out 2 backend API](#decked-out-2-backend-api)
+    - [Generated using RESTful API Node Typescript Server Boilerplate](#generated-using-restful-api-node-typescript-server-boilerplate)
   - [Not Compatible with Node.js v19](#not-compatible-with-nodejs-v19)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
   - [Setup node](#setup-node)
-  - [Commands](#commands)
+  - [Quick start](#quick-start)
+  - [Other commands](#other-commands)
   - [Making Changes](#making-changes)
   - [Environment Variables](#environment-variables)
   - [Project Structure](#project-structure)
@@ -86,8 +91,6 @@ exec: "elevate.cmd": executable file not found in %PATH%
 Then ensure that the path shown by `nvm root` is present in your system path (for Windows press Windows Key + search for environment variables).
 
 
-## Commands
-
 Install yarn:
 
 ```bash
@@ -100,11 +103,26 @@ Install dependencies:
 yarn install
 ```
 
-Running locally:
+
+## Quick start
+
+After setting up node and yarn as shown above, run the following commands to start your development server:
 
 ```bash
-yarn dev
+yarn docker:db # Run MongoDB in a docker container - you may need to update the .env file to point to the host's IP if you're not using localhost
+yarn dev # Run API in development mode on localhost:3000
 ```
+
+Once both commands above are running, navigate to http://localhost:3000/v1/docs in your browser!
+
+Hint: test the following APIs, in order:
+
+1. POST /auth/register
+2. POST /auth/login (copy the access token from the response and paste it into the Authorize form at the top of the page)
+3. GET /users
+
+
+## Other commands
 
 Running in production:
 
