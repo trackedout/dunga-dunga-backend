@@ -18,6 +18,7 @@ As a result, this app is not compatible with Node.js >=19. You can add support t
   - [Not Compatible with Node.js v19](#not-compatible-with-nodejs-v19)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
+  - [Setup node](#setup-node)
   - [Commands](#commands)
   - [Making Changes](#making-changes)
   - [Environment Variables](#environment-variables)
@@ -66,6 +67,23 @@ As a result, this app is not compatible with Node.js >=19. You can add support t
 - **Changelog Generation**: with [Standard Version](https://github.com/conventional-changelog/standard-version)
 - **Structured Commit Messages**: with [Commitizen](https://github.com/commitizen/cz-cli)
 - **Commit Linting**: with [CommitLint](https://github.com/conventional-changelog/commitlint)
+
+
+## Setup node
+
+Install Node 18 via `nvm` (node version manager):
+```bash
+scoop install nvm
+nvm install 18
+
+nvm use 18
+```
+
+If you get the following error:
+```text
+exec: "elevate.cmd": executable file not found in %PATH%
+```
+Then ensure that the path shown by `nvm root` is present in your system path (for Windows press Windows Key + search for environment variables).
 
 
 ## Commands
