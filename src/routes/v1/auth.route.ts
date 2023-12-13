@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { validate } from '../../modules/validate';
-import { authValidation, authController, auth } from '../../modules/auth';
+import { authValidation, authController } from '../../modules/auth';
 
 const router: Router = express.Router();
 
@@ -8,10 +8,6 @@ router.post('/register', validate(authValidation.register), authController.regis
 router.post('/login', validate(authValidation.login), authController.login);
 router.post('/logout', validate(authValidation.logout), authController.logout);
 router.post('/refresh-tokens', validate(authValidation.refreshTokens), authController.refreshTokens);
-router.post('/forgot-password', validate(authValidation.forgotPassword), authController.forgotPassword);
-router.post('/reset-password', validate(authValidation.resetPassword), authController.resetPassword);
-router.post('/send-verification-email', auth(), authController.sendVerificationEmail);
-router.post('/verify-email', validate(authValidation.verifyEmail), authController.verifyEmail);
 
 export default router;
 
@@ -172,118 +168,4 @@ export default router;
  *               $ref: '#/components/schemas/UserWithTokens'
  *       "401":
  *         $ref: '#/components/responses/Unauthorized'
- */
-
-/**
- * @swagger
- * /auth/forgot-password:
- *   post:
- *     summary: Forgot password
- *     description: An email will be sent to reset password.
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *             example:
- *               email: fake@example.com
- *     responses:
- *       "204":
- *         description: No content
- *       "404":
- *         $ref: '#/components/responses/NotFound'
- */
-
-/**
- * @swagger
- * /auth/reset-password:
- *   post:
- *     summary: Reset password
- *     tags: [Auth]
- *     parameters:
- *       - in: query
- *         name: token
- *         required: true
- *         schema:
- *           type: string
- *         description: The reset password token
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - password
- *             properties:
- *               password:
- *                 type: string
- *                 format: password
- *                 minLength: 8
- *                 description: At least one number and one letter
- *             example:
- *               password: password1
- *     responses:
- *       "204":
- *         description: No content
- *       "401":
- *         description: Password reset failed
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               code: 401
- *               message: Password reset failed
- */
-
-/**
- * @swagger
- * /auth/send-verification-email:
- *   post:
- *     summary: Send verification email
- *     description: An email will be sent to verify email.
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       "204":
- *         description: No content
- *       "401":
- *         $ref: '#/components/responses/Unauthorized'
- */
-
-/**
- * @swagger
- * /auth/verify-email:
- *   post:
- *     summary: verify email
- *     tags: [Auth]
- *     parameters:
- *       - in: query
- *         name: token
- *         required: true
- *         schema:
- *           type: string
- *         description: The verify email token
- *     responses:
- *       "204":
- *         description: No content
- *       "401":
- *         description: verify email failed
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               code: 401
- *               message: verify email failed
  */
