@@ -123,6 +123,12 @@ Hint: test the following APIs, in order:
 3. GET /users
 
 
+Note: Run the following command before running `yarn dev` if you've changed the swagger doc source (the json that's in comments in routes/v1/**.route.ts):
+
+```bash
+yarn compile # Only needed when changing swagger docs
+```
+
 ## Other commands
 
 Running in production:
@@ -270,7 +276,7 @@ CLIENT_URL=http://localhost:5000
 │   ├── custom.d.ts                   # File for extending types from node modules
 │   ├── declaration.d.ts              # File for declaring modules without types
 │   ├── index.ts                      # App entry file
-│   ├── modules                       # Modules such as models, controllers, services 
+│   ├── modules                       # Modules such as models, controllers, services
 │   └── routes                        # Routes
 ├── TODO.md                         # TODO List
 ├── package.json
