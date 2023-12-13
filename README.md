@@ -25,6 +25,7 @@ As a result, this app is not compatible with Node.js >=19. You can add support t
   - [Setup node](#setup-node)
   - [Quick start](#quick-start)
   - [Other commands](#other-commands)
+  - [Generating Kotlin client using OpenAPI Generator](#generating-kotlin-client-using-openapi-generator)
   - [Making Changes](#making-changes)
   - [Environment Variables](#environment-variables)
   - [Project Structure](#project-structure)
@@ -195,6 +196,20 @@ yarn prettier
 # fix prettier errors
 yarn prettier:fix
 ```
+
+## Generating Kotlin client using OpenAPI Generator
+
+Download the latest OpenAPI generator as shown in https://github.com/OpenAPITools/openapi-generator#13---download-jar
+
+Then execute the following:
+
+```bash
+java -jar ~/Downloads/openapi-generator-cli-7.1.0.jar generate -i http://localhost:3000/v1/docs/swagger.json -g kotlin -o ./agronet-fabric/ --skip-validate-spec --global-property apis,models,supportingFiles -c ./agronet-fabric/openapi-config.yaml
+```
+
+NOTE that this is a DANGEROUS operation as this may overwite critical files like build.gradle!
+Only changes to src/main/kotlin/org/trackedout/client/** should be kept.
+
 
 ## Making Changes
 

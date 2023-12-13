@@ -17,5 +17,6 @@ router.get(
     explorer: true,
   })
 );
+router.get("/swagger.json", (_, res) => res.json(specs));
 
 export default router;
