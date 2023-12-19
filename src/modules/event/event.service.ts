@@ -19,6 +19,11 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
       case PlayerEvents.JOINED_NETWORK:
         await createPlayerRecordIfMissing(eventBody);
         break;
+
+      case ServerEvents.SERVER_ONLINE:
+        await createDungeonInstanceRecordIfMissing(eventBody);
+        break;
+
       default:
         break;
     }
@@ -39,6 +44,20 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
       playerName: eventBody.player,
       server: eventBody.server,
       state: QueueStates.IN_LOBBY,
+    });
+  }
+}
+
+async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
+  const instance = await DungeonInstance.findOne({
+    name: eventBody.server,
+    ip: eventBody.sourceIP,
+  }).exec();
+
+  if (!instance) {
+    await DungeonInstance.create({
+      name: eventBody.server,
+      ip: eventBody.sourceIP,
     });
   }
 }
