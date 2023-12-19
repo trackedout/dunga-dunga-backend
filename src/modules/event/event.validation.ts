@@ -4,9 +4,13 @@ import { NewCreatedEvent } from './event.interfaces';
 
 const createEventBody: Record<keyof NewCreatedEvent, any> = {
   name: Joi.string().required().min(3),
-  player: Joi.string().required().min(3),
-  server: Joi.string().required().min(3),
-  count: Joi.number().required().integer(),
+  player: Joi.string().required().min(1),
+  server: Joi.string().required().min(1),
+  x: Joi.number().default(0),
+  y: Joi.number().default(0),
+  z: Joi.number().default(0),
+  count: Joi.number().integer().default(1),
+  sourceIP: Joi.string().optional(),
 };
 
 export const createEvent = {
@@ -16,7 +20,14 @@ export const createEvent = {
 export const getEvents = {
   query: Joi.object().keys({
     name: Joi.string(),
-    role: Joi.string(),
+    player: Joi.string(),
+    server: Joi.string(),
+    sourceIP: Joi.string().ip(),
+    x: Joi.string(),
+    y: Joi.string(),
+    z: Joi.string(),
+    count: Joi.number().integer(),
+
     sortBy: Joi.string(),
     projectBy: Joi.string(),
     limit: Joi.number().integer(),

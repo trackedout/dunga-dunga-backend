@@ -8,12 +8,15 @@ import { IOptions } from '../paginate/paginate';
 import * as eventService from './event.service';
 
 export const createEvent = catchAsync(async (req: Request, res: Response) => {
-  const event = await eventService.createEvent(req.body);
+  const event = await eventService.createEvent({
+    ...req.body,
+    sourceIP: req.ip,
+  });
   res.status(httpStatus.CREATED).send(event);
 });
 
 export const getEvents = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.query, ['name', 'role']);
+  const filter = pick(req.query, ['name', 'name', 'server', 'player']);
   const options: IOptions = pick(req.query, ['sortBy', 'limit', 'page', 'projectBy']);
   const result = await eventService.queryEvents(filter, options);
   res.send(result);

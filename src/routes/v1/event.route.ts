@@ -30,7 +30,7 @@ export default router;
  * /events:
  *   post:
  *     summary: Create an event
- *     description: Only admins can create other events.
+ *     description: Log a dungeon event from one of the Decked Out 2 instances.
  *     tags: [Events]
  *     security:
  *       - bearerAuth: []
@@ -42,29 +42,39 @@ export default router;
  *             type: object
  *             required:
  *               - name
- *               - email
- *               - password
- *               - role
+ *               - player
+ *               - server
+ *               - x
+ *               - y
+ *               - z
+ *               - count
  *             properties:
  *               name:
  *                 type: string
- *               email:
+ *               player:
  *                 type: string
- *                 format: email
- *                 description: must be unique
- *               password:
+ *               server:
  *                 type: string
- *                 format: password
- *                 minLength: 8
- *                 description: At least one number and one letter
- *               role:
- *                  type: string
- *                  enum: [event, admin]
+ *               x:
+ *                  type: double
+ *                  default: 0
+ *               y:
+ *                  type: double
+ *                  default: 0
+ *               z:
+ *                  type: double
+ *                  default: 0
+ *               count:
+ *                 type: integer
+ *                 default: 1
  *             example:
- *               name: fake name
- *               email: fake@example.com
- *               password: password1
- *               role: event
+ *               name: run-started
+ *               player: 4Ply
+ *               server: do_1
+ *               x: 0
+ *               y: 0
+ *               z: 0
+ *               count: 1
  *     responses:
  *       "201":
  *         description: Created

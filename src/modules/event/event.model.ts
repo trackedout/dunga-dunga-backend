@@ -17,12 +17,39 @@ const eventSchema = new mongoose.Schema<IEventDoc, IEventModel>(
     },
     count: {
       type: Number,
-      required: true,
+      required: false,
+      default: 1,
     },
     server: {
       type: String,
       required: true,
       trim: true,
+    },
+    x: {
+      type: Number,
+      required: true,
+    },
+    y: {
+      type: Number,
+      required: true,
+    },
+    z: {
+      type: Number,
+      required: true,
+    },
+    sourceIP: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    processingFailed: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    error: {
+      type: String,
+      required: false,
     },
   },
   {
