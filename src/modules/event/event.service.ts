@@ -16,6 +16,10 @@ import { QueueStates } from "./player.interfaces";
 export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc> => {
   try {
     switch (eventBody.name) {
+      case PlayerEvents.READY_FOR_DUNGEON:
+        await movePlayerToDungeon(eventBody);
+        break;
+
       case PlayerEvents.JOINED_NETWORK:
         await createPlayerRecordIfMissing(eventBody);
         break;
@@ -60,6 +64,29 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       ip: eventBody.sourceIP,
     });
   }
+}
+
+async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
+  const queuedPlayer = await Players.findOne({
+    playerName: eventBody.player,
+    state: QueueStates.IN_QUEUE,
+    isAllowedToPlayDO2: true,
+  }).sort({ queueTime: -1 }).exec()
+
+  if (!queuedPlayer) {
+    throw new ApiError(httpStatus.NOT_FOUND, `Player '${eventBody.player}' is not in the queue`);
+  }
+
+  const dungeonInstance = await DungeonInstance.findOneAndDelete({
+    inUse: false,
+    requiresRebuild: false,
+  }).exec()
+  if (!dungeonInstance) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'No available dungeon instances found!');
+  }
+
+  console.log(`Removing ${queuedPlayer.playerName} from queue and moving them to dungeon instance ${dungeonInstance.name}`);
+  await queuedPlayer.deleteOne();
 }
 
 /**
