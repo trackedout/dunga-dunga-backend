@@ -1,18 +1,47 @@
 import httpStatus from 'http-status';
 import mongoose from 'mongoose';
 import Event from './event.model';
+import Players from "./player.model";
+import DungeonInstance from "./instance.model";
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
-import { IEventDoc, NewCreatedEvent, UpdateEventBody } from './event.interfaces';
+import { IEventDoc, NewCreatedEvent, PlayerEvents, ServerEvents, UpdateEventBody } from './event.interfaces';
+import { QueueStates } from "./player.interfaces";
 
 /**
- * Create an event
+ * Create an event, and potentially react to the event depending on DB state
  * @param {NewCreatedEvent} eventBody
  * @returns {Promise<IEventDoc>}
  */
 export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc> => {
-  return Event.create(eventBody);
+  try {
+    switch (eventBody.name) {
+      case PlayerEvents.JOINED_NETWORK:
+        await createPlayerRecordIfMissing(eventBody);
+        break;
+      default:
+        break;
+    }
+
+    return Event.create(eventBody);
+  } catch (e) {
+    return Event.create({ ...eventBody, processingFailed: true, error: `${e}` });
+  }
 };
+
+async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
+  const player = await Players.findOne({
+    playerName: eventBody.player,
+  }).exec();
+
+  if (!player) {
+    await Players.create({
+      playerName: eventBody.player,
+      server: eventBody.server,
+      state: QueueStates.IN_LOBBY,
+    });
+  }
+}
 
 /**
  * Query for events
