@@ -1,6 +1,5 @@
 import express, { Router } from 'express';
 import { validate } from '../../modules/validate';
-import { auth } from '../../modules/auth';
 import { eventController, eventValidation } from '../../modules/event';
 
 const router: Router = express.Router();
@@ -9,12 +8,6 @@ router
   .route('/')
   .post(validate(eventValidation.createEvent), eventController.createEvent)
   .get(validate(eventValidation.getEvents), eventController.getEvents);
-
-router
-  .route('/:eventId')
-  .get(auth('getEvents'), validate(eventValidation.getEvent), eventController.getEvent)
-  .patch(auth('manageEvents'), validate(eventValidation.updateEvent), eventController.updateEvent)
-  .delete(auth('manageEvents'), validate(eventValidation.deleteEvent), eventController.deleteEvent);
 
 export default router;
 
