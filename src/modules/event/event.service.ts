@@ -55,6 +55,10 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
       server: eventBody.server,
       state: QueueStates.IN_LOBBY,
     });
+  } else {
+    player.updateOne({
+      server: eventBody.server,
+    });
   }
 }
 
@@ -91,6 +95,7 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
 
   await player.updateOne({
     state: QueueStates.IN_QUEUE,
+    server: eventBody.server,
   });
   console.log(`Placed ${player.playerName} in the dungeon queue`);
 }

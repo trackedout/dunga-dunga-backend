@@ -5,7 +5,8 @@ export async function executeRconCommand(command: string, host: string, port: nu
   const rcon = new Rcon({
     host: host,
     port: port,
-    password: password
+    password: password,
+    timeout: 200,
   });
 
   rcon.on("connect", () => console.log(`Rcon: connected to ${host}`))
@@ -22,11 +23,17 @@ export async function executeRconCommand(command: string, host: string, port: nu
   const result = await rcon.send(command)
     .catch((error: Error) => {
       console.error(`Rcon: error from ${host} for command [${command}]: ${error}`);
-      throw error;
+      if (error.message.startsWith("Timeout for packet id")) {
+        // Not really an error because Rcon does stupid things, and usually doesn't reply in time (or at all)
+        console.warn("Suppressing timeout error");
+        return "(suppressed timeout error)"
+      } else {
+        throw error;
+      }
     });
   console.log(`Rcon: result from executing [${command}] against ${host}: ${result}`)
 
-  await rcon.end()
+  rcon.end()
     .catch((error: Error) => {
       console.error(`Rcon: error from ${host} for command [${command}]: ${error}`);
       throw error;
