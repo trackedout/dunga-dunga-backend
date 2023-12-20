@@ -16,6 +16,10 @@ import { QueueStates } from "./player.interfaces";
 export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc> => {
   try {
     switch (eventBody.name) {
+      case PlayerEvents.JOINED_QUEUE:
+        await addPlayerToQueue(eventBody);
+        break;
+
       case PlayerEvents.READY_FOR_DUNGEON:
         await movePlayerToDungeon(eventBody);
         break;
@@ -34,7 +38,8 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
 
     return Event.create(eventBody);
   } catch (e) {
-    return Event.create({ ...eventBody, processingFailed: true, error: `${e}` });
+    await Event.create({ ...eventBody, processingFailed: true, error: `${e}` });
+    throw e;
   }
 };
 
@@ -62,8 +67,31 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
     await DungeonInstance.create({
       name: eventBody.server,
       ip: eventBody.sourceIP,
+      inUse: false,
+      requiresRebuild: false,
+    });
+  } else {
+    await instance.updateOne({
+      inUse: false,
+      requiresRebuild: false,
     });
   }
+}
+
+async function addPlayerToQueue(eventBody: NewCreatedEvent) {
+  const player = await Players.findOne({
+    playerName: eventBody.player,
+    isAllowedToPlayDO2: true,
+  }).exec()
+
+  if (!player) {
+    throw new ApiError(httpStatus.NOT_FOUND, `Player '${eventBody.player}' not found`);
+  }
+
+  await player.updateOne({
+    state: QueueStates.IN_QUEUE,
+  });
+  console.log(`Placed ${player.playerName} in the dungeon queue`);
 }
 
 async function movePlayerToDungeon(eventBody: NewCreatedEvent) {

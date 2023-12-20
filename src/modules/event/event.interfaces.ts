@@ -2,7 +2,7 @@ import { Model, Document } from 'mongoose';
 import { QueryResult } from '../paginate/paginate';
 
 export enum PlayerEvents {
-  ADD_TO_QUEUE = "add-to-queue",
+  JOINED_QUEUE = "joined-queue",
   READY_FOR_DUNGEON = "ready-for-dungeon",
   DUNGEON_STARTED = "dungeon-started",
   DUNGEON_ENDED = "dungeon-ended",

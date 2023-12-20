@@ -55,6 +55,8 @@ export default router;
  *                 type: string
  *               server:
  *                 type: string
+ *               sourceIP:
+ *                 type: string
  *               x:
  *                  type: double
  *                  default: 0
@@ -71,6 +73,7 @@ export default router;
  *               name: run-started
  *               player: 4Ply
  *               server: do_1
+ *               sourceIP: 127.0.0.1
  *               x: 0
  *               y: 0
  *               z: 0

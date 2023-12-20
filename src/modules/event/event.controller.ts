@@ -10,7 +10,7 @@ import * as eventService from './event.service';
 export const createEvent = catchAsync(async (req: Request, res: Response) => {
   const event = await eventService.createEvent({
     ...req.body,
-    sourceIP: req.ip,
+    sourceIP: req.ip?.split(":").slice(-1)[0],
   });
   res.status(httpStatus.CREATED).send(event);
 });
