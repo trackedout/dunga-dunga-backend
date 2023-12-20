@@ -7,6 +7,7 @@ import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
 import { IEventDoc, NewCreatedEvent, PlayerEvents, ServerEvents, UpdateEventBody } from './event.interfaces';
 import { QueueStates } from "./player.interfaces";
+import { executeRconCommand } from "../rcon/rcon";
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -102,19 +103,35 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
   }).sort({ queueTime: -1 }).exec()
 
   if (!queuedPlayer) {
-    throw new ApiError(httpStatus.NOT_FOUND, `Player '${eventBody.player}' is not in the queue`);
+    throw new ApiError(httpStatus.BAD_REQUEST, `Player '${eventBody.player}' is not in the queue`);
   }
 
-  const dungeonInstance = await DungeonInstance.findOneAndDelete({
+  const dungeonInstance = await DungeonInstance.findOne({
     inUse: false,
     requiresRebuild: false,
+    name: {
+      $not: /^lobby/,
+    },
   }).exec()
   if (!dungeonInstance) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'No available dungeon instances found!');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'No available dungeon instances found!');
   }
 
   console.log(`Removing ${queuedPlayer.playerName} from queue and moving them to dungeon instance ${dungeonInstance.name}`);
-  await queuedPlayer.deleteOne();
+
+  await dungeonInstance.updateOne({
+    inUse: true,
+    requiresRebuild: true,
+  });
+
+  const currentServer = queuedPlayer.server;
+  await executeRconCommand(`/execute as ${queuedPlayer.playerName} run proxycommand "server ${dungeonInstance.name}"`, currentServer);
+
+  await queuedPlayer.updateOne({
+    state: QueueStates.IN_DUNGEON,
+    server: dungeonInstance.name,
+  });
+
 }
 
 /**
