@@ -1,83 +1,54 @@
 import express, { Router } from 'express';
 import { validate } from '../../modules/validate';
-import { eventController, eventValidation } from '../../modules/event';
+import { cardController, cardValidation } from '../../modules/card';
 
 const router: Router = express.Router();
 
 router
-  .route('/')
-  .post(validate(eventValidation.createEvent), eventController.createEvent)
-  .get(validate(eventValidation.getEvents), eventController.getEvents);
+  .route('/cards')
+  .get(validate(cardValidation.getCards), cardController.getCards);
+
+router
+  .route('/add-card')
+  .post(validate(cardValidation.createCard), cardController.createCard)
+
+router
+  .route('/delete-card')
+  .delete(validate(cardValidation.deleteCard), cardController.deleteCard)
+
+router
+  .route('/:cardId')
+  .get(validate(cardValidation.getCard), cardController.getCard)
 
 export default router;
 
 /**
  * @swagger
  * tags:
- *   name: Events
- *   description: Event management and retrieval
+ *   name: Inventory
+ *   description: Inventory management and retrieval
  */
 
 /**
  * @swagger
- * /events:
+ * /inventory/add-card:
  *   post:
- *     summary: Create an event
- *     description: Log a dungeon event from one of the Decked Out 2 instances.
- *     tags: [Events]
- *     security:
- *       - bearerAuth: []
+ *     summary: Add a card to a player's deck
+ *     description: Add a card to a player's deck from one of the Decked Out 2 instances or the lobby server.
+ *     tags: [Inventory]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - name
- *               - player
- *               - server
- *               - x
- *               - y
- *               - z
- *               - count
- *             properties:
- *               name:
- *                 type: string
- *               player:
- *                 type: string
- *               server:
- *                 type: string
- *               sourceIP:
- *                 type: string
- *               x:
- *                  type: double
- *                  default: 0
- *               y:
- *                  type: double
- *                  default: 0
- *               z:
- *                  type: double
- *                  default: 0
- *               count:
- *                 type: integer
- *                 default: 1
- *             example:
- *               name: run-started
- *               player: 4Ply
- *               server: do_1
- *               sourceIP: 127.0.0.1
- *               x: 0
- *               y: 0
- *               z: 0
- *               count: 1
+ *             $ref: '#/components/schemas/Card'
  *     responses:
  *       "201":
  *         description: Created
  *         content:
  *           application/json:
  *             schema:
- *                $ref: '#/components/schemas/Event'
+ *                $ref: '#/components/schemas/Card'
  *       "400":
  *         $ref: '#/components/responses/DuplicateEmail'
  *       "401":
@@ -85,23 +56,28 @@ export default router;
  *       "403":
  *         $ref: '#/components/responses/Forbidden'
  *
+ * /inventory/cards:
  *   get:
- *     summary: Get all events
- *     description: Only admins can retrieve all events.
- *     tags: [Events]
- *     security:
- *       - bearerAuth: []
+ *     summary: Get all cards
+ *     description: Only admins can retrieve all cards.
+ *     tags: [Inventory]
  *     parameters:
  *       - in: query
  *         name: name
  *         schema:
  *           type: string
- *         description: Event name
+ *         description: Card name
  *       - in: query
- *         name: role
+ *         name: player
  *         schema:
  *           type: string
- *         description: Event role
+ *         description: Player
+ *       - in: query
+ *         name: deckId
+ *         schema:
+ *           type: string
+ *         default: 1
+ *         description: Deck ID
  *       - in: query
  *         name: sortBy
  *         schema:
@@ -117,8 +93,8 @@ export default router;
  *         schema:
  *           type: integer
  *           minimum: 1
- *         default: 10
- *         description: Maximum number of events
+ *         default: 50
+ *         description: Maximum number of cards
  *       - in: query
  *         name: page
  *         schema:
@@ -137,7 +113,7 @@ export default router;
  *                 results:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Event'
+ *                     $ref: '#/components/schemas/Card'
  *                 page:
  *                   type: integer
  *                   example: 1
@@ -154,4 +130,28 @@ export default router;
  *         $ref: '#/components/responses/Unauthorized'
  *       "403":
  *         $ref: '#/components/responses/Forbidden'
+ */
+
+/**
+ * @swagger
+ * /inventory/delete-card:
+ *   post:
+ *     summary: Delete a card
+ *     description: Remove a card from a player's deck. If multiple copies of this card exist, only one will be removed.
+ *     tags: [Inventory]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Card'
+ *     responses:
+ *       "200":
+ *         description: No content
+ *       "401":
+ *         $ref: '#/components/responses/Unauthorized'
+ *       "403":
+ *         $ref: '#/components/responses/Forbidden'
+ *       "404":
+ *         $ref: '#/components/responses/NotFound'
  */

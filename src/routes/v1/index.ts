@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import docsRoute from './swagger.route';
 import eventRoute from './event.route';
+import cardRoute from './card.route';
 import config from '../../config/config';
 
 const router = express.Router();
@@ -14,6 +15,10 @@ const defaultIRoute: IRoute[] = [
   {
     path: '/events',
     route: eventRoute,
+  },
+  {
+    path: '/inventory',
+    route: cardRoute,
   },
 ];
 

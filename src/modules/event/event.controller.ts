@@ -16,7 +16,7 @@ export const createEvent = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getEvents = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.query, ['name', 'name', 'server', 'player']);
+  const filter = pick(req.query, ['name', 'server', 'player']);
   const options: IOptions = pick(req.query, ['sortBy', 'limit', 'page', 'projectBy']);
   const result = await eventService.queryEvents(filter, options);
   res.send(result);

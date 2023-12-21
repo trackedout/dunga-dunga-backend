@@ -33,6 +33,25 @@ components:
         z: 0
         count: 1
 
+    Card:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        player:
+          type: string
+        server:
+          type: string
+        deckId:
+          type: string
+      example:
+        name: moment_of_clarity
+        player: 4Ply
+        server: lobby_1
+        deckId: "1"
+
     Error:
       type: object
       properties:
