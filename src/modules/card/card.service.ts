@@ -11,7 +11,7 @@ import { ICardDoc, NewCreatedCard, UpdateCardBody } from './card.interfaces';
  * @returns {Promise<ICardDoc>}
  */
 export const createCard = async (cardBody: NewCreatedCard): Promise<ICardDoc> => {
-    return Card.create(cardBody);
+  return Card.create(cardBody);
 };
 
 /**
@@ -21,7 +21,7 @@ export const createCard = async (cardBody: NewCreatedCard): Promise<ICardDoc> =>
  * @returns {Promise<QueryResult>}
  */
 export const queryCards = async (filter: Record<string, any>, options: IOptions): Promise<QueryResult> => {
-  return await Card.paginate(filter, options);
+  return Card.paginate(filter, options);
 };
 
 /**

@@ -9,8 +9,7 @@ export interface IInstance {
   requiresRebuild: boolean;
 }
 
-export interface IInstanceDoc extends IInstance, Document {
-}
+export interface IInstanceDoc extends IInstance, Document {}
 
 export interface IInstanceModel extends Model<IInstanceDoc> {
   paginate(filter: Record<string, any>, options: Record<string, any>): Promise<QueryResult>;

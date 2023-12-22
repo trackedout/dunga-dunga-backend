@@ -8,8 +8,7 @@ export interface ICard {
   deckId: string;
 }
 
-export interface ICardDoc extends ICard, Document {
-}
+export interface ICardDoc extends ICard, Document {}
 
 export interface ICardModel extends Model<ICardDoc> {
   paginate(filter: Record<string, any>, options: Record<string, any>): Promise<QueryResult>;

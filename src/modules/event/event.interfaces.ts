@@ -2,16 +2,16 @@ import { Model, Document } from 'mongoose';
 import { QueryResult } from '../paginate/paginate';
 
 export enum PlayerEvents {
-  JOINED_QUEUE = "joined-queue",
-  READY_FOR_DUNGEON = "ready-for-dungeon",
-  DUNGEON_STARTED = "dungeon-started",
-  DUNGEON_ENDED = "dungeon-ended",
+  JOINED_QUEUE = 'joined-queue',
+  READY_FOR_DUNGEON = 'ready-for-dungeon',
+  DUNGEON_STARTED = 'dungeon-started',
+  DUNGEON_ENDED = 'dungeon-ended',
 
-  JOINED_NETWORK = "joined-network",
+  JOINED_NETWORK = 'joined-network',
 }
 
 export enum ServerEvents {
-  SERVER_ONLINE = "server-online",
+  SERVER_ONLINE = 'server-online',
 }
 
 export interface IEvent {

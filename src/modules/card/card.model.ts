@@ -23,7 +23,7 @@ const cardSchema = new mongoose.Schema<ICardDoc, ICardModel>(
     deckId: {
       type: String,
       required: true,
-      default: "1",
+      default: '1',
     },
   },
   {

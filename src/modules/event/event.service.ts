@@ -1,13 +1,13 @@
 import httpStatus from 'http-status';
 import mongoose from 'mongoose';
 import Event from './event.model';
-import Players from "./player.model";
-import DungeonInstance from "./instance.model";
+import Players from './player.model';
+import DungeonInstance from './instance.model';
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
 import { IEventDoc, NewCreatedEvent, PlayerEvents, ServerEvents, UpdateEventBody } from './event.interfaces';
-import { QueueStates } from "./player.interfaces";
-import { executeRconCommand } from "../rcon/rcon";
+import { QueueStates } from './player.interfaces';
+import { executeRconCommand } from '../rcon/rcon';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -37,7 +37,7 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         break;
     }
 
-    return Event.create(eventBody);
+    return await Event.create(eventBody);
   } catch (e) {
     await Event.create({ ...eventBody, processingFailed: true, error: `${e}` });
     throw e;
@@ -87,7 +87,7 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
   const player = await Players.findOne({
     playerName: eventBody.player,
     isAllowedToPlayDO2: true,
-  }).exec()
+  }).exec();
 
   if (!player) {
     throw new ApiError(httpStatus.NOT_FOUND, `Player '${eventBody.player}' not found`);
@@ -105,7 +105,9 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
     playerName: eventBody.player,
     state: QueueStates.IN_QUEUE,
     isAllowedToPlayDO2: true,
-  }).sort({ queueTime: -1 }).exec()
+  })
+    .sort({ queueTime: -1 })
+    .exec();
 
   if (!queuedPlayer) {
     throw new ApiError(httpStatus.BAD_REQUEST, `Player '${eventBody.player}' is not in the queue`);
@@ -117,7 +119,7 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
     name: {
       $not: /^lobby/,
     },
-  }).exec()
+  }).exec();
   if (!dungeonInstance) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'No available dungeon instances found!');
   }
@@ -130,13 +132,15 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
   });
 
   const currentServer = queuedPlayer.server;
-  await executeRconCommand(`/execute as ${queuedPlayer.playerName} run proxycommand "server ${dungeonInstance.name}"`, currentServer);
+  await executeRconCommand(
+    `/execute as ${queuedPlayer.playerName} run proxycommand "server ${dungeonInstance.name}"`,
+    currentServer
+  );
 
   await queuedPlayer.updateOne({
     state: QueueStates.IN_DUNGEON,
     server: dungeonInstance.name,
   });
-
 }
 
 /**
@@ -146,7 +150,7 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
  * @returns {Promise<QueryResult>}
  */
 export const queryEvents = async (filter: Record<string, any>, options: IOptions): Promise<QueryResult> => {
-  return await Event.paginate(filter, options);
+  return Event.paginate(filter, options);
 };
 
 /**
