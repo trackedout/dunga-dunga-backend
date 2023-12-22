@@ -1,18 +1,12 @@
 {
-  "name": "create-nodejs-ts-app",
-  "version": "3.0.10",
-  "description": "Node express mongoose typescript boilerplate",
+  "name": "dunga-dunga-backend",
+  "version": "1.0.0",
+  "description": "Decked Out 2 backend API",
   "main": "dist/index.js",
-  "bin": "bin/createNodetsApp.cjs",
-  "repository": "https://github.com/saisilinus/node-express-mongoose-typescript-boilerplate.git",
-  "bugs": {
-    "url": "https://github.com/saisilinus/node-express-mongoose-typescript-boilerplate/issues"
-  },
-  "author": "linus wafula saisi <saisilinus.work@gmail.com>",
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=14.20.1 <19"
+    "node": ">=18.19.0 <19"
   },
   "scripts": {
     "start": "pm2 start ecosystem.config.json --no-daemon",
@@ -33,7 +27,6 @@
     "prettier:fix": "prettier --write **/*.ts",
     "docker:prod": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml up",
     "docker:dev": "docker-compose -f docker-compose.yml -f docker-compose.dev.yml up",
-    "docker:test": "docker-compose -f docker-compose.yml -f docker-compose.test.yml up",
     "docker:db": "docker-compose -f docker-compose.db.yml up",
     "docker:build": "docker build -f Dockerfile -t ghcr.io/trackedout/dunga-dunga-backend:latest .",
     "docker:push": "docker push ghcr.io/trackedout/dunga-dunga-backend:latest",
@@ -45,8 +38,6 @@
     "node",
     "typescript",
     "node.js",
-    "boilerplate",
-    "generator",
     "express",
     "rest",
     "api",
@@ -58,7 +49,6 @@
     "es9",
     "jest",
     "docker",
-    "passport",
     "joi",
     "eslint",
     "prettier"
