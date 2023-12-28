@@ -47,7 +47,9 @@ export const updateCard = {
 };
 
 export const deleteCard = {
-  params: Joi.object().keys({
-    cardId: Joi.string().custom(objectId),
+  query: Joi.object().keys({
+    name: Joi.string(),
+    player: Joi.string(),
+    deckId: Joi.string(),
   }),
 };

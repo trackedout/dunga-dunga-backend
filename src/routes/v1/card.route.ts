@@ -14,7 +14,7 @@ router
 
 router
   .route('/delete-card')
-  .delete(validate(cardValidation.deleteCard), cardController.deleteCard)
+  .post(validate(cardValidation.deleteCard), cardController.deleteCard)
 
 router
   .route('/:cardId')

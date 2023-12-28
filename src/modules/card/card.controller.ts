@@ -40,8 +40,7 @@ export const updateCard = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const deleteCard = catchAsync(async (req: Request, res: Response) => {
-  if (typeof req.params['cardId'] === 'string') {
-    await cardService.deleteCardById(new mongoose.Types.ObjectId(req.params['cardId']));
-    res.status(httpStatus.NO_CONTENT).send();
-  }
+  const filter = pick(req.query, ['name', 'player', 'deckId']);
+  await cardService.deleteCard(filter);
+  res.status(httpStatus.NO_CONTENT).send();
 });

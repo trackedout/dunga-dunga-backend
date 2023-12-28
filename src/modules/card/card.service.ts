@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import Card from './card.model';
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
-import { ICardDoc, NewCreatedCard, UpdateCardBody } from './card.interfaces';
+import { DeleteCard, ICardDoc, NewCreatedCard, UpdateCardBody } from './card.interfaces';
 import Player from "../event/player.model";
 
 /**
@@ -56,12 +56,12 @@ export const updateCardById = async (
 };
 
 /**
- * Delete card by id
- * @param {mongoose.Types.ObjectId} cardId
+ * Delete card using a filter
+ * @param {DeleteCard} filter
  * @returns {Promise<ICardDoc | null>}
  */
-export const deleteCardById = async (cardId: mongoose.Types.ObjectId): Promise<ICardDoc | null> => {
-  const card = await getCardById(cardId);
+export const deleteCard = async (filter: DeleteCard): Promise<ICardDoc | null> => {
+  const card = await Card.findOne(filter).exec();
   if (!card) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Card not found');
   }

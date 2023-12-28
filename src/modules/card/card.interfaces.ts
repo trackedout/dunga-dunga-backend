@@ -17,3 +17,5 @@ export interface ICardModel extends Model<ICardDoc> {
 export type UpdateCardBody = Partial<ICard>;
 
 export type NewCreatedCard = Required<ICard>;
+
+export type DeleteCard = Pick<ICard, "server">;
