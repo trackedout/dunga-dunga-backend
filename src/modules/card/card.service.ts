@@ -4,6 +4,7 @@ import Card from './card.model';
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
 import { ICardDoc, NewCreatedCard, UpdateCardBody } from './card.interfaces';
+import Player from "../event/player.model";
 
 /**
  * Create a Card, associating it with a Player's deck
@@ -11,6 +12,10 @@ import { ICardDoc, NewCreatedCard, UpdateCardBody } from './card.interfaces';
  * @returns {Promise<ICardDoc>}
  */
 export const createCard = async (cardBody: NewCreatedCard): Promise<ICardDoc> => {
+  const player = await Player.findOne({ playerName: cardBody.player, }).exec();
+  if (!player) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Player does not exist');
+  }
   return Card.create(cardBody);
 };
 
