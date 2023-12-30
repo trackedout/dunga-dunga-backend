@@ -36,15 +36,6 @@ describe('toJSON plugin', () => {
     expect(doc.toJSON()).not.toHaveProperty('__v');
   });
 
-  it('should remove createdAt and updatedAt', () => {
-    const schema = new mongoose.Schema<SampleSchemaDoc, SampleSchemaModel>({}, { timestamps: true });
-    schema.plugin(toJSON);
-    const SampleModel = connection.model<SampleSchemaDoc, SampleSchemaModel>('Model', schema);
-    const doc = new SampleModel();
-    expect(doc.toJSON()).not.toHaveProperty('createdAt');
-    expect(doc.toJSON()).not.toHaveProperty('updatedAt');
-  });
-
   it('should remove any path set as private', () => {
     const schema = new mongoose.Schema<SampleSchemaDoc, SampleSchemaModel>({
       public: { type: String },

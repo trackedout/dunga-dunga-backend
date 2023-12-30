@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 /**
  * A mongoose schema plugin which applies the following in the toJSON transform call:
- *  - removes __v, createdAt, updatedAt, and any path that has private: true
+ *  - removes __v and any path that has private: true
  *  - replaces _id with id
  */
 
@@ -37,10 +37,6 @@ const toJSON = (schema: any) => {
       delete ret._id;
       // eslint-disable-next-line no-param-reassign
       delete ret.__v;
-      // eslint-disable-next-line no-param-reassign
-      delete ret.createdAt;
-      // eslint-disable-next-line no-param-reassign
-      delete ret.updatedAt;
       if (transform) {
         return transform(doc, ret, options);
       }
