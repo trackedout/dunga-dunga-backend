@@ -44,6 +44,6 @@ instanceSchema.pre('save', async function (next) {
   next();
 });
 
-const DungeonInstance = mongoose.model<IInstanceDoc, IInstanceModel>('DungeonInstance', instanceSchema);
+const DungeonInstance = mongoose.model<IInstanceDoc, IInstanceModel>('Instance', instanceSchema);
 
 export default DungeonInstance;

@@ -17,6 +17,10 @@ import { executeRconCommand } from '../rcon/rcon';
 export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc> => {
   try {
     switch (eventBody.name) {
+      case PlayerEvents.ALLOWED_TO_PLAY:
+        await allowPlayerToPlayDO2(eventBody);
+        break;
+
       case PlayerEvents.JOINED_QUEUE:
         await addPlayerToQueue(eventBody);
         break;
@@ -83,14 +87,37 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
   }
 }
 
-async function addPlayerToQueue(eventBody: NewCreatedEvent) {
+async function allowPlayerToPlayDO2(eventBody: NewCreatedEvent) {
   const player = await Players.findOne({
     playerName: eventBody.player,
-    isAllowedToPlayDO2: true,
   }).exec();
 
   if (!player) {
     throw new ApiError(httpStatus.NOT_FOUND, `Player '${eventBody.player}' not found`);
+  }
+
+  if (player.isAllowedToPlayDO2) {
+    throw new ApiError(httpStatus.NOT_MODIFIED, `Player '${eventBody.player}' is already allowed to play Decked Out 2`);
+  }
+
+  await player.updateOne({
+    server: eventBody.server,
+    isAllowedToPlayDO2: true,
+  });
+  console.log(`Set ${player.playerName} as allowed to play Decked Out 2`);
+}
+
+async function addPlayerToQueue(eventBody: NewCreatedEvent) {
+  const player = await Players.findOne({
+    playerName: eventBody.player,
+  }).exec();
+
+  if (!player) {
+    throw new ApiError(httpStatus.NOT_FOUND, `Player '${eventBody.player}' not found`);
+  }
+
+  if (!player.isAllowedToPlayDO2) {
+    throw new ApiError(httpStatus.PRECONDITION_FAILED, `Player '${eventBody.player}' is not allowed to play Decked Out 2`);
   }
 
   await player.updateOne({

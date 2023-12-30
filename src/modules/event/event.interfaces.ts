@@ -2,6 +2,7 @@ import { Model, Document } from 'mongoose';
 import { QueryResult } from '../paginate/paginate';
 
 export enum PlayerEvents {
+  ALLOWED_TO_PLAY = 'allowed-to-play',
   JOINED_QUEUE = 'joined-queue',
   READY_FOR_DUNGEON = 'ready-for-dungeon',
   DUNGEON_STARTED = 'dungeon-started',
