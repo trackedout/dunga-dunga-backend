@@ -25,8 +25,6 @@ export default router;
  *     summary: Create an event
  *     description: Log a dungeon event from one of the Decked Out 2 instances.
  *     tags: [Events]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -89,8 +87,6 @@ export default router;
  *     summary: Get all events
  *     description: Only admins can retrieve all events.
  *     tags: [Events]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: name

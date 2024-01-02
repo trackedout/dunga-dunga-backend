@@ -23,7 +23,6 @@ components:
         sourceIP:
           type: string
       example:
-        id: 5ebac53as2cxasidoi0213kjzx
         name: joined-network
         player: 4Ply
         server: lobby_1
@@ -51,6 +50,32 @@ components:
         player: 4Ply
         server: lobby_1
         deckId: "1"
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        arguments:
+          type: array
+          items:
+            type: string
+        targetPlayer:
+          type: string
+        server:
+          type: string
+        sourceIP:
+          type: string
+      example:
+        type: bungee-message
+        targetPlayer: 4Ply
+        arguments:
+          - Connect
+          - builders
+        server: lobby
+        sourceIP: "127.0.0.1"
 
     Error:
       type: object
