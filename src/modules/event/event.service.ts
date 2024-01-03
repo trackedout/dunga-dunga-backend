@@ -7,7 +7,7 @@ import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
 import { IEventDoc, NewCreatedEvent, PlayerEvents, ServerEvents, UpdateEventBody } from './event.interfaces';
 import { QueueStates } from './player.interfaces';
-import { executeRconCommand } from '../rcon/rcon';
+import Task from "../task/task.model";
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -144,7 +144,7 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
     inUse: false,
     requiresRebuild: false,
     name: {
-      $not: /^lobby/,
+      $regex: /^do2-/,
     },
   }).exec();
   if (!dungeonInstance) {
@@ -159,10 +159,15 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
   });
 
   const currentServer = queuedPlayer.server;
-  await executeRconCommand(
-    `/execute as ${queuedPlayer.playerName} run proxycommand "server ${dungeonInstance.name}"`,
-    currentServer
-  );
+
+  await Task.create({
+    server: currentServer,
+    type: "bungee-message",
+    state: "SCHEDULED",
+    targetPlayer: queuedPlayer.playerName,
+    arguments: ["Connect", dungeonInstance.name],
+    sourceIP: eventBody.sourceIP,
+  });
 
   await queuedPlayer.updateOne({
     state: QueueStates.IN_DUNGEON,
