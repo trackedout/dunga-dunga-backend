@@ -9,11 +9,13 @@ const cardSchema = new mongoose.Schema<ICardDoc, ICardModel>(
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     player: {
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     server: {
       type: String,
@@ -24,6 +26,7 @@ const cardSchema = new mongoose.Schema<ICardDoc, ICardModel>(
       type: String,
       required: true,
       default: '1',
+      index: true,
     },
   },
   {
