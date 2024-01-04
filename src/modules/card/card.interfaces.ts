@@ -18,4 +18,4 @@ export type UpdateCardBody = Partial<ICard>;
 
 export type NewCreatedCard = Required<ICard>;
 
-export type DeleteCard = Pick<ICard, "server">;
+export type DeleteCard = Exclude<ICard, "server">;
