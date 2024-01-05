@@ -17,6 +17,10 @@ router
   .post(validate(cardValidation.deleteCard), cardController.deleteCard)
 
 router
+  .route('/save-player-deck')
+  .put(validate(cardValidation.savePlayerDeck), cardController.savePlayerDeck)
+
+router
   .route('/:cardId')
   .get(validate(cardValidation.getCard), cardController.getCard)
 
@@ -145,6 +149,51 @@ export default router;
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/Card'
+ *     responses:
+ *       "200":
+ *         description: No content
+ *       "401":
+ *         $ref: '#/components/responses/Unauthorized'
+ *       "403":
+ *         $ref: '#/components/responses/Forbidden'
+ *       "404":
+ *         $ref: '#/components/responses/NotFound'
+ */
+
+/**
+ * @swagger
+ * /inventory/save-player-deck:
+ *   put:
+ *     summary: Overwrites the player's deck with the supplied list of cards
+ *     description: Remove all existing cards and create a new deck with the list of cards provided.
+ *     tags: [Inventory]
+ *     parameters:
+ *       - in: query
+ *         name: player
+ *         schema:
+ *           type: string
+ *         description: Player
+ *       - in: query
+ *         name: server
+ *         schema:
+ *           type: string
+ *         default: lobby_1
+ *         description: Server
+ *       - in: query
+ *         name: deckId
+ *         schema:
+ *           type: string
+ *         default: 1
+ *         description: Deck ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: array
+ *             items:
+ *                type: string
+ *             example: ["moment_of_clarity", "suit_up"]
  *     responses:
  *       "200":
  *         description: No content

@@ -53,3 +53,12 @@ export const deleteCard = {
     deckId: Joi.string(),
   }),
 };
+
+export const savePlayerDeck = {
+  query: Joi.object().keys({
+    player: Joi.string().required().min(3),
+    server: Joi.string().required().min(1),
+    deckId: Joi.string().required().min(1),
+  }),
+  body: Joi.array().items(Joi.string())
+};
