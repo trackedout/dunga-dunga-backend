@@ -20,4 +20,4 @@ export type NewCreatedCard = Required<ICard>;
 
 export type DeleteCard = Pick<ICard, "name" | "player" | "deckId">;
 
-export type SavePlayerDeckFilter = Pick<ICard, "player" | "server" | "deckId">;
+export type OverwritePlayerDeckFilter = Required<Pick<ICard, "player" | "server" | "deckId">>;

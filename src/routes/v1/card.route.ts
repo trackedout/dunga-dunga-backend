@@ -17,8 +17,8 @@ router
   .post(validate(cardValidation.deleteCard), cardController.deleteCard)
 
 router
-  .route('/save-player-deck')
-  .put(validate(cardValidation.savePlayerDeck), cardController.savePlayerDeck)
+  .route('/overwrite-player-deck')
+  .put(validate(cardValidation.overwritePlayerDeck), cardController.overwritePlayerDeck)
 
 router
   .route('/:cardId')
@@ -162,7 +162,7 @@ export default router;
 
 /**
  * @swagger
- * /inventory/save-player-deck:
+ * /inventory/overwrite-player-deck:
  *   put:
  *     summary: Overwrites the player's deck with the supplied list of cards
  *     description: Remove all existing cards and create a new deck with the list of cards provided.

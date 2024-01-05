@@ -54,7 +54,7 @@ export const deleteCard = {
   }),
 };
 
-export const savePlayerDeck = {
+export const overwritePlayerDeck = {
   query: Joi.object().keys({
     player: Joi.string().required().min(3),
     server: Joi.string().required().min(1),

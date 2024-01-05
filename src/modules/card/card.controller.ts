@@ -45,8 +45,8 @@ export const deleteCard = catchAsync(async (req: Request, res: Response) => {
   res.status(httpStatus.NO_CONTENT).send();
 });
 
-export const savePlayerDeck = catchAsync(async (req: Request, res: Response) => {
+export const overwritePlayerDeck = catchAsync(async (req: Request, res: Response) => {
   const filter = pick(req.query, ['player', 'server', 'deckId'])
-  await cardService.savePlayerDeck(filter, req.body);
+  await cardService.overwritePlayerDeck(filter, req.body);
   res.status(httpStatus.NO_CONTENT).send();
 });

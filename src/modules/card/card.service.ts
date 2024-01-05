@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import Card from './card.model';
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
-import { DeleteCard, ICardDoc, NewCreatedCard, SavePlayerDeckFilter, UpdateCardBody } from './card.interfaces';
+import { DeleteCard, ICardDoc, NewCreatedCard, OverwritePlayerDeckFilter, UpdateCardBody } from './card.interfaces';
 import Player from "../event/player.model";
 
 /**
@@ -72,10 +72,10 @@ export const deleteCard = async (filter: DeleteCard): Promise<ICardDoc | null> =
 
 /**
  * Overwrites the existing player deck with the supplied list of cards.
- * @param {SavePlayerDeckFilter} filter - filters to determine which deck to overwrite
+ * @param {OverwritePlayerDeckFilter} filter - filters to determine which deck to overwrite
  * @param {Pick<ICard, "name">[]} cards - The array of new cards to overwrite with
  */
-export const savePlayerDeck = async (filter: SavePlayerDeckFilter, cards: string[]) => {
+export const overwritePlayerDeck = async (filter: OverwritePlayerDeckFilter, cards: string[]) => {
   const { player, server, deckId } = filter;
 
   await Card.deleteMany(filter).exec();
