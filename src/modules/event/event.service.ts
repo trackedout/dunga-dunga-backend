@@ -62,6 +62,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
   } else {
     player.updateOne({
       server: eventBody.server,
+      state: QueueStates.IN_LOBBY
     });
   }
 }
