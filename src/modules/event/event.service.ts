@@ -145,7 +145,7 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
     inUse: false,
     requiresRebuild: false,
     name: {
-      $regex: /^do2-/,
+      $regex: /^d[0-9]{3}/,
     },
   }).exec();
   if (!dungeonInstance) {
