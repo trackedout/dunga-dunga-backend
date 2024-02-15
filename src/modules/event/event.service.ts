@@ -245,33 +245,38 @@ async function clearDungeon(eventBody: NewCreatedEvent) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'No matching dungeon instance found!');
   }
 
-  // send players back to lobby
-
+  // Send players back to lobby
   const players = await Players.find({
     server: eventBody.server,
     state: QueueStates.IN_DUNGEON,
   }).exec();
 
-  const tasks = players.map((player) =>
-    Task.create({
-      server: eventBody.server,
-      type: 'bungee-message',
-      state: 'SCHEDULED',
-      targetPlayer: player.playerName,
-      arguments: ['Connect', 'lobby'],
-      sourceIP: eventBody.sourceIP,
-    })
-  );
-  await Promise.all(tasks);
-
-  const playerTasks = players.map((player) =>
-    player.updateOne({
-      state: QueueStates.IN_LOBBY,
-      server: 'lobby',
-    })
+  // Try to move the players using Paper plugin messaging (currently this is not working)
+  await Promise.all(
+    players.map((player) =>
+      Task.create({
+        server: 'lobby',
+        type: 'bungee-message',
+        state: 'SCHEDULED',
+        arguments: ['ConnectOther', player.playerName, 'lobby'],
+        sourceIP: eventBody.sourceIP,
+      })
+    )
   );
 
-  await Promise.all(playerTasks);
+  // Tell the dungeon instance to kick the players
+  await Promise.all(
+    players.map((player) =>
+      Task.create({
+        server: eventBody.server,
+        type: 'kick-player',
+        state: 'SCHEDULED',
+        targetPlayer: player.playerName,
+        arguments: ['Sending you back to the lobby'],
+        sourceIP: eventBody.sourceIP,
+      })
+    )
+  );
 }
 
 /**
