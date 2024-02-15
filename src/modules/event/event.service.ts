@@ -1,5 +1,6 @@
 import httpStatus from 'http-status';
 import mongoose from 'mongoose';
+import * as net from 'net';
 import Event from './event.model';
 import Players from './player.model';
 import DungeonInstance from './instance.model';
@@ -63,19 +64,19 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
 
 async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
   const player = await Players.findOne({
-    playerName: eventBody.player
+    playerName: eventBody.player,
   }).exec();
 
   if (!player) {
     await Players.create({
       playerName: eventBody.player,
       server: eventBody.server,
-      state: QueueStates.IN_LOBBY
+      state: QueueStates.IN_LOBBY,
     });
   } else {
     player.updateOne({
       server: eventBody.server,
-      state: QueueStates.IN_LOBBY
+      state: QueueStates.IN_LOBBY,
     });
   }
 }
@@ -83,7 +84,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
 async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
   const instance = await DungeonInstance.findOne({
     name: eventBody.server,
-    ip: eventBody.sourceIP
+    ip: eventBody.sourceIP,
   }).exec();
 
   if (!instance) {
@@ -91,19 +92,19 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       name: eventBody.server,
       ip: eventBody.sourceIP,
       inUse: false,
-      requiresRebuild: false
+      requiresRebuild: false,
     });
   } else {
     await instance.updateOne({
       inUse: false,
-      requiresRebuild: false
+      requiresRebuild: false,
     });
   }
 }
 
 async function allowPlayerToPlayDO2(eventBody: NewCreatedEvent) {
   const player = await Players.findOne({
-    playerName: eventBody.player
+    playerName: eventBody.player,
   }).exec();
 
   if (!player) {
@@ -116,14 +117,14 @@ async function allowPlayerToPlayDO2(eventBody: NewCreatedEvent) {
 
   await player.updateOne({
     server: eventBody.server,
-    isAllowedToPlayDO2: true
+    isAllowedToPlayDO2: true,
   });
   console.log(`Set ${player.playerName} as allowed to play Decked Out 2`);
 }
 
 async function addPlayerToQueue(eventBody: NewCreatedEvent) {
   const player = await Players.findOne({
-    playerName: eventBody.player
+    playerName: eventBody.player,
   }).exec();
 
   if (!player) {
@@ -136,16 +137,42 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
 
   await player.updateOne({
     state: QueueStates.IN_QUEUE,
-    server: eventBody.server
+    server: eventBody.server,
   });
   console.log(`Placed ${player.playerName} in the dungeon queue`);
+}
+
+// similar to bash `nc -z -w <timeout> <ip> <port>`
+// e.g. `nc -z -w 1 dungeon 25565`
+function checkIfIpIsReachable(ip: string, port: number = 25565, timeout: number = 1000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+
+    // Set up the timeout
+    const timer = setTimeout(() => {
+      socket.destroy();
+      resolve(false);
+    }, timeout);
+
+    socket
+      .once('connect', () => {
+        clearTimeout(timer);
+        socket.destroy();
+        resolve(true);
+      })
+      .once('error', () => {
+        clearTimeout(timer);
+        resolve(false);
+      })
+      .connect(port, ip);
+  });
 }
 
 async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
   const queuedPlayer = await Players.findOne({
     playerName: eventBody.player,
     state: QueueStates.IN_QUEUE,
-    isAllowedToPlayDO2: true
+    isAllowedToPlayDO2: true,
   })
     .sort({ queueTime: -1 })
     .exec();
@@ -158,18 +185,27 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
     inUse: false,
     requiresRebuild: false,
     name: {
-      $regex: /^d[0-9]{3}/
-    }
+      $regex: /^d[0-9]{3}/,
+    },
   }).exec();
   if (!dungeonInstance) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'No available dungeon instances found!');
   }
+  // validate dungeon instance before connecting
+  // Removes unreachable instances from pool
+  await checkIfIpIsReachable(dungeonInstance.ip).catch((e) => {
+    dungeonInstance.deleteOne();
+    console.error(`Could not reach dungeon instance ${dungeonInstance.name} at ${dungeonInstance.ip}. Removing it from the pool.`);
+    throw new ApiError(httpStatus.BAD_REQUEST, `Failed to connect to the dungeon instance: ${e}`);
+  });
+
+  console.log(`ip: ${dungeonInstance.ip}`);
 
   console.log(`Removing ${queuedPlayer.playerName} from queue and moving them to dungeon instance ${dungeonInstance.name}`);
 
   await dungeonInstance.updateOne({
     inUse: true,
-    requiresRebuild: true
+    requiresRebuild: true,
   });
 
   const currentServer = queuedPlayer.server;
@@ -180,12 +216,12 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
     state: 'SCHEDULED',
     targetPlayer: queuedPlayer.playerName,
     arguments: ['Connect', dungeonInstance.name],
-    sourceIP: eventBody.sourceIP
+    sourceIP: eventBody.sourceIP,
   });
 
   await queuedPlayer.updateOne({
     state: QueueStates.IN_DUNGEON,
-    server: dungeonInstance.name
+    server: dungeonInstance.name,
   });
 }
 
@@ -195,7 +231,7 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
 async function markDungeonAvailable(eventBody: NewCreatedEvent) {
   const dungeonInstance = await DungeonInstance.findOne({
     name: eventBody.server,
-    ip: eventBody.sourceIP
+    ip: eventBody.sourceIP,
   }).exec();
 
   if (!dungeonInstance) {
@@ -204,7 +240,7 @@ async function markDungeonAvailable(eventBody: NewCreatedEvent) {
 
   await dungeonInstance.updateOne({
     inUse: false,
-    requiresRebuild: false
+    requiresRebuild: false,
   });
 }
 
@@ -240,7 +276,7 @@ async function clearDungeon(eventBody: NewCreatedEvent) {
 
   const players = await Players.find({
     server: eventBody.server,
-    state: QueueStates.IN_DUNGEON
+    state: QueueStates.IN_DUNGEON,
   }).exec();
 
   const tasks = players.map((player) =>
@@ -250,7 +286,7 @@ async function clearDungeon(eventBody: NewCreatedEvent) {
       state: 'SCHEDULED',
       targetPlayer: player.playerName,
       arguments: ['Connect', 'lobby'],
-      sourceIP: eventBody.sourceIP
+      sourceIP: eventBody.sourceIP,
     })
   );
   await Promise.all(tasks);
