@@ -1,6 +1,5 @@
 import httpStatus from 'http-status';
 import mongoose from 'mongoose';
-import * as net from 'net';
 import Event from './event.model';
 import Players from './player.model';
 import DungeonInstance from './instance.model';
@@ -142,32 +141,6 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
   console.log(`Placed ${player.playerName} in the dungeon queue`);
 }
 
-// similar to bash `nc -z -w <timeout> <ip> <port>`
-// e.g. `nc -z -w 1 dungeon 25565`
-function checkIfIpIsReachable(ip: string, port: number = 25565, timeout: number = 1000): Promise<boolean> {
-  return new Promise((resolve) => {
-    const socket = new net.Socket();
-
-    // Set up the timeout
-    const timer = setTimeout(() => {
-      socket.destroy();
-      resolve(false);
-    }, timeout);
-
-    socket
-      .once('connect', () => {
-        clearTimeout(timer);
-        socket.destroy();
-        resolve(true);
-      })
-      .once('error', () => {
-        clearTimeout(timer);
-        resolve(false);
-      })
-      .connect(port, ip);
-  });
-}
-
 async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
   const queuedPlayer = await Players.findOne({
     playerName: eventBody.player,
@@ -193,11 +166,11 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
   }
   // validate dungeon instance before connecting
   // Removes unreachable instances from pool
-  await checkIfIpIsReachable(dungeonInstance.ip).catch((e) => {
-    dungeonInstance.deleteOne();
-    console.error(`Could not reach dungeon instance ${dungeonInstance.name} at ${dungeonInstance.ip}. Removing it from the pool.`);
-    throw new ApiError(httpStatus.BAD_REQUEST, `Failed to connect to the dungeon instance: ${e}`);
-  });
+  // await checkIfIpIsReachable(dungeonInstance.ip).catch((e) => {
+  //   dungeonInstance.deleteOne();
+  //   console.error(`Could not reach dungeon instance ${dungeonInstance.name} at ${dungeonInstance.ip}. Removing it from the pool.`);
+  //   throw new ApiError(httpStatus.BAD_REQUEST, `Failed to connect to the dungeon instance: ${e}`);
+  // });
 
   console.log(`ip: ${dungeonInstance.ip}`);
 
