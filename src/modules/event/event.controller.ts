@@ -6,11 +6,14 @@ import ApiError from '../errors/ApiError';
 import pick from '../utils/pick';
 import { IOptions } from '../paginate/paginate';
 import * as eventService from './event.service';
+import config from '../../config/config';
 
 export const createEvent = catchAsync(async (req: Request, res: Response) => {
+  const sourceIP = config.env === 'development' ? req.body.sourceIP : null;
+
   const event = await eventService.createEvent({
     ...req.body,
-    sourceIP: req.ip?.split(':').slice(-1)[0],
+    sourceIP: sourceIP || req.ip?.split(':').slice(-1)[0],
   });
   res.status(httpStatus.CREATED).send(event);
 });
