@@ -8,6 +8,7 @@ import { IOptions, QueryResult } from '../paginate/paginate';
 import { IEventDoc, NewCreatedEvent, PlayerEvents, ServerEvents, UpdateEventBody } from './event.interfaces';
 import { QueueStates } from './player.interfaces';
 import Task from '../task/task.model';
+import { logger } from '../logger';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -118,7 +119,7 @@ async function allowPlayerToPlayDO2(eventBody: NewCreatedEvent) {
     server: eventBody.server,
     isAllowedToPlayDO2: true,
   });
-  console.log(`Set ${player.playerName} as allowed to play Decked Out 2`);
+  logger.info(`Set ${player.playerName} as allowed to play Decked Out 2`);
 }
 
 async function addPlayerToQueue(eventBody: NewCreatedEvent) {
@@ -138,7 +139,7 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     state: QueueStates.IN_QUEUE,
     server: eventBody.server,
   });
-  console.log(`Placed ${player.playerName} in the dungeon queue`);
+  logger.info(`Placed ${player.playerName} in the dungeon queue`);
 }
 
 async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
@@ -168,13 +169,13 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
   // Removes unreachable instances from pool
   // await checkIfIpIsReachable(dungeonInstance.ip).catch((e) => {
   //   dungeonInstance.deleteOne();
-  //   console.error(`Could not reach dungeon instance ${dungeonInstance.name} at ${dungeonInstance.ip}. Removing it from the pool.`);
+  //   logger.error(`Could not reach dungeon instance ${dungeonInstance.name} at ${dungeonInstance.ip}. Removing it from the pool.`);
   //   throw new ApiError(httpStatus.BAD_REQUEST, `Failed to connect to the dungeon instance: ${e}`);
   // });
 
-  console.log(`ip: ${dungeonInstance.ip}`);
+  logger.debug(`Dungeon ip: ${dungeonInstance.ip}`);
 
-  console.log(`Removing ${queuedPlayer.playerName} from queue and moving them to dungeon instance ${dungeonInstance.name}`);
+  logger.info(`Removing ${queuedPlayer.playerName} from queue and moving them to dungeon instance ${dungeonInstance.name}`);
 
   await dungeonInstance.updateOne({
     inUse: true,
