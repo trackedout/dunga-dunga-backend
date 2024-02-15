@@ -4,7 +4,7 @@ import Card from './card.model';
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
 import { DeleteCard, ICardDoc, NewCreatedCard, OverwritePlayerDeckFilter, UpdateCardBody } from './card.interfaces';
-import Player from "../event/player.model";
+import Player from '../event/player.model';
 
 /**
  * Create a Card, associating it with a Player's deck
@@ -12,7 +12,7 @@ import Player from "../event/player.model";
  * @returns {Promise<ICardDoc>}
  */
 export const createCard = async (cardBody: NewCreatedCard): Promise<ICardDoc> => {
-  const player = await Player.findOne({ playerName: cardBody.player, }).exec();
+  const player = await Player.findOne({ playerName: cardBody.player }).exec();
   if (!player) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Player does not exist');
   }
@@ -42,10 +42,7 @@ export const getCardById = async (id: mongoose.Types.ObjectId): Promise<ICardDoc
  * @param {UpdateCardBody} updateBody
  * @returns {Promise<ICardDoc | null>}
  */
-export const updateCardById = async (
-  cardId: mongoose.Types.ObjectId,
-  updateBody: UpdateCardBody
-): Promise<ICardDoc | null> => {
+export const updateCardById = async (cardId: mongoose.Types.ObjectId, updateBody: UpdateCardBody): Promise<ICardDoc | null> => {
   const card = await getCardById(cardId);
   if (!card) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Card not found');
@@ -69,11 +66,10 @@ export const deleteCard = async (filter: DeleteCard): Promise<ICardDoc | null> =
   return card;
 };
 
-
 /**
  * Overwrites the existing player deck with the supplied list of cards.
  * @param {OverwritePlayerDeckFilter} filter - filters to determine which deck to overwrite
- * @param {Pick<ICard, "name">[]} cards - The array of new cards to overwrite with
+ * @param {Pick<ICard, 'name'>[]} cards - The array of new cards to overwrite with
  */
 export const overwritePlayerDeck = async (filter: OverwritePlayerDeckFilter, cards: string[]) => {
   const { player, server, deckId } = filter;
@@ -87,5 +83,5 @@ export const overwritePlayerDeck = async (filter: OverwritePlayerDeckFilter, car
     deckId,
   }));
 
-  await Card.insertMany(newCards)
+  await Card.insertMany(newCards);
 };
