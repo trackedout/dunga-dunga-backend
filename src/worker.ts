@@ -121,11 +121,23 @@ async function assignQueuedPlayersToDungeons() {
   }
 }
 
+async function checkInstanceNetworkConnection() {
+  const instances = await DungeonInstance.find({}).exec();
+  await Promise.all(
+    instances.map((dungeon) =>
+      checkIfIpIsReachable(dungeon.ip).catch(async () => {
+        await dungeon.deleteOne();
+        logger.warn(`Could not reach dungeon instance ${dungeon.name} at ${dungeon.ip}. Removing it from the pool`);
+      })
+    )
+  );
+}
+
 const runWorker = async () => {
   logger.info('Running background worker...');
   await assignQueuedPlayersToDungeons();
-
   // TODO: Run health check for inUse dungeons
+  await checkInstanceNetworkConnection();
 };
 
 const worker = {
