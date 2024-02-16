@@ -123,14 +123,17 @@ async function assignQueuedPlayersToDungeons() {
 
 async function checkInstanceNetworkConnection() {
   const instances = await DungeonInstance.find({}).exec();
-  await Promise.all(
-    instances.map((dungeon) =>
-      checkIfIpIsReachable(dungeon.ip).catch(async () => {
-        await dungeon.deleteOne();
+  instances.forEach((dungeon) => {
+    const reachable = checkIfIpIsReachable(dungeon.ip).catch(async () => {
+      return false;
+    });
+    reachable.then((result) => {
+      if (!result) {
+        dungeon.deleteOne();
         logger.warn(`Could not reach dungeon instance ${dungeon.name} at ${dungeon.ip}. Removing it from the pool`);
-      })
-    )
-  );
+      }
+    });
+  });
 }
 
 const runWorker = async () => {
