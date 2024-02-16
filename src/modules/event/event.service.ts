@@ -82,24 +82,28 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
 }
 
 async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
-  const instance = await DungeonInstance.findOne({
+  // remove old records with the same hostname or IP address
+  await DungeonInstance.find({
+    name: eventBody.server
+  }).deleteMany()
+  await DungeonInstance.find({
+    ip: eventBody.sourceIP
+  }).deleteMany()
+
+  // create new instance
+  const instance = await DungeonInstance.create({
     name: eventBody.server,
     ip: eventBody.sourceIP,
-  }).exec();
+    inUse: false,
+    requiresRebuild: false,
+  });
 
-  if (!instance) {
-    await DungeonInstance.create({
-      name: eventBody.server,
-      ip: eventBody.sourceIP,
-      inUse: false,
-      requiresRebuild: false,
-    });
-  } else {
-    await instance.updateOne({
-      inUse: false,
-      requiresRebuild: false,
-    });
-  }
+  // mark in-use
+  await instance.updateOne({
+    inUse: false,
+    requiresRebuild: false,
+  });
+
 }
 
 async function allowPlayerToPlayDO2(eventBody: NewCreatedEvent) {
