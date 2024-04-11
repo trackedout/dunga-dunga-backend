@@ -1,14 +1,92 @@
 version: '3'
 
 services:
-  mongo:
-    volumes:
-      - ./data:/data/db
 
-  app:
-    container_name: dunga-dunga-dev
+  dunga-dunga:
+    container_name: dunga-dunga
     command: yarn dev -L
+    volumes:
+      - ./src:/usr/src/app/src:ro
 
-volumes:
-  mongo-data:
-    driver: local
+  agronet:
+    # TODO: Build jar before starting
+    container_name: agronet
+    build:
+      context: ../dungeonmaster/dockerfiles
+    extends: {file: ../dungeonmaster/dungeon-instance.yml, service: dungeon}
+    deploy: {replicas: 1}
+    ports:
+      - 24001:24001/udp
+    environment: {CFG_VOICE_PORT: "24001", CFG_VOICE_HOST: "localhost"}
+    depends_on:
+      - dunga-dunga
+    networks:
+      - backend
+
+  velocity:
+    image: itzg/bungeecord
+    container_name: velocity
+    ports: [ "0.0.0.0:25565:25577", "0.0.0.0:8804:8804" ]
+    user: "1001:1001"
+    depends_on:
+      - mongodb
+      - redis
+      - dunga-dunga
+    environment:
+      TYPE: VELOCITY
+      TZ: America/Los_Angeles
+      INIT_MEMORY: 1G
+      MAX_MEMORY: 2G
+      ENABLE_RCON: "TRUE"
+      RCON_PORT: 25575
+      RCON_PASSWORD: minecraft
+      COPY_CONFIG_DEST: /server
+      SYNC_SKIP_NEWER_IN_DESTINATION: "FALSE"
+      PLUGINS: /pluginfiles
+      REMOVE_OLD_MODS: "TRUE"
+    networks:
+      - backend
+    volumes:
+      - ./servers/velocity:/server
+      - ../davybones/server-resources/secrets/velocity_forwarding.secret:/server/forwarding.secret:ro
+      - ../davybones/server-resources/config/velocity:/config:ro
+      - ../davybones/server-resources/plugins/proxy:/pluginfiles:ro
+
+  mariadb:
+    image: library/mariadb
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: mysqlroot
+      MYSQL_DATABASE: plan
+    networks:
+      - backend
+    volumes:
+      - ./services/mariadb:/var/lib/mysql:Z
+      - ./services/init_scripts/mariadb-init.sql:/docker-entrypoint-initdb.d/mariadb-init.sql
+
+  mongodb:
+    volumes:
+      #- ./data:/data/db
+      - ./mongo-init/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+  redis:
+    image: redis
+    container_name: redis
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - "-c"
+      #   https://stackoverflow.com/q/68461172
+      # - Double dollars, so that the variable is not expanded by Docker Compose
+      # - Surround by quotes, so that the shell does not split the password
+      # - The ${variable:?message} syntax causes shell to exit with a non-zero
+      #   code and print a message, when the variable is not set or empty
+      - redis-server --requirepass "$${REDIS_PASSWORD:?REDIS_PASSWORD variable is not set}"
+    env_file:
+      - ".env"
+    volumes:
+      - ./services/redis/data:/data
+    networks:
+      - backend
+

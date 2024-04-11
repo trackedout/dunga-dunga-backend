@@ -110,8 +110,7 @@ yarn install
 After setting up node and yarn as shown above, run the following commands to start your development server:
 
 ```bash
-yarn docker:db # Run MongoDB in a docker container - you may need to update the .env file to point to the host's IP if you're not using localhost
-yarn dev # Run API in development mode on localhost:3000
+yarn docker:dev # Run backend in development mode on localhost:3000
 ```
 
 Once both commands above are running, navigate to http://localhost:3000/v1/docs in your browser!

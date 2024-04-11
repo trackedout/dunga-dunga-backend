@@ -13,6 +13,8 @@ import routes from './routes/v1';
 
 const app: Express = express();
 
+console.log('Config:', config);
+
 if (config.env !== 'test') {
   app.use(morgan.successHandler);
   app.use(morgan.errorHandler);

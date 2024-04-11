@@ -1,15 +1,22 @@
 version: '3'
 
 services:
-  mongo:
-    container_name: mongo
-    image: mongo:4.2.1-bionic
+  mongodb:
+    container_name: mongodb
+    image: mongo
     restart: always
     ports:
       - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongodb
+      MONGO_INITDB_ROOT_PASSWORD: mongodb
+      MONGO_INITDB_DATABASE: dunga-dunga
     networks:
       - backend
-  app:
+    volumes:
+      - ./mongo-init/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+  dunga-dunga:
     container_name: ts-node-app
     build:
       context: .
@@ -22,12 +29,13 @@ services:
     ports:
       - ${PORT}:${PORT}
     links:
-      - mongo
+      - mongodb
     depends_on:
-      - mongo
+      - mongodb
     networks:
       - backend
 
 networks:
   backend:
     driver: bridge
+
