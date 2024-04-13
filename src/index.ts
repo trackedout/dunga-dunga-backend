@@ -16,7 +16,7 @@ function runWorker() {
   worker
     .run()
     .then(async () => {
-      await sleep(1000);
+      await sleep(5000);
       runWorker();
     })
     .catch(async (err) => {

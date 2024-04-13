@@ -45,7 +45,7 @@ async function notifyPlayerThatTheirDungeonIsReady(playerName: string, lobbyServ
     type: 'message-player',
     state: 'SCHEDULED',
     targetPlayer: playerName,
-    arguments: ['Your dungeon is ready!'],
+    arguments: [`Your dungeon is ready! Sending you to ${targetServer}`],
     sourceIP: '127.0.0.1',
   });
 
@@ -115,12 +115,12 @@ async function assignQueuedPlayersToDungeons() {
     .exec();
 
   if (playersInQueue.length > 0) {
-    logger.info(`Players in queue: ${playersInQueue}`);
+    logger.debug(`Players in queue: ${playersInQueue.map((p: IPlayerDoc) => p.playerName)}`);
 
     const jobs = playersInQueue.map((player) => attemptToAssignPlayerToDungeon(player));
     await Promise.all(jobs);
   } else {
-    logger.info(`There are no players in queue, skipping queue processing`);
+    logger.debug(`There are no players in queue, skipping queue processing`);
   }
 }
 
