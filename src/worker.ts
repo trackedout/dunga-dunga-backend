@@ -8,15 +8,16 @@ import Task from './modules/task/task.model';
 // similar to bash `nc -z -w <timeout> <ip> <port>`
 // e.g. `nc -z -w 1 dungeon 25565`
 function checkIfIpIsReachable(ip: string, port: number = 25565, timeout: number = 1000): Promise<boolean> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const socket = new net.Socket();
 
     logger.debug(`Checking if ${ip} is reachable`);
     // Set up the timeout
     const timer = setTimeout(() => {
-      logger.error(`Failed to connect to ${ip}:${port} (timeout after ${timeout}ms)`);
+      const errorMessage = `Failed to connect to ${ip}:${port} (timeout after ${timeout}ms)`;
+      logger.error(errorMessage);
       socket.destroy();
-      resolve(false);
+      reject(new Error(errorMessage));
     }, timeout);
 
     socket
@@ -27,9 +28,10 @@ function checkIfIpIsReachable(ip: string, port: number = 25565, timeout: number 
         resolve(true);
       })
       .once('error', () => {
-        logger.error(`Failed to connect to ${ip}:${port} (error encountered during socket connection)`);
+        const errorMessage = `Failed to connect to ${ip}:${port} (error encountered during socket connection)`;
+        logger.error(errorMessage);
         clearTimeout(timer);
-        resolve(false);
+        reject(new Error(errorMessage));
       })
       .connect(port, ip);
   });
@@ -86,8 +88,9 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
     // Removes unreachable instances from pool
     await checkIfIpIsReachable(dungeon.ip).catch(async () => {
       await dungeon.deleteOne();
-      logger.warn(`Could not reach dungeon instance ${dungeon.name} at ${dungeon.ip}. Removing it from the pool`);
-      return attemptToAssignPlayerToDungeon(player);
+      const error = `Could not reach dungeon instance ${dungeon.name} at ${dungeon.ip}. Removing it from the pool`;
+      logger.warn(error);
+      throw new Error(error);
     });
     logger.debug(`Finished checking ${dungeon.ip}'s health`);
 
@@ -124,14 +127,11 @@ async function assignQueuedPlayersToDungeons() {
 async function checkInstanceNetworkConnection() {
   const instances = await DungeonInstance.find({}).exec();
   instances.forEach((dungeon) => {
-    const reachable = checkIfIpIsReachable(dungeon.ip).catch(async () => {
-      return false;
-    });
-    reachable.then((result) => {
-      if (!result) {
-        dungeon.deleteOne();
-        logger.warn(`Could not reach dungeon instance ${dungeon.name} at ${dungeon.ip}. Removing it from the pool`);
-      }
+    checkIfIpIsReachable(dungeon.ip).catch(async () => {
+      logger.warn(`Could not reach dungeon instance ${dungeon.name} at ${dungeon.ip}. Removing it from the pool`);
+      await dungeon.deleteOne();
+
+      return null;
     });
   });
 }

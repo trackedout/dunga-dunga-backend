@@ -20,7 +20,7 @@ function runWorker() {
       runWorker();
     })
     .catch(async (err) => {
-      logger.error('Error running background worker', err);
+      logger.error('Error running background worker:', err);
       await sleep(5000);
       runWorker();
     });
