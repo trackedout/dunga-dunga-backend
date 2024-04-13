@@ -25,7 +25,7 @@ components:
       example:
         name: joined-network
         player: 4Ply
-        server: lobby_1
+        server: lobby
         sourceIP: "127.0.0.1"
         x: 0
         y: 0
@@ -48,8 +48,24 @@ components:
       example:
         name: moment_of_clarity
         player: 4Ply
-        server: lobby_1
+        server: lobby
         deckId: "1"
+
+    Item:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        player:
+          type: string
+        server:
+          type: string
+      example:
+        name: crown
+        player: 4Ply
+        server: lobby
 
     Task:
       type: object
