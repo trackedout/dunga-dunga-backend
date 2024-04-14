@@ -209,7 +209,7 @@ Download the latest OpenAPI generator as shown in https://github.com/OpenAPITool
 Then execute the following:
 
 ```bash
-java -jar ~/Downloads/openapi-generator-cli-7.1.0.jar generate -i http://localhost:3000/v1/docs/swagger.json -g kotlin -o ./agronet-fabric/ --skip-validate-spec --global-property apis,models,supportingFiles -c ./agronet-fabric/openapi-config.yaml
+java -jar openapi-generator-cli.jar generate -i http://localhost:3000/v1/docs/swagger.json -g kotlin -o ./agronet-fabric/ --skip-validate-spec --global-property apis,models,supportingFiles,apiDocs=false,modelDocs=false -c ./agronet-fabric/openapi-config.yaml
 ```
 
 NOTE that this is a DANGEROUS operation as this may overwite critical files like build.gradle!
