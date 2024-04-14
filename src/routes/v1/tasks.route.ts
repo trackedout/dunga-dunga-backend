@@ -181,7 +181,7 @@ export default router;
  *         content:
  *           application/json:
  *             schema:
- *                $ref: '#/components/schemas/Task'
+ *               $ref: '#/components/schemas/Task'
  *       "400":
  *         $ref: '#/components/responses/DuplicateEmail'
  *       "401":

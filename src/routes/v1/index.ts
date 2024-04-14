@@ -3,6 +3,7 @@ import docsRoute from './swagger.route';
 import eventRoute from './event.route';
 import cardRoute from './card.route';
 import tasksRoute from './tasks.route';
+import statusRoute from './status.route';
 import config from '../../config/config';
 
 const router = express.Router();
@@ -24,6 +25,10 @@ const defaultIRoute: IRoute[] = [
   {
     path: '/tasks',
     route: tasksRoute,
+  },
+  {
+    path: '/status',
+    route: statusRoute,
   },
 ];
 

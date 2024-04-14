@@ -93,6 +93,37 @@ components:
         server: lobby
         sourceIP: "127.0.0.1"
 
+    StatusSection:
+      type: object
+      properties:
+        header:
+          type: string
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: number
+      example:
+        header: Instances
+        lines:
+          - key: Total
+            value: 3
+
+    Status:
+      type: array
+      items:
+        type: object
+        $ref: '#/components/schemas/StatusSection'
+      example:
+        - header: Instances
+          lines:
+            - key: Total
+              value: 3
+
     Error:
       type: object
       properties:
