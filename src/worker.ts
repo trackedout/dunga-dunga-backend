@@ -67,9 +67,9 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
     {
       inUse: false,
       requiresRebuild: false,
-      // name: {
-      //   $regex: /^d[0-9]{3}/,
-      // },
+      name: {
+        $regex: /^d[0-9]{3}/,
+      },
     },
     {
       inUse: true,
