@@ -8,7 +8,11 @@ export const getStatus = catchAsync(async (_req: Request, res: Response) => {
   // const filter = pick(req.query, ['name', 'server', 'player', 'deckId']);
   // const options: IOptions = pick(req.query, ['sortBy', 'limit', 'page', 'projectBy']);
 
-  const instances = await DungeonInstance.find({}).exec();
+  const instances = await DungeonInstance.find({
+    name: {
+      $regex: /^d[0-9]{3}/,
+    },
+  }).exec();
   const players = await Player.find({}).exec();
 
   const status = [
@@ -16,8 +20,14 @@ export const getStatus = catchAsync(async (_req: Request, res: Response) => {
       header: `§3Instances (${instances.length} total)`,
       lines: [
         {
+          key: '§aAvailable',
+          value: instances.filter((instance) => {
+            return !instance.inUse && !instance.requiresRebuild && instance.activePlayers === 0;
+          }).length,
+        },
+        {
           key: '§bIn use',
-          value: instances.filter((instance) => instance.inUse).length,
+          value: instances.filter((instance) => instance.inUse && !instance.requiresRebuild).length,
         },
         {
           key: '§cRebuilding',
@@ -29,11 +39,11 @@ export const getStatus = catchAsync(async (_req: Request, res: Response) => {
       header: `§3Players (${players.length} stored in DB)`,
       lines: [
         {
-          key: '§bIn game',
+          key: '§aIn game',
           value: players.filter((player) => player.state === QueueStates.IN_DUNGEON).length,
         },
         {
-          key: '§aIn lobby',
+          key: '§bIn lobby',
           value: players.filter((player) => player.state === QueueStates.IN_LOBBY).length,
         },
         {
