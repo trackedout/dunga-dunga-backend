@@ -38,6 +38,10 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         await createDungeonInstanceRecordIfMissing(eventBody);
         break;
 
+      case ServerEvents.SERVER_CLOSING:
+        await markDungeonAsStale(eventBody);
+        break;
+
       case PlayerEvents.DUNGEON_READY:
         await markDungeonAvailable(eventBody);
         break;
@@ -74,7 +78,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
       state: QueueStates.IN_LOBBY,
     });
   } else {
-    player.updateOne({
+    await player.updateOne({
       server: eventBody.server,
       state: QueueStates.IN_LOBBY,
     });
@@ -84,26 +88,20 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
 async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
   // remove old records with the same hostname or IP address
   await DungeonInstance.find({
-    name: eventBody.server
-  }).deleteMany()
+    name: eventBody.server,
+  }).deleteMany();
   await DungeonInstance.find({
-    ip: eventBody.sourceIP
-  }).deleteMany()
+    ip: eventBody.sourceIP,
+  }).deleteMany();
 
   // create new instance
-  const instance = await DungeonInstance.create({
+  await DungeonInstance.create({
     name: eventBody.server,
     ip: eventBody.sourceIP,
-    inUse: false,
+    inUse: eventBody.count > 0,
     requiresRebuild: false,
+    activePlayers: eventBody.count,
   });
-
-  // mark in-use
-  await instance.updateOne({
-    inUse: false,
-    requiresRebuild: false,
-  });
-
 }
 
 async function allowPlayerToPlayDO2(eventBody: NewCreatedEvent) {
@@ -219,6 +217,21 @@ async function markDungeonAvailable(eventBody: NewCreatedEvent) {
   await dungeonInstance.updateOne({
     inUse: false,
     requiresRebuild: false,
+  });
+}
+
+async function markDungeonAsStale(eventBody: NewCreatedEvent) {
+  const dungeonInstance = await DungeonInstance.findOne({
+    name: eventBody.server,
+    ip: eventBody.sourceIP,
+  }).exec();
+
+  if (!dungeonInstance) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'No matching dungeon instance found!');
+  }
+
+  await dungeonInstance.updateOne({
+    requiresRebuild: true,
   });
 }
 

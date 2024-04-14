@@ -15,6 +15,7 @@ export enum PlayerEvents {
 
 export enum ServerEvents {
   SERVER_ONLINE = 'server-online',
+  SERVER_CLOSING = 'server-closing',
 }
 
 export interface IEvent {
