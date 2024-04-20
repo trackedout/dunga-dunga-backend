@@ -4,6 +4,7 @@ import logger from './modules/logger/logger';
 import { IPlayerDoc, QueueStates } from './modules/event/player.interfaces';
 import DungeonInstance from './modules/event/instance.model';
 import Task from './modules/task/task.model';
+import { notifyOps } from './modules/task';
 
 // similar to bash `nc -z -w <timeout> <ip> <port>`
 // e.g. `nc -z -w 1 dungeon 25565`
@@ -39,6 +40,8 @@ function checkIfIpIsReachable(ip: string, port: number = 25565, timeout: number 
 
 async function notifyPlayerThatTheirDungeonIsReady(playerName: string, lobbyServer: string, targetServer: string) {
   logger.info(`Notifying ${playerName} that their dungeon is ready`);
+
+  await notifyOps(`Sending ${playerName} to ${targetServer}`, lobbyServer);
 
   await Task.create({
     server: lobbyServer,

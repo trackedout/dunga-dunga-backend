@@ -5,7 +5,7 @@ export interface ITask {
   type: string;
   arguments: string[];
   targetPlayer: string;
-  state: "SCHEDULED" | "IN_PROGRESS" | "SUCCEEDED" | "FAILED";
+  state: 'SCHEDULED' | 'IN_PROGRESS' | 'SUCCEEDED' | 'FAILED';
 
   server: string;
   sourceIP: string;

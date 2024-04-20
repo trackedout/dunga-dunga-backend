@@ -4,4 +4,14 @@ import Task from './task.model';
 import * as taskService from './task.service';
 import * as taskValidation from './task.validation';
 
-export { taskController, taskInterfaces, Task, taskService, taskValidation };
+function notifyOps(message: string, lobbyServer: string = 'lobby') {
+  return Task.create({
+    server: lobbyServer,
+    type: 'message-ops',
+    state: 'SCHEDULED',
+    arguments: [`[Dunga Dunga] ${message}`],
+    sourceIP: '127.0.0.1',
+  });
+}
+
+export { taskController, taskInterfaces, Task, taskService, taskValidation, notifyOps };
