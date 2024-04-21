@@ -25,6 +25,10 @@ const playerSchema = new mongoose.Schema<IPlayerDoc, IPlayerModel>(
       required: true,
       default: false,
     },
+    lastSeen: {
+      type: Date,
+      required: false,
+    },
   },
   {
     timestamps: true,

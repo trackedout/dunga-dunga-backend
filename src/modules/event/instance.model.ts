@@ -15,15 +15,24 @@ const instanceSchema = new mongoose.Schema<IInstanceDoc, IInstanceModel>(
       required: true,
       trim: true,
     },
+    reservedBy: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    reservedDate: {
+      type: Date,
+      required: false,
+    },
     activePlayers: {
       type: Number,
       required: false,
       default: 0,
     },
-    inUse: {
-      type: Boolean,
+    state: {
+      type: String,
       required: true,
-      default: false,
+      trim: true,
     },
     requiresRebuild: {
       type: Boolean,

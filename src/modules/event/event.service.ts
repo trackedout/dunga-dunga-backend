@@ -9,6 +9,9 @@ import { IEventDoc, NewCreatedEvent, PlayerEvents, ServerEvents, UpdateEventBody
 import { QueueStates } from './player.interfaces';
 import Task from '../task/task.model';
 import { logger } from '../logger';
+import { notifyOps } from '../task';
+import config from '../../config/config';
+import { InstanceStates } from './instance.interfaces';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -32,6 +35,10 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
 
       case PlayerEvents.JOINED_NETWORK:
         await createPlayerRecordIfMissing(eventBody);
+        break;
+
+      case PlayerEvents.SEEN:
+        await updatePlayerLastSeenDate(eventBody);
         break;
 
       case ServerEvents.SERVER_ONLINE:
@@ -76,32 +83,101 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
       playerName: eventBody.player,
       server: eventBody.server,
       state: QueueStates.IN_LOBBY,
+      lastSeen: new Date(),
     });
   } else {
     await player.updateOne({
       server: eventBody.server,
       state: QueueStates.IN_LOBBY,
+      lastSeen: new Date(),
     });
+  }
+}
+
+async function updatePlayerLastSeenDate(eventBody: NewCreatedEvent) {
+  const player = await Players.findOne({
+    playerName: eventBody.player,
+  }).exec();
+
+  if (player) {
+    await player
+      .updateOne({
+        lastSeen: new Date(),
+      })
+      .exec();
   }
 }
 
 async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
   // remove old records with the same hostname or IP address
-  await DungeonInstance.find({
+  const existingInstance = await DungeonInstance.findOne({
     name: eventBody.server,
-  }).deleteMany();
-  await DungeonInstance.find({
     ip: eventBody.sourceIP,
-  }).deleteMany();
+  }).exec();
 
-  // create new instance
-  await DungeonInstance.create({
-    name: eventBody.server,
-    ip: eventBody.sourceIP,
-    inUse: eventBody.count > 0,
-    requiresRebuild: false,
-    activePlayers: eventBody.count,
-  });
+  if (existingInstance) {
+    // Delete any other copies that are not the one we found above
+    await DungeonInstance.deleteMany({
+      $or: [
+        {
+          name: eventBody.server,
+        },
+        {
+          ip: eventBody.sourceIP,
+        },
+      ],
+      _id: {
+        $ne: existingInstance._id,
+      },
+    })
+      .deleteMany()
+      .exec();
+
+    // Update instance
+    let newState = existingInstance.state;
+    if (eventBody.count > 0) {
+      newState = InstanceStates.IN_USE;
+    }
+
+    const update = {
+      state: newState,
+      requiresRebuild: existingInstance.requiresRebuild || (existingInstance.activePlayers > 0 && eventBody.count === 0),
+      activePlayers: eventBody.count,
+    };
+    await existingInstance.updateOne(update).exec();
+
+    const anUpdateOccurred =
+      existingInstance.state !== update.state ||
+      existingInstance.requiresRebuild !== update.requiresRebuild ||
+      existingInstance.activePlayers !== update.activePlayers;
+    if (anUpdateOccurred || config.env === 'development') {
+      await notifyOps(
+        `Updated ${eventBody.server}: state=${update.state} requiresRebuild=${update.requiresRebuild} activePlayers=${update.activePlayers}`
+      );
+    }
+  } else {
+    await DungeonInstance.find({
+      name: eventBody.server,
+    })
+      .deleteMany()
+      .exec();
+    await DungeonInstance.find({
+      ip: eventBody.sourceIP,
+    })
+      .deleteMany()
+      .exec();
+
+    // create new instance
+    await DungeonInstance.create({
+      name: eventBody.server,
+      ip: eventBody.sourceIP,
+      state: InstanceStates.AVAILABLE,
+      requiresRebuild: false,
+      activePlayers: eventBody.count,
+    });
+
+    await notifyOps(`Registered new dungeon: ${eventBody.server}@${eventBody.sourceIP}`);
+  }
 }
 
 async function allowPlayerToPlayDO2(eventBody: NewCreatedEvent) {
@@ -145,8 +221,9 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
 }
 
 async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
+  const playerName = eventBody.player;
   const queuedPlayer = await Players.findOne({
-    playerName: eventBody.player,
+    playerName,
     state: QueueStates.IN_QUEUE,
     isAllowedToPlayDO2: true,
   })
@@ -154,19 +231,21 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
     .exec();
 
   if (!queuedPlayer) {
-    throw new ApiError(httpStatus.BAD_REQUEST, `Player '${eventBody.player}' is not in the queue`);
+    throw new ApiError(httpStatus.BAD_REQUEST, `Player '${playerName}' is not in the queue`);
   }
 
   const dungeonInstance = await DungeonInstance.findOne({
-    inUse: false,
+    state: InstanceStates.RESERVED,
+    reservedBy: playerName,
     requiresRebuild: false,
     name: {
       $regex: /^d[0-9]{3}/,
     },
   }).exec();
   if (!dungeonInstance) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'No available dungeon instances found!');
+    throw new ApiError(httpStatus.BAD_REQUEST, `No dungeon instance reserved by ${playerName} found!`);
   }
+
   // validate dungeon instance before connecting
   // Removes unreachable instances from pool
   // await checkIfIpIsReachable(dungeonInstance.ip).catch((e) => {
@@ -180,8 +259,7 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
   logger.info(`Removing ${queuedPlayer.playerName} from queue and moving them to dungeon instance ${dungeonInstance.name}`);
 
   await dungeonInstance.updateOne({
-    inUse: true,
-    requiresRebuild: true,
+    state: InstanceStates.AWAITING_PLAYER,
   });
 
   const currentServer = queuedPlayer.server;
@@ -196,11 +274,12 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
   });
 
   await queuedPlayer.updateOne({
-    state: QueueStates.IN_DUNGEON,
+    state: QueueStates.IN_TRANSIT_TO_DUNGEON,
     server: dungeonInstance.name,
   });
 }
 
+// TODO: Agronet does not send this event
 // dungeon-ready
 // - mark instance free at end of run
 // called from instance if players disconnect unexpectedly
@@ -215,7 +294,7 @@ async function markDungeonAvailable(eventBody: NewCreatedEvent) {
   }
 
   await dungeonInstance.updateOne({
-    inUse: false,
+    state: InstanceStates.AVAILABLE,
     requiresRebuild: false,
   });
 }
@@ -233,6 +312,8 @@ async function markDungeonAsStale(eventBody: NewCreatedEvent) {
   await dungeonInstance.updateOne({
     requiresRebuild: true,
   });
+
+  await notifyOps(`${eventBody.server}@${eventBody.sourceIP} is shutting down`);
 }
 
 // runs when instance shuts down or when polling determines the dungeon is unreachable / offline

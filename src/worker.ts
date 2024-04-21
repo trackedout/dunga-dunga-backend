@@ -5,6 +5,8 @@ import { IPlayerDoc, QueueStates } from './modules/event/player.interfaces';
 import DungeonInstance from './modules/event/instance.model';
 import Task from './modules/task/task.model';
 import { notifyOps } from './modules/task';
+import { InstanceStates } from './modules/event/instance.interfaces';
+import config from './config/config';
 
 // similar to bash `nc -z -w <timeout> <ip> <port>`
 // e.g. `nc -z -w 1 dungeon 25565`
@@ -38,8 +40,8 @@ function checkIfIpIsReachable(ip: string, port: number = 25565, timeout: number 
   });
 }
 
-async function notifyPlayerThatTheirDungeonIsReady(playerName: string, lobbyServer: string, targetServer: string) {
-  logger.info(`Notifying ${playerName} that their dungeon is ready`);
+async function movePlayerToDungeon(playerName: string, lobbyServer: string, targetServer: string) {
+  logger.info(`Notifying ${playerName} that their dungeon is ready, and moving them to that server`);
 
   await notifyOps(`Sending ${playerName} to ${targetServer}`, lobbyServer);
 
@@ -68,15 +70,16 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
 
   const dungeon = await DungeonInstance.findOneAndUpdate(
     {
-      inUse: false,
+      state: InstanceStates.AVAILABLE,
       requiresRebuild: false,
       name: {
         $regex: /^d[0-9]{3}/,
       },
     },
     {
-      inUse: true,
-      requiresRebuild: true,
+      state: InstanceStates.RESERVED,
+      reservedBy: playerName,
+      reservedDate: Date.now(),
     },
     {
       // Return the updated document after executing this update
@@ -97,13 +100,12 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
     });
     logger.debug(`Finished checking ${dungeon.ip}'s health`);
 
-    logger.debug(`Setting ${playerName}'s state as ${QueueStates.IN_DUNGEON}`);
+    logger.debug(`Setting ${playerName}'s state as ${QueueStates.IN_TRANSIT_TO_DUNGEON}`);
     await player.updateOne({
-      state: QueueStates.IN_DUNGEON,
-      server: dungeon.name,
+      state: QueueStates.IN_TRANSIT_TO_DUNGEON,
     });
 
-    await notifyPlayerThatTheirDungeonIsReady(playerName, player.server, dungeon.name);
+    await movePlayerToDungeon(playerName, player.server, dungeon.name);
   } else {
     logger.warn(`Could not find an available dungeon for ${playerName}`);
   }
@@ -130,12 +132,51 @@ async function assignQueuedPlayersToDungeons() {
 async function checkInstanceNetworkConnection() {
   const instances = await DungeonInstance.find({}).exec();
   instances.forEach((dungeon) => {
-    checkIfIpIsReachable(dungeon.ip).catch(async () => {
-      logger.warn(`Could not reach dungeon instance ${dungeon.name} at ${dungeon.ip}. Removing it from the pool`);
-      await dungeon.deleteOne();
+    checkIfIpIsReachable(dungeon.ip)
+      .then(async () => {
+        const cutoffMinutes = config.env === 'development' ? 1 : 5;
+        const reservationCutoffDate = new Date();
+        reservationCutoffDate.setMinutes(reservationCutoffDate.getMinutes() - cutoffMinutes); // You have 5 minutes to enter the instance
+        if (dungeon.state === InstanceStates.RESERVED && dungeon.reservedDate <= reservationCutoffDate) {
+          const message = `Dungeon instance ${dungeon.name} was reserved but unused for over ${cutoffMinutes} minutes, marking it as available`;
+          logger.info(message);
+          await notifyOps(message);
 
-      return null;
-    });
+          const playerName = dungeon.reservedBy;
+          const player = await Players.findOne({
+            playerName,
+            state: QueueStates.IN_TRANSIT_TO_DUNGEON,
+          }).exec();
+          await player
+            ?.updateOne({
+              state: QueueStates.IN_LOBBY,
+            })
+            .exec();
+
+          await Task.create({
+            server: player?.server || 'lobby',
+            type: 'message-player',
+            state: 'SCHEDULED',
+            targetPlayer: playerName,
+            arguments: [`You did not join your dungeon within ${cutoffMinutes} minutes. Your dungeon has been released`],
+            sourceIP: '127.0.0.1',
+          });
+
+          await dungeon
+            .updateOne({
+              state: InstanceStates.AVAILABLE,
+              reservedBy: null,
+              reservationDate: null,
+            })
+            .exec();
+        }
+      })
+      .catch(async () => {
+        logger.warn(`Could not reach dungeon instance ${dungeon.name} at ${dungeon.ip}. Removing it from the pool`);
+        await dungeon.deleteOne();
+
+        return null;
+      });
   });
 }
 

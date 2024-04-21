@@ -4,6 +4,7 @@ import { QueryResult } from '../paginate/paginate';
 export enum QueueStates {
   READY_FOR_DUNGEON = 'ready-for-dungeon',
   IN_DUNGEON = 'in-dungeon',
+  IN_TRANSIT_TO_DUNGEON = 'in-transit-to-dungeon',
   IN_LOBBY = 'in-lobby',
   IN_QUEUE = 'in-queue',
 }
@@ -13,6 +14,7 @@ export interface IPlayer {
   server: string;
   state: QueueStates;
   isAllowedToPlayDO2: boolean;
+  lastSeen: Date;
 }
 
 export interface IPlayerDoc extends IPlayer, Document {}

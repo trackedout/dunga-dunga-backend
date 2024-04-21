@@ -11,6 +11,7 @@ export enum PlayerEvents {
   CLEAR_DUNGEON = 'clear-dungeon',
 
   JOINED_NETWORK = 'joined-network',
+  SEEN = 'player-seen',
 }
 
 export enum ServerEvents {
