@@ -4,7 +4,6 @@ import DungeonInstance from '../event/instance.model';
 import Player from '../event/player.model';
 import { QueueStates } from '../event/player.interfaces';
 import { InstanceStates } from '../event/instance.interfaces';
-import { logger } from '../logger';
 
 export const getStatus = catchAsync(async (_req: Request, res: Response) => {
   // const filter = pick(req.query, ['name', 'server', 'player', 'deckId']);
@@ -26,8 +25,6 @@ export const getStatus = catchAsync(async (_req: Request, res: Response) => {
   const stalePlayers = await Player.find({
     lastSeen: { $lt: staleCutoff },
   }).exec();
-
-  logger.info(`Players: ${JSON.stringify(players)}`);
 
   const status = [
     {
@@ -58,7 +55,7 @@ export const getStatus = catchAsync(async (_req: Request, res: Response) => {
       ],
     },
     {
-      header: `§3Players (${players.length} stored in DB)`,
+      header: `§3Players (${players.length + stalePlayers.length} stored in DB)`,
       lines: [
         {
           key: '§aIn game',
