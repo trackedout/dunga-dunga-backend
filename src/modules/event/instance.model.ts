@@ -39,6 +39,10 @@ const instanceSchema = new mongoose.Schema<IInstanceDoc, IInstanceModel>(
       required: true,
       default: false,
     },
+    unhealthySince: {
+      type: Date,
+      required: false,
+    },
   },
   {
     timestamps: true,

@@ -141,7 +141,7 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
 
     const update = {
       state: newState,
-      requiresRebuild: existingInstance.requiresRebuild || (existingInstance.activePlayers > 0 && eventBody.count === 0),
+      requiresRebuild: existingInstance.requiresRebuild, // || (existingInstance.activePlayers > 0 && eventBody.count === 0),
       activePlayers: eventBody.count,
     };
     await existingInstance.updateOne(update).exec();
@@ -310,7 +310,8 @@ async function markDungeonAsStale(eventBody: NewCreatedEvent) {
   }
 
   await dungeonInstance.updateOne({
-    requiresRebuild: true,
+    state: InstanceStates.BUILDING,
+    unhealthySince: new Date(),
   });
 
   await notifyOps(`${eventBody.server}@${eventBody.sourceIP} is shutting down`);

@@ -50,7 +50,9 @@ export const getStatus = catchAsync(async (_req: Request, res: Response) => {
         },
         {
           key: '§cRebuilding',
-          value: instances.filter((instance) => instance.requiresRebuild).length,
+          value: instances.filter((instance) => {
+            return [InstanceStates.BUILDING, InstanceStates.UNREACHABLE].includes(instance.state) || instance.requiresRebuild;
+          }).length,
         },
       ],
     },
