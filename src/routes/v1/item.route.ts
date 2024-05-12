@@ -35,10 +35,10 @@ export default router;
 
 /**
  * @swagger
- * /inventory/add-item:
+ * /storage/add-item:
  *   post:
- *     summary: Add a item to a player's deck
- *     description: Add a item to a player's deck from one of the Decked Out 2 instances or the lobby server.
+ *     summary: Add an item to a player's deck
+ *     description: Add an item to a player's deck from one of the Decked Out 2 instances or the lobby server.
  *     tags: [Inventory]
  *     requestBody:
  *       required: true
@@ -60,7 +60,7 @@ export default router;
  *       "403":
  *         $ref: '#/components/responses/Forbidden'
  *
- * /inventory/items:
+ * /storage/items:
  *   get:
  *     summary: Get all items
  *     description: Only admins can retrieve all items.
@@ -138,10 +138,10 @@ export default router;
 
 /**
  * @swagger
- * /inventory/delete-item:
+ * /storage/delete-item:
  *   post:
- *     summary: Delete a item
- *     description: Remove a item from a player's deck. If multiple copies of this item exist, only one will be removed.
+ *     summary: Delete an item
+ *     description: Remove an item from a player's deck. If multiple copies of this item exist, only one will be removed.
  *     tags: [Inventory]
  *     requestBody:
  *       required: true
@@ -162,7 +162,7 @@ export default router;
 
 /**
  * @swagger
- * /inventory/overwrite-player-deck:
+ * /storage/overwrite-player-deck:
  *   put:
  *     summary: Overwrites the player's deck with the supplied list of items
  *     description: Remove all existing items and create a new deck with the list of items provided.
