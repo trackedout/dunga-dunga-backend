@@ -40,13 +40,13 @@ export const updateCard = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const deleteCard = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.body, ['name', 'player', 'deckId']);
+  const filter = pick(req.body, ['id', 'name', 'player', 'deckId']);
   await cardService.deleteCard(filter);
   res.status(httpStatus.NO_CONTENT).send();
 });
 
 export const overwritePlayerDeck = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.query, ['player', 'server', 'deckId'])
+  const filter = pick(req.query, ['player', 'server', 'deckId']);
   await cardService.overwritePlayerDeck(filter, req.body);
   res.status(httpStatus.NO_CONTENT).send();
 });
