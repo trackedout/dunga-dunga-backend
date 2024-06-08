@@ -10,8 +10,8 @@ import { QueueStates } from './player.interfaces';
 import Task from '../task/task.model';
 import { logger } from '../logger';
 import { notifyOps } from '../task';
-import config from '../../config/config';
 import { InstanceStates } from './instance.interfaces';
+import { Card } from '../card';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -150,7 +150,7 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       existingInstance.state !== update.state ||
       existingInstance.requiresRebuild !== update.requiresRebuild ||
       existingInstance.activePlayers !== update.activePlayers;
-    if (anUpdateOccurred || config.env === 'development') {
+    if (anUpdateOccurred) {
       await notifyOps(
         `Updated ${eventBody.server}: state=${update.state} requiresRebuild=${update.requiresRebuild} activePlayers=${update.activePlayers}`
       );
@@ -211,6 +211,10 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
 
   if (!player.isAllowedToPlayDO2) {
     throw new ApiError(httpStatus.PRECONDITION_FAILED, `Player '${eventBody.player}' is not allowed to play Decked Out 2`);
+  }
+
+  if (!(await Card.findOne({ player: player.playerName }).exec())) {
+    throw new ApiError(httpStatus.PRECONDITION_FAILED, `Player '${eventBody.player}' has no cards`);
   }
 
   await player.updateOne({

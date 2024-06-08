@@ -60,7 +60,7 @@ export const updateCardById = async (cardId: mongoose.Types.ObjectId, updateBody
 export const deleteCard = async (filter: DeleteCard): Promise<ICardDoc | null> => {
   const card = await Card.findOne(filter).exec();
   if (!card) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Card not found');
+    throw new ApiError(httpStatus.NOT_FOUND, `Card not found for filter ${filter}`);
   }
   await card.deleteOne();
   return card;
