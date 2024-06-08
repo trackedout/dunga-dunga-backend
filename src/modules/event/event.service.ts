@@ -182,6 +182,8 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       state: InstanceStates.BUILDING,
       requiresRebuild: false,
       activePlayers: eventBody.count,
+      unhealthySince: new Date(),
+      healthySince: null,
     });
 
     await notifyOps(`Registered new dungeon: ${eventBody.server}@${eventBody.sourceIP}`);

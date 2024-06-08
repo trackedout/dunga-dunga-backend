@@ -161,7 +161,7 @@ async function assignQueuedPlayersToDungeons() {
 }
 
 async function markDungeonAsHealthy(dungeon: IInstanceDoc) {
-  if (dungeon.state === InstanceStates.UNREACHABLE) {
+  if (dungeon.state === InstanceStates.UNREACHABLE || dungeon.state === InstanceStates.BUILDING) {
     const message = `Dungeon instance ${dungeon.name} at ${dungeon.ip} is now healthy`;
     logger.info(message);
 
