@@ -9,7 +9,7 @@ function notifyOps(message: string, lobbyServer: string = 'lobby') {
     server: lobbyServer,
     type: 'message-ops',
     state: 'SCHEDULED',
-    arguments: [`[Dunga Dunga] ${message}`],
+    arguments: [message],
     sourceIP: '127.0.0.1',
   });
 }

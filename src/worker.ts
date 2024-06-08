@@ -94,12 +94,18 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
   const { playerName } = player;
   logger.info(`Attempting to find an available dungeon for ${playerName}`);
 
+  const minHealthyDateCutoff = new Date();
+  minHealthyDateCutoff.setSeconds(minHealthyDateCutoff.getSeconds() - 15);
+
   const dungeon = await DungeonInstance.findOneAndUpdate(
     {
       state: InstanceStates.AVAILABLE,
       requiresRebuild: false,
       name: {
         $regex: /^d[0-9]{3}/,
+      },
+      healthySince: {
+        $lte: minHealthyDateCutoff,
       },
     },
     {
@@ -174,6 +180,10 @@ async function markDungeonAsHealthy(dungeon: IInstanceDoc) {
 }
 
 async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
+  if (dungeon.name === 'builders') {
+    return dungeon;
+  }
+
   const cutoffMinutes = config.env === 'development' ? 1 : 5;
   const reservationCutoffDate = new Date();
   reservationCutoffDate.setMinutes(reservationCutoffDate.getMinutes() - cutoffMinutes); // You have 5 minutes to enter the instance
@@ -214,31 +224,11 @@ async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
   return dungeon;
 }
 
-async function isLockPresent(type: string, target: string) {
-  const lock = await Lock.findOne({
-    type,
-    target,
-    until: {
-      $gte: new Date(),
-    },
-  });
-
-  return lock !== undefined && lock !== null;
-}
-
-async function takeLock(type: string, target: string, secondsToExpiry: number) {
-  const until = new Date();
-  until.setSeconds(until.getSeconds() + secondsToExpiry);
-  logger.info(`Acquiring ${type} lock for ${target} (expires: ${until})`);
-
-  return Lock.create({
-    type,
-    target,
-    until,
-  });
-}
-
 async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
+  if (dungeon.name === 'builders') {
+    return dungeon;
+  }
+
   const cutoffMinutes = 1;
   const inUseCutoffDate = new Date();
   logger.debug(`Checking whether ${dungeon.name} should be rebuilt`);
@@ -278,6 +268,30 @@ async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
   }
 
   return dungeon;
+}
+
+async function isLockPresent(type: string, target: string) {
+  const lock = await Lock.findOne({
+    type,
+    target,
+    until: {
+      $gte: new Date(),
+    },
+  });
+
+  return lock !== undefined && lock !== null;
+}
+
+async function takeLock(type: string, target: string, secondsToExpiry: number) {
+  const until = new Date();
+  until.setSeconds(until.getSeconds() + secondsToExpiry);
+  logger.info(`Acquiring ${type} lock for ${target} (expires: ${until})`);
+
+  return Lock.create({
+    type,
+    target,
+    until,
+  });
 }
 
 async function checkInstanceNetworkConnection() {
