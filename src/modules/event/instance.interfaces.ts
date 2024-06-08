@@ -9,6 +9,7 @@ export interface IInstance {
   reservedDate: Date;
   activePlayers: number;
   requiresRebuild: boolean;
+  healthySince: Date;
   unhealthySince: Date;
 }
 

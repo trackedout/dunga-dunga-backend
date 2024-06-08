@@ -79,6 +79,7 @@ async function degradeDungeon(dungeon: IInstanceDoc) {
     const update = {
       state: InstanceStates.UNREACHABLE,
       unhealthySince: dungeon.unhealthySince,
+      healthySince: null,
     };
     if (!dungeon.unhealthySince) {
       update.unhealthySince = new Date();
@@ -108,6 +109,7 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
     {
       // Return the updated document after executing this update
       new: true,
+      sort: { healthySince: 1 },
     }
   ).exec();
 
@@ -160,6 +162,7 @@ async function markDungeonAsHealthy(dungeon: IInstanceDoc) {
       .updateOne({
         state: InstanceStates.AVAILABLE,
         unhealthySince: null,
+        healthySince: new Date(),
       })
       .exec();
 
