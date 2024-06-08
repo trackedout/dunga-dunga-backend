@@ -6,6 +6,7 @@ export interface IInstance {
   ip: string;
   state: InstanceStates;
   reservedBy: string;
+  inUseDate: Date;
   reservedDate: Date;
   activePlayers: number;
   requiresRebuild: boolean;

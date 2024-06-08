@@ -4,6 +4,7 @@ import logger from './modules/logger/logger';
 import { IPlayerDoc, QueueStates } from './modules/event/player.interfaces';
 import DungeonInstance from './modules/event/instance.model';
 import Task from './modules/task/task.model';
+import Lock from './modules/lock/lock.model';
 import { notifyOps } from './modules/task';
 import { IInstanceDoc, InstanceStates } from './modules/event/instance.interfaces';
 import config from './config/config';
@@ -140,7 +141,7 @@ async function assignQueuedPlayersToDungeons() {
     state: QueueStates.IN_QUEUE,
     isAllowedToPlayDO2: true,
   })
-    .sort({ queueTime: -1 })
+    .sort({ queueTime: 1 })
     .exec();
 
   if (playersInQueue.length > 0) {
@@ -209,6 +210,74 @@ async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
       })
       .exec();
   }
+
+  return dungeon;
+}
+
+async function isLockPresent(type: string, target: string) {
+  const lock = await Lock.findOne({
+    type,
+    target,
+    until: {
+      $gte: new Date(),
+    },
+  });
+
+  return lock !== undefined && lock !== null;
+}
+
+async function takeLock(type: string, target: string, secondsToExpiry: number) {
+  const until = new Date();
+  until.setSeconds(until.getSeconds() + secondsToExpiry);
+  logger.info(`Acquiring ${type} lock for ${target} (expires: ${until})`);
+
+  return Lock.create({
+    type,
+    target,
+    until,
+  });
+}
+
+async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
+  const cutoffMinutes = 1;
+  const inUseCutoffDate = new Date();
+  logger.info(`Checking whether ${dungeon.name} should be rebuilt`);
+  inUseCutoffDate.setMinutes(inUseCutoffDate.getMinutes() - cutoffMinutes); // If dungeon is empty but marked as in-use, shut it down
+  if (dungeon.state === InstanceStates.IN_USE && dungeon.activePlayers === 0 && dungeon.inUseDate <= inUseCutoffDate) {
+    if (await isLockPresent('tear-down-empty-dungeon', dungeon.name)) {
+      const message = `Lock is present for teardown task for ${dungeon.name}, skipping`;
+      logger.info(message);
+
+      return dungeon;
+    }
+
+    await takeLock('tear-down-empty-dungeon', dungeon.name, 60);
+
+    const message = `Dungeon instance ${dungeon.name} was marked as in-use without any online players over ${cutoffMinutes} minute, tearing it down`;
+    logger.info(message);
+    await notifyOps(message);
+
+    const playerName = dungeon.reservedBy;
+    const player = await Players.findOne({
+      playerName,
+      server: dungeon.name,
+      state: [QueueStates.IN_DUNGEON, QueueStates.IN_TRANSIT_TO_DUNGEON],
+    }).exec();
+    await player
+      ?.updateOne({
+        state: QueueStates.IN_LOBBY,
+      })
+      .exec();
+
+    await Task.create({
+      server: dungeon.name,
+      type: 'shutdown-server-if-empty',
+      state: 'SCHEDULED',
+      sourceIP: '127.0.0.1',
+    });
+  }
+
+  return dungeon;
 }
 
 async function checkInstanceNetworkConnection() {
@@ -217,6 +286,7 @@ async function checkInstanceNetworkConnection() {
     checkIfIpIsReachable(dungeon.ip)
       .then(() => markDungeonAsHealthy(dungeon))
       .then(() => releaseDungeonIfLeaseExpired(dungeon))
+      .then(() => tearDownDungeonIfEmpty(dungeon))
       .catch(async () => {
         await degradeDungeon(dungeon);
 

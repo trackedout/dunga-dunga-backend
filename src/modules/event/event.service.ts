@@ -134,16 +134,16 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       .exec();
 
     // Update instance
-    let newState = existingInstance.state;
-    if (eventBody.count > 0) {
-      newState = InstanceStates.IN_USE;
-    }
-
     const update = {
-      state: newState,
+      state: existingInstance.state,
+      inUseDate: existingInstance.inUseDate || new Date(),
       requiresRebuild: existingInstance.requiresRebuild, // || (existingInstance.activePlayers > 0 && eventBody.count === 0),
       activePlayers: eventBody.count,
     };
+    if (eventBody.count > 0) {
+      update.state = InstanceStates.IN_USE;
+    }
+
     await existingInstance.updateOne(update).exec();
 
     const anUpdateOccurred =

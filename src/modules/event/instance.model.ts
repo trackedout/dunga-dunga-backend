@@ -20,6 +20,10 @@ const instanceSchema = new mongoose.Schema<IInstanceDoc, IInstanceModel>(
       required: false,
       trim: true,
     },
+    inUseDate: {
+      type: Date,
+      required: false,
+    },
     reservedDate: {
       type: Date,
       required: false,
