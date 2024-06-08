@@ -85,6 +85,8 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
       state: QueueStates.IN_LOBBY,
       lastSeen: new Date(),
     });
+
+    await addDefaultCards(eventBody.player);
   } else {
     await player.updateOne({
       server: eventBody.server,
@@ -92,6 +94,12 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
       lastSeen: new Date(),
     });
   }
+}
+
+async function addDefaultCards(playerName: string) {
+  await Card.create({ name: 'moment_of_clarity', player: playerName, server: 'lobby', deckId: '1' });
+  await Card.create({ name: 'sneak', player: playerName, server: 'lobby', deckId: '1' });
+  await Card.create({ name: 'treasure_hunter', player: playerName, server: 'lobby', deckId: '1' });
 }
 
 async function updatePlayerLastSeenDate(eventBody: NewCreatedEvent) {

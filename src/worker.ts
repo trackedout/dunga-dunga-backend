@@ -241,7 +241,7 @@ async function takeLock(type: string, target: string, secondsToExpiry: number) {
 async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
   const cutoffMinutes = 1;
   const inUseCutoffDate = new Date();
-  logger.info(`Checking whether ${dungeon.name} should be rebuilt`);
+  logger.debug(`Checking whether ${dungeon.name} should be rebuilt`);
   inUseCutoffDate.setMinutes(inUseCutoffDate.getMinutes() - cutoffMinutes); // If dungeon is empty but marked as in-use, shut it down
   if (dungeon.state === InstanceStates.IN_USE && dungeon.activePlayers === 0 && dungeon.inUseDate <= inUseCutoffDate) {
     if (await isLockPresent('tear-down-empty-dungeon', dungeon.name)) {
