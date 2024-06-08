@@ -18,6 +18,12 @@ export const createTask = catchAsync(async (req: Request, res: Response) => {
 export const getTasks = catchAsync(async (req: Request, res: Response) => {
   const filter = pick(req.query, ['type', 'server', 'targetPlayer', 'state']);
   const options: IOptions = pick(req.query, ['sortBy', 'limit', 'page', 'projectBy']);
+  const minDate = new Date();
+  minDate.setMinutes(minDate.getMinutes() - 1);
+  filter.createdAt = {
+    $gte: minDate,
+  };
+
   const result = await taskService.queryTasks(filter, options);
   res.send(result);
 });
