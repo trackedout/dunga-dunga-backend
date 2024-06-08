@@ -179,7 +179,7 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
     await DungeonInstance.create({
       name: eventBody.server,
       ip: eventBody.sourceIP,
-      state: InstanceStates.AVAILABLE,
+      state: InstanceStates.BUILDING,
       requiresRebuild: false,
       activePlayers: eventBody.count,
     });
