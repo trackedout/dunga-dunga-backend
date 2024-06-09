@@ -62,6 +62,10 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         await markDungeonAvailable(eventBody);
         break;
 
+      case ServerEvents.SHUTDOWN_ALL_EMPTY_DUNGEONS:
+        await shutdownAllEmptyDungeons();
+        break;
+
       default:
         break;
     }
@@ -388,6 +392,29 @@ async function clearDungeon(eventBody: NewCreatedEvent) {
         targetPlayer: player.playerName,
         arguments: ['Sending you back to the lobby'],
         sourceIP: eventBody.sourceIP,
+      })
+    )
+  );
+}
+
+async function shutdownAllEmptyDungeons() {
+  const message = 'Shutting down all empty instances!';
+  logger.info(message);
+  await notifyOps(message);
+
+  const instances = await DungeonInstance.find({
+    name: {
+      $regex: /^d[0-9]{3}/,
+    },
+  }).exec();
+
+  await Promise.all(
+    instances.map((dungeon) =>
+      Task.create({
+        server: dungeon.name,
+        type: 'shutdown-server-if-empty',
+        state: 'SCHEDULED',
+        sourceIP: '127.0.0.1',
       })
     )
   );

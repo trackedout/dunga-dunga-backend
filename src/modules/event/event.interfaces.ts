@@ -17,6 +17,8 @@ export enum PlayerEvents {
 export enum ServerEvents {
   SERVER_ONLINE = 'server-online',
   SERVER_CLOSING = 'server-closing',
+
+  SHUTDOWN_ALL_EMPTY_DUNGEONS = 'shutdown-all-empty-dungeons',
 }
 
 export interface IEvent {
