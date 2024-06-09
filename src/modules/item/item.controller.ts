@@ -44,9 +44,3 @@ export const deleteItem = catchAsync(async (req: Request, res: Response) => {
   await itemService.deleteItem(filter);
   res.status(httpStatus.NO_CONTENT).send();
 });
-
-export const overwritePlayerDeck = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.query, ['player', 'server', 'deckId'])
-  await itemService.overwritePlayerDeck(filter, req.body);
-  res.status(httpStatus.NO_CONTENT).send();
-});

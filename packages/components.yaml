@@ -93,6 +93,22 @@ components:
         server: lobby
         sourceIP: "127.0.0.1"
 
+    Score:
+      type: object
+      properties:
+        id:
+          type: string
+        player:
+          type: string
+        key:
+          type: string
+        value:
+          type: number
+      example:
+        player: 4Ply
+        key: do2.wins
+        value: 1
+
     StatusSection:
       type: object
       properties:

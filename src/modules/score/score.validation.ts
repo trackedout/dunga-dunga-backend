@@ -1,24 +1,24 @@
 import Joi from 'joi';
 import { password, objectId } from '../validate/custom.validation';
-import { NewCreatedItem } from './item.interfaces';
+import { NewCreatedScore } from './score.interfaces';
 
-const createItemBody: Record<keyof NewCreatedItem, any> = {
-  name: Joi.string().required().min(3),
+const createScoreBody: Record<keyof NewCreatedScore, any> = {
   player: Joi.string().required().min(1),
-  server: Joi.string().required().min(1),
-  deckId: Joi.string().optional().min(1),
+  key: Joi.string().required().min(3),
+  value: Joi.number().required().min(0),
 };
 
-export const createItem = {
-  body: Joi.object().keys(createItemBody),
+export const createScore = {
+  body: Joi.object().keys(createScoreBody),
 };
 
-export const getItems = {
+export const createScores = {
+  body: Joi.array().items(createScoreBody).min(1),
+};
+
+export const getScores = {
   query: Joi.object().keys({
-    name: Joi.string(),
     player: Joi.string().required(),
-    server: Joi.string(),
-    deckId: Joi.string().required(),
 
     sortBy: Joi.string(),
     projectBy: Joi.string(),
@@ -27,15 +27,15 @@ export const getItems = {
   }),
 };
 
-export const getItem = {
+export const getScore = {
   params: Joi.object().keys({
-    itemId: Joi.string().custom(objectId),
+    scoreId: Joi.string().custom(objectId),
   }),
 };
 
-export const updateItem = {
+export const updateScore = {
   params: Joi.object().keys({
-    itemId: Joi.required().custom(objectId),
+    scoreId: Joi.required().custom(objectId),
   }),
   body: Joi.object()
     .keys({
@@ -46,10 +46,12 @@ export const updateItem = {
     .min(1),
 };
 
-export const deleteItem = {
+export const deleteScore = {
   body: Joi.object().keys({
+    id: Joi.string(),
     name: Joi.string(),
     player: Joi.string().required(),
     deckId: Joi.string().required(),
+    server: Joi.string(),
   }),
 };

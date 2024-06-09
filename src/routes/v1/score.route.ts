@@ -1,75 +1,68 @@
 import express, { Router } from 'express';
 import { validate } from '../../modules/validate';
-import { itemController, itemValidation } from '../../modules/item';
+import { scoreController, scoreValidation } from '../../modules/score';
 
 const router: Router = express.Router();
 
-router.route('/items').get(validate(itemValidation.getItems), itemController.getItems);
+router
+  .route('/')
+  .get(validate(scoreValidation.getScores), scoreController.getScores)
+  .post(validate(scoreValidation.createScores), scoreController.createScores);
 
-router.route('/add-item').post(validate(itemValidation.createItem), itemController.createItem);
+router.route('/add-score').post(validate(scoreValidation.createScore), scoreController.createScore);
 
-router.route('/delete-item').post(validate(itemValidation.deleteItem), itemController.deleteItem);
-
-router.route('/:itemId').get(validate(itemValidation.getItem), itemController.getItem);
+router.route('/delete-score').post(validate(scoreValidation.deleteScore), scoreController.deleteScore);
 
 export default router;
 
 /**
  * @swagger
  * tags:
- *   name: Inventory
- *   description: Inventory management and retrieval
+ *   name: Score
+ *   description: Score management and retrieval
  */
 
 /**
  * @swagger
- * /storage/add-item:
+ * /scores/add-score:
  *   post:
- *     summary: Add an item to a player's deck
- *     description: Add an item to a player's deck from one of the Decked Out 2 instances or the lobby server.
- *     tags: [Inventory]
+ *     summary: Add a score
+ *     description: Add a score for a player
+ *     tags: [Score]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Item'
+ *             $ref: '#/components/schemas/Score'
  *     responses:
  *       "201":
  *         description: Created
  *         content:
  *           application/json:
  *             schema:
- *                $ref: '#/components/schemas/Item'
+ *                $ref: '#/components/schemas/Score'
  *       "400":
  *         $ref: '#/components/responses/DuplicateEmail'
  *       "401":
  *         $ref: '#/components/responses/Unauthorized'
  *       "403":
  *         $ref: '#/components/responses/Forbidden'
- *
- * /storage/items:
+ */
+
+/**
+ * @swagger
+ * /scores:
  *   get:
- *     summary: Get all items
- *     description: Only admins can retrieve all items.
- *     tags: [Inventory]
+ *     summary: Get all scores
+ *     description: Only admins can retrieve all scores.
+ *     tags: [Score]
  *     parameters:
- *       - in: query
- *         name: name
- *         schema:
- *           type: string
- *         description: Item name
  *       - in: query
  *         name: player
  *         schema:
  *           type: string
  *         description: Player
- *       - in: query
- *         name: deckId
- *         schema:
- *           type: string
- *         default: 1
- *         description: Deck ID
  *       - in: query
  *         name: sortBy
  *         schema:
@@ -86,7 +79,7 @@ export default router;
  *           type: integer
  *           minimum: 1
  *         default: 50
- *         description: Maximum number of items
+ *         description: Maximum number of scores
  *       - in: query
  *         name: page
  *         schema:
@@ -105,7 +98,7 @@ export default router;
  *                 results:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Item'
+ *                     $ref: '#/components/schemas/Score'
  *                 page:
  *                   type: integer
  *                   example: 1
@@ -126,17 +119,17 @@ export default router;
 
 /**
  * @swagger
- * /storage/delete-item:
+ * /scores/delete-score:
  *   post:
- *     summary: Delete an item
- *     description: Remove an item from a player's deck. If multiple copies of this item exist, only one will be removed.
- *     tags: [Inventory]
+ *     summary: Delete a score
+ *     description: Remove a score from a player's deck. If multiple copies of this score exist, only one will be removed.
+ *     tags: [Score]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Item'
+ *             $ref: '#/components/schemas/Score'
  *     responses:
  *       "200":
  *         description: No content
@@ -150,29 +143,11 @@ export default router;
 
 /**
  * @swagger
- * /storage/overwrite-player-deck:
- *   put:
- *     summary: Overwrites the player's deck with the supplied list of items
- *     description: Remove all existing items and create a new deck with the list of items provided.
- *     tags: [Inventory]
- *     parameters:
- *       - in: query
- *         name: player
- *         schema:
- *           type: string
- *         description: Player
- *       - in: query
- *         name: server
- *         schema:
- *           type: string
- *         default: lobby_1
- *         description: Server
- *       - in: query
- *         name: deckId
- *         schema:
- *           type: string
- *         default: 1
- *         description: Deck ID
+ * /scores:
+ *   post:
+ *     summary: Batch update or insert scores
+ *     description: Batch update or insert scores
+ *     tags: [Score]
  *     requestBody:
  *       required: true
  *       content:
@@ -180,15 +155,33 @@ export default router;
  *           schema:
  *             type: array
  *             items:
- *                type: string
- *             example: ["moment_of_clarity", "suit_up"]
+ *               $ref: '#/components/schemas/Score'
  *     responses:
  *       "200":
- *         description: No content
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Score'
+ *                 page:
+ *                   type: integer
+ *                   example: 1
+ *                 limit:
+ *                   type: integer
+ *                   example: 10
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 1
+ *                 totalResults:
+ *                   type: integer
+ *                   example: 1
  *       "401":
  *         $ref: '#/components/responses/Unauthorized'
  *       "403":
  *         $ref: '#/components/responses/Forbidden'
- *       "404":
- *         $ref: '#/components/responses/NotFound'
  */

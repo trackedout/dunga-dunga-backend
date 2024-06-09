@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import Item from './item.model';
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
-import { DeleteItem, IItemDoc, NewCreatedItem, OverwritePlayerDeckFilter, UpdateItemBody } from './item.interfaces';
+import { DeleteItem, IItemDoc, NewCreatedItem, UpdateItemBody } from './item.interfaces';
 import Player from '../event/player.model';
 
 /**
@@ -64,24 +64,4 @@ export const deleteItem = async (filter: DeleteItem): Promise<IItemDoc | null> =
   }
   await item.deleteOne();
   return item;
-};
-
-/**
- * Overwrites the existing player deck with the supplied list of items.
- * @param {OverwritePlayerDeckFilter} filter - filters to determine which deck to overwrite
- * @param {Pick<IItem, 'name'>[]} items - The array of new items to overwrite with
- */
-export const overwritePlayerDeck = async (filter: OverwritePlayerDeckFilter, items: string[]) => {
-  const { player, server, deckId } = filter;
-
-  await Item.deleteMany(filter).exec();
-
-  const newItems = items.map((name) => ({
-    name,
-    player,
-    server,
-    deckId,
-  }));
-
-  await Item.insertMany(newItems);
 };

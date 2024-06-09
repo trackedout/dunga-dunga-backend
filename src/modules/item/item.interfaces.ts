@@ -19,5 +19,3 @@ export type UpdateItemBody = Partial<IItem>;
 export type NewCreatedItem = Required<IItem>;
 
 export type DeleteItem = Pick<IItem, 'name' | 'player' | 'deckId'>;
-
-export type OverwritePlayerDeckFilter = Required<Pick<IItem, 'player' | 'server' | 'deckId'>>;
