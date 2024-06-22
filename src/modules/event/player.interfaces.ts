@@ -14,6 +14,7 @@ export interface IPlayer {
   server: string;
   state: QueueStates;
   isAllowedToPlayDO2: boolean;
+  lastSelectedDeck: string;
   lastSeen: Date;
 }
 

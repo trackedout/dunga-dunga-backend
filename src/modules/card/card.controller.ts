@@ -6,6 +6,7 @@ import ApiError from '../errors/ApiError';
 import pick from '../utils/pick';
 import { IOptions } from '../paginate/paginate';
 import * as cardService from './card.service';
+import Player from '../event/player.model';
 
 export const createCard = catchAsync(async (req: Request, res: Response) => {
   const card = await cardService.createCard({
@@ -17,10 +18,26 @@ export const createCard = catchAsync(async (req: Request, res: Response) => {
 
 export const getCards = catchAsync(async (req: Request, res: Response) => {
   const filter = pick(req.query, ['name', 'server', 'player', 'deckId']);
+  if (filter.deckId === 'active') {
+    filter.deckId = await getSelectedDeck(filter.player);
+  }
+
   const options: IOptions = pick(req.query, ['sortBy', 'limit', 'page', 'projectBy']);
   const result = await cardService.queryCards(filter, options);
   res.send(result);
 });
+
+async function getSelectedDeck(playerName: String) {
+  const player = await Player.findOne({
+    playerName,
+  }).exec();
+
+  if (!player) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Player does not exist');
+  }
+
+  return player.lastSelectedDeck || '1';
+}
 
 export const getCard = catchAsync(async (req: Request, res: Response) => {
   if (typeof req.params['cardId'] === 'string') {

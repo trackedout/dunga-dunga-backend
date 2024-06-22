@@ -25,6 +25,11 @@ const playerSchema = new mongoose.Schema<IPlayerDoc, IPlayerModel>(
       required: true,
       default: false,
     },
+    lastSelectedDeck: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     lastSeen: {
       type: Date,
       required: false,

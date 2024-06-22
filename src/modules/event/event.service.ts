@@ -234,8 +234,9 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
   await player.updateOne({
     state: QueueStates.IN_QUEUE,
     server: eventBody.server,
+    lastSelectedDeck: eventBody.count,
   });
-  logger.info(`Placed ${player.playerName} in the dungeon queue`);
+  logger.info(`Placed ${player.playerName} in the dungeon queue with Deck #${eventBody.count}`);
 }
 
 async function movePlayerToDungeon(eventBody: NewCreatedEvent) {

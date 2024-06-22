@@ -18,7 +18,7 @@ export const getCards = {
     name: Joi.string(),
     player: Joi.string().required(),
     server: Joi.string(),
-    deckId: Joi.string().required(),
+    deckId: Joi.string(),
 
     sortBy: Joi.string(),
     projectBy: Joi.string(),
