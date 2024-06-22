@@ -148,6 +148,10 @@ async function assignQueuedPlayersToDungeons() {
   const playersInQueue = await Players.find({
     state: QueueStates.IN_QUEUE,
     isAllowedToPlayDO2: true,
+    lastSeen: {
+      // Seen in the last 3 minutes
+      $gte: new Date(Date.now() - 1000 * 60 * 3),
+    },
   })
     .sort({ queueTime: 1 })
     .exec();
@@ -272,6 +276,53 @@ async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
   return dungeon;
 }
 
+async function movePlayersToDungeons() {
+  const playersThatNeedToMove = await Players.find({
+    state: QueueStates.IN_TRANSIT_TO_DUNGEON,
+    lastSeen: {
+      // Seen in the last minute
+      $gte: new Date(Date.now() - 1000 * 60),
+    },
+  })
+    .sort({ queueTime: 1 })
+    .exec();
+
+  if (playersThatNeedToMove.length > 0) {
+    logger.debug(`Players that need to enter their dungeon: ${playersThatNeedToMove.map((p: IPlayerDoc) => p.playerName)}`);
+
+    const jobs = playersThatNeedToMove.map(async (player) => {
+      const { playerName } = player;
+
+      if (await isLockPresent('move-to-dungeon', playerName)) {
+        const message = `Lock is present for ${playerName}'s move-to-dungeon task, skipping`;
+        logger.info(message);
+
+        return null;
+      }
+
+      await takeLock('move-to-dungeon', playerName, 15);
+
+      const dungeonInstance = await DungeonInstance.findOne({
+        state: InstanceStates.RESERVED,
+        reservedBy: playerName,
+        requiresRebuild: false,
+        name: {
+          $regex: /^d[0-9]{3}/,
+        },
+      }).exec();
+
+      if (!dungeonInstance) {
+        return null;
+      }
+
+      return movePlayerToDungeon(playerName, player.server, dungeonInstance.name);
+    });
+    await Promise.all(jobs);
+  } else {
+    logger.debug(`There are no players in queue, skipping queue processing`);
+  }
+}
+
 async function isLockPresent(type: string, target: string) {
   const lock = await Lock.findOne({
     type,
@@ -329,6 +380,8 @@ const runWorker = async () => {
   await assignQueuedPlayersToDungeons();
   // TODO: Run health check for inUse dungeons
   await checkInstanceNetworkConnection();
+
+  await movePlayersToDungeons();
 
   await cleanupStaleRecords();
 };
