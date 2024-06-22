@@ -64,7 +64,7 @@ async function getMessageForEvent(event: NewCreatedEvent) {
       return `${playerNameBold} survived Decked Out! :tada:`;
 
     case 'game-lost':
-      return `${playerNameBold} was defeated by the dungeon :Ravager:`;
+      return `${playerNameBold} was defeated by the dungeon <:Ravager:1166890345188040846>`;
 
     case PlayerEvents.JOINED_QUEUE:
       return `${playerNameBold} queued for a dungeon run (Deck #${event.count})`;
