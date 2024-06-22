@@ -3,11 +3,13 @@ import Players from './modules/event/player.model';
 import logger from './modules/logger/logger';
 import { IPlayerDoc, QueueStates } from './modules/event/player.interfaces';
 import DungeonInstance from './modules/event/instance.model';
+import Event from './modules/event/event.model';
 import Task from './modules/task/task.model';
 import Lock from './modules/lock/lock.model';
 import { notifyOps } from './modules/task';
 import { IInstanceDoc, InstanceStates } from './modules/event/instance.interfaces';
 import config from './config/config';
+import { PlayerEvents, ServerEvents } from './modules/event/event.interfaces';
 
 // similar to bash `nc -z -w <timeout> <ip> <port>`
 // e.g. `nc -z -w 1 dungeon 25565`
@@ -309,11 +311,26 @@ async function checkInstanceNetworkConnection() {
   });
 }
 
+async function cleanupStaleRecords() {
+  // 2 Days ago
+  const cutoffDate = new Date(Date.now() - 1000 * 60 * 60 * 24 * 2);
+
+  await Event.deleteMany({
+    name: [ServerEvents.SERVER_ONLINE, ServerEvents.SERVER_CLOSING, PlayerEvents.SEEN],
+    createdAt: { $lte: cutoffDate },
+  }).exec();
+
+  await Lock.deleteMany({ createdAt: { $lte: cutoffDate } }).exec();
+  await Task.deleteMany({ createdAt: { $lte: cutoffDate } }).exec();
+}
+
 const runWorker = async () => {
   logger.info('Running background worker...');
   await assignQueuedPlayersToDungeons();
   // TODO: Run health check for inUse dungeons
   await checkInstanceNetworkConnection();
+
+  await cleanupStaleRecords();
 };
 
 const worker = {
