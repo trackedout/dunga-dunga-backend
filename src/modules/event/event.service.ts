@@ -1,7 +1,9 @@
 import httpStatus from 'http-status';
 import mongoose from 'mongoose';
+import { WebhookClient } from 'discord.js';
 import Event from './event.model';
 import Players from './player.model';
+import Player from './player.model';
 import DungeonInstance from './instance.model';
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
@@ -13,12 +15,81 @@ import { notifyOps } from '../task';
 import { InstanceStates } from './instance.interfaces';
 import { Card } from '../card';
 
+let webhookClient: WebhookClient | null = null;
+
+if (process.env['DISCORD_WEBHOOK_URL']) {
+  webhookClient = new WebhookClient({
+    url: process.env['DISCORD_WEBHOOK_URL'],
+  });
+  logger.info(`Discord webhook notifications enabled`);
+} else {
+  logger.warn(`Missing Discord webhook URL`);
+}
+
+async function notifyDiscord(event: NewCreatedEvent) {
+  let message = await getMessageForEvent(event);
+  if (!message) {
+    return;
+  }
+
+  if (webhookClient) {
+    await webhookClient.send({
+      content: message,
+      username: 'Dunga-Dunga',
+    });
+  }
+}
+
+async function getMessageForEvent(event: NewCreatedEvent) {
+  const playerNameBold = `**${event.player}**`;
+
+  switch (event.name.toString()) {
+    case PlayerEvents.JOINED_NETWORK:
+      // 5 minutes ago
+      const cutoffDate = new Date(Date.now() - 1000 * 60 * 5);
+
+      const player = await Player.findOne({
+        playerName: event.player,
+      }).exec();
+
+      if (!player) {
+        return `${playerNameBold} joined the network for the first time! Welcome! :leaves:`;
+      } else if (!player.lastSeen || player.lastSeen < cutoffDate) {
+        return `${playerNameBold} joined the network`;
+      } else {
+        return '';
+      }
+
+    case 'game-won':
+      return `${playerNameBold} survived Decked Out! :tada:`;
+
+    case 'game-lost':
+      return `${playerNameBold} was defeated by the dungeon :Ravager:`;
+
+    case PlayerEvents.JOINED_QUEUE:
+      return `${playerNameBold} queued for a dungeon run (Deck #${event.count})`;
+
+    case 'difficulty-selected-easy':
+    case 'difficulty-selected-medium':
+    case 'difficulty-selected-hard':
+    case 'difficulty-selected-deadly':
+      const difficulty = event.name.toString().split('-')[2];
+      return `${playerNameBold} started a run on *${difficulty}* mode!`;
+    case 'difficulty-selected-deepfrost':
+      return `${playerNameBold} started a run on *DEEPFROST* mode!? Flee with extra flee!!`;
+  }
+
+  return '';
+}
+
 /**
  * Create an event, and potentially react to the event depending on DB state
  * @param {NewCreatedEvent} eventBody
  * @returns {Promise<IEventDoc>}
  */
 export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc> => {
+  notifyDiscord(eventBody);
+
   try {
     switch (eventBody.name) {
       case PlayerEvents.ALLOWED_TO_PLAY:
@@ -112,9 +183,15 @@ async function updatePlayerLastSeenDate(eventBody: NewCreatedEvent) {
   }).exec();
 
   if (player) {
+    let state = player.state;
+    if (state === QueueStates.IN_TRANSIT_TO_DUNGEON && eventBody.server.match(/^d[0-9]{3}/)) {
+      state = QueueStates.IN_DUNGEON;
+    }
+
     await player
       .updateOne({
         lastSeen: new Date(),
+        state: state,
       })
       .exec();
   }
@@ -164,7 +241,7 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       existingInstance.activePlayers !== update.activePlayers;
     if (anUpdateOccurred) {
       await notifyOps(
-        `Updated ${eventBody.server}: state=${update.state} requiresRebuild=${update.requiresRebuild} activePlayers=${update.activePlayers}`
+        `Updated ${eventBody.server}: state=${update.state} requiresRebuild=${update.requiresRebuild} activePlayers=${update.activePlayers}`,
       );
     }
   } else {
@@ -379,8 +456,8 @@ async function clearDungeon(eventBody: NewCreatedEvent) {
         state: 'SCHEDULED',
         arguments: ['ConnectOther', player.playerName, 'lobby'],
         sourceIP: eventBody.sourceIP,
-      })
-    )
+      }),
+    ),
   );
 
   // Tell the dungeon instance to kick the players
@@ -393,8 +470,8 @@ async function clearDungeon(eventBody: NewCreatedEvent) {
         targetPlayer: player.playerName,
         arguments: ['Sending you back to the lobby'],
         sourceIP: eventBody.sourceIP,
-      })
-    )
+      }),
+    ),
   );
 }
 
@@ -416,8 +493,8 @@ async function shutdownAllEmptyDungeons() {
         type: 'shutdown-server-if-empty',
         state: 'SCHEDULED',
         sourceIP: '127.0.0.1',
-      })
-    )
+      }),
+    ),
   );
 }
 
