@@ -304,6 +304,10 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     throw new ApiError(httpStatus.PRECONDITION_FAILED, `Player '${eventBody.player}' is not allowed to play Decked Out 2`);
   }
 
+  if (player.state !== QueueStates.IN_LOBBY) {
+    throw new ApiError(httpStatus.PRECONDITION_FAILED, `Player '${eventBody.player}' is in state ${player.state}, preventing re-queue`);
+  }
+
   if (!(await Card.findOne({ player: player.playerName }).exec())) {
     throw new ApiError(httpStatus.PRECONDITION_FAILED, `Player '${eventBody.player}' has no cards`);
   }
