@@ -30,45 +30,7 @@ export default router;
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - name
- *               - player
- *               - server
- *               - x
- *               - y
- *               - z
- *               - count
- *             properties:
- *               name:
- *                 type: string
- *               player:
- *                 type: string
- *               server:
- *                 type: string
- *               sourceIP:
- *                 type: string
- *               x:
- *                  type: double
- *                  default: 0
- *               y:
- *                  type: double
- *                  default: 0
- *               z:
- *                  type: double
- *                  default: 0
- *               count:
- *                 type: integer
- *                 default: 1
- *             example:
- *               name: run-started
- *               player: 4Ply
- *               server: do_1
- *               sourceIP: 127.0.0.1
- *               x: 0
- *               y: 0
- *               z: 0
- *               count: 1
+ *             $ref: '#/components/schemas/Event'
  *     responses:
  *       "201":
  *         description: Created
@@ -76,8 +38,6 @@ export default router;
  *           application/json:
  *             schema:
  *                $ref: '#/components/schemas/Event'
- *       "400":
- *         $ref: '#/components/responses/DuplicateEmail'
  *       "401":
  *         $ref: '#/components/responses/Unauthorized'
  *       "403":

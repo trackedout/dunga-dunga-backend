@@ -32,6 +32,7 @@ export interface IEvent {
   z: number;
 
   server: string;
+  runId: string;
   sourceIP: string;
 }
 

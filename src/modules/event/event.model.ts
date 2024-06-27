@@ -25,6 +25,11 @@ const eventSchema = new mongoose.Schema<IEventDoc, IEventModel>(
       required: true,
       trim: true,
     },
+    runId: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     x: {
       type: Number,
       required: true,

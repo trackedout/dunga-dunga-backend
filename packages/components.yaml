@@ -11,14 +11,16 @@ components:
         player:
           type: string
         count:
-          type: number
+          type: integer
         x:
-          type: number
+          type: double
         y:
-          type: number
+          type: double
         z:
-          type: number
+          type: double
         server:
+          type: string
+        runId:
           type: string
         sourceIP:
           type: string
@@ -26,6 +28,7 @@ components:
         name: joined-network
         player: 4Ply
         server: lobby
+        runId: 1111-2222-3333-4444
         sourceIP: "127.0.0.1"
         x: 0
         y: 0
