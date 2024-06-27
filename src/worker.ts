@@ -43,19 +43,27 @@ function checkIfIpIsReachable(ip: string, port: number = 25565, timeout: number 
   });
 }
 
-async function movePlayerToDungeon(playerName: string, lobbyServer: string, targetServer: string) {
+async function movePlayerToDungeon(playerName: string, lobbyServer: string, targetServer: string, retry = false) {
   logger.info(`Notifying ${playerName} that their dungeon is ready, and moving them to that server`);
 
   await notifyOps(`Sending ${playerName} to ${targetServer}`, lobbyServer);
+
+  let message = `Your dungeon is ready! Sending you to ${targetServer}`;
+  if (retry) {
+    message = `You haven't joined your dungeon yet, sending you to ${targetServer}`;
+  }
 
   await Task.create({
     server: lobbyServer,
     type: 'message-player',
     state: 'SCHEDULED',
     targetPlayer: playerName,
-    arguments: [`Your dungeon is ready! Sending you to ${targetServer}`],
+    arguments: [message],
     sourceIP: '127.0.0.1',
   });
+
+  // Prevent automatic teleportation attempts for 60 seconds
+  await takeLock('move-to-dungeon', playerName, 15);
 
   // We can also move the player immediately, but we may disable this in the future
   await Task.create({
@@ -306,6 +314,10 @@ async function movePlayersToDungeons() {
         state: InstanceStates.RESERVED,
         reservedBy: playerName,
         requiresRebuild: false,
+        reservedDate: {
+          // Reserved in the last 4min 45s
+          $gte: new Date(Date.now() - 1000 * 60 * 4.5),
+        },
         name: {
           $regex: /^d[0-9]{3}/,
         },
@@ -315,7 +327,7 @@ async function movePlayersToDungeons() {
         return null;
       }
 
-      return movePlayerToDungeon(playerName, player.server, dungeonInstance.name);
+      return movePlayerToDungeon(playerName, player.server, dungeonInstance.name, true);
     });
     await Promise.all(jobs);
   } else {
