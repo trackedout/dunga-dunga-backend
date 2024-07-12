@@ -192,6 +192,11 @@ async function updatePlayerLastSeenDate(eventBody: NewCreatedEvent) {
       .updateOne({
         lastSeen: new Date(),
         state: state,
+        lastLocation: {
+          x: eventBody.x,
+          y: eventBody.y,
+          z: eventBody.z,
+        }
       })
       .exec();
   }

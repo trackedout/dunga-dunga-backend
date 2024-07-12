@@ -1,5 +1,6 @@
 import net from 'net';
 import Players from './modules/event/player.model';
+import Player from './modules/event/player.model';
 import logger from './modules/logger/logger';
 import { IPlayerDoc, QueueStates } from './modules/event/player.interfaces';
 import DungeonInstance from './modules/event/instance.model';
@@ -10,7 +11,6 @@ import { notifyOps } from './modules/task';
 import { IInstanceDoc, InstanceStates } from './modules/event/instance.interfaces';
 import config from './config/config';
 import { PlayerEvents, ServerEvents } from './modules/event/event.interfaces';
-import Player from './modules/event/player.model';
 
 // similar to bash `nc -z -w <timeout> <ip> <port>`
 // e.g. `nc -z -w 1 dungeon 25565`
@@ -45,11 +45,10 @@ function checkIfIpIsReachable(ip: string, port: number = 25565, timeout: number 
 }
 
 async function movePlayerToDungeon(playerName: string, lobbyServer: string, targetServer: string, retry = false) {
-  logger.info(`Notifying ${playerName} that their dungeon is ready, and moving them to that server`);
-
+  logger.info(`Moving ${playerName} to ${targetServer}`);
   await notifyOps(`Sending ${playerName} to ${targetServer}`, lobbyServer);
 
-  let message = `Your dungeon is ready! Sending you to ${targetServer}`;
+  let message = `Sending you to ${targetServer}`;
   if (retry) {
     message = `You haven't joined your dungeon yet, sending you to ${targetServer}`;
   }
@@ -128,7 +127,7 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
       // Return the updated document after executing this update
       new: true,
       sort: { healthySince: 1 },
-    }
+    },
   ).exec();
 
   if (dungeon) {
@@ -147,7 +146,16 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
       state: QueueStates.IN_TRANSIT_TO_DUNGEON,
     });
 
-    await movePlayerToDungeon(playerName, player.server, dungeon.name);
+    const message = "Your dungeon is ready! Pass through the door to get teleported to your instance";
+    await Task.create({
+      server: 'lobby',
+      type: 'message-player',
+      state: 'SCHEDULED',
+      targetPlayer: playerName,
+      arguments: [message],
+      sourceIP: '127.0.0.1',
+    });
+
   } else {
     logger.warn(`Could not find an available dungeon for ${playerName}`);
   }
@@ -285,6 +293,33 @@ async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
   return dungeon;
 }
 
+async function tryMovePlayerToDungeon(player: IPlayerDoc) {
+  const { playerName } = player;
+
+  if (!await tryTakeLock('move-to-dungeon', playerName, 15)) {
+    return null;
+  }
+
+  const dungeonInstance = await DungeonInstance.findOne({
+    state: InstanceStates.RESERVED,
+    reservedBy: playerName,
+    requiresRebuild: false,
+    reservedDate: {
+      // Reserved in the last 4min 45s
+      $gte: new Date(Date.now() - 1000 * 60 * 4.5),
+    },
+    name: {
+      $regex: /^d[0-9]{3}/,
+    },
+  }).exec();
+
+  if (!dungeonInstance) {
+    return null;
+  }
+
+  return movePlayerToDungeon(playerName, player.server, dungeonInstance.name);
+}
+
 async function movePlayersToDungeons() {
   const playersThatNeedToMove = await Players.find({
     state: QueueStates.IN_TRANSIT_TO_DUNGEON,
@@ -299,41 +334,23 @@ async function movePlayersToDungeons() {
   if (playersThatNeedToMove.length > 0) {
     logger.debug(`Players that need to enter their dungeon: ${playersThatNeedToMove.map((p: IPlayerDoc) => p.playerName)}`);
 
-    const jobs = playersThatNeedToMove.map(async (player) => {
-      const { playerName } = player;
-
-      if (await isLockPresent('move-to-dungeon', playerName)) {
-        const message = `Lock is present for ${playerName}'s move-to-dungeon task, skipping`;
-        logger.info(message);
-
-        return null;
-      }
-
-      await takeLock('move-to-dungeon', playerName, 15);
-
-      const dungeonInstance = await DungeonInstance.findOne({
-        state: InstanceStates.RESERVED,
-        reservedBy: playerName,
-        requiresRebuild: false,
-        reservedDate: {
-          // Reserved in the last 4min 45s
-          $gte: new Date(Date.now() - 1000 * 60 * 4.5),
-        },
-        name: {
-          $regex: /^d[0-9]{3}/,
-        },
-      }).exec();
-
-      if (!dungeonInstance) {
-        return null;
-      }
-
-      return movePlayerToDungeon(playerName, player.server, dungeonInstance.name, true);
-    });
-    await Promise.all(jobs);
+    // const jobs = playersThatNeedToMove.map(tryMovePlayerToDungeon);
+    // await Promise.all(jobs);
   } else {
     logger.debug(`There are no players in queue, skipping queue processing`);
   }
+}
+
+async function tryTakeLock(type: string, target: string, secondsToExpiry: number) {
+  if (await isLockPresent(type, target)) {
+    const message = `Lock is present for ${type}/${target}, skipping`;
+    logger.info(message);
+
+    return false;
+  }
+
+  await takeLock(type, target, secondsToExpiry);
+  return true;
 }
 
 async function isLockPresent(type: string, target: string) {
@@ -388,53 +405,35 @@ async function cleanupStaleRecords() {
   await Task.deleteMany({ createdAt: { $lte: cutoffDate } }).exec();
 }
 
-async function openDoor() {
-  if (await isLockPresent('open-door', 'lobby')) {
-    const message = `Lock is present for open-door, skipping`;
-    logger.info(message);
-
-    return;
-  }
-
-  // Prevent opening door again for 45 seconds (animation takes about 32 seconds)
-  await takeLock('open-door', 'lobby', 45);
-
-  // We can also move the player immediately, but we may disable this in the future
+async function execCommand(commands: string[]) {
   await Task.create({
     server: 'lobby',
     type: 'execute-command',
     state: 'SCHEDULED',
-    arguments: [
-      "setblock -546 118 1985 air",
-      "setblock -538 110 1984 minecraft:redstone_block"
-    ],
+    arguments: commands,
     sourceIP: '127.0.0.1',
   });
 }
 
-async function closeDoor() {
-  if (await isLockPresent('open-door', 'lobby')) {
-    const message = `Lock is present for open-door, skipping`;
-    logger.info(message);
-
-    return;
+async function openDoor() {
+  // Prevent opening door again for 35 seconds.
+  // Animation takes about 32 seconds to get to the 'close door' bit.
+  if (await tryTakeLock('open-door', 'lobby', 35)) {
+    await execCommand([
+      'setblock -546 118 1985 air',
+      'setblock -538 110 1984 minecraft:redstone_block',
+    ]);
   }
+}
 
-  // Prevent opening door again for 10 seconds to prevent close->open spam
-  await takeLock('open-door', 'lobby', 10);
-
-  // We can also move the player immediately, but we may disable this in the future
-  await Task.create({
-    server: 'lobby',
-    type: 'execute-command',
-    state: 'SCHEDULED',
-    arguments: [
-      "setblock -547 118 1985 air replace",
-      "setblock -546 118 1985 minecraft:repeater[facing=west,delay=2]",
-      "setblock -547 118 1985 minecraft:redstone_block replace"
-    ],
-    sourceIP: '127.0.0.1',
-  });
+async function closeDoor() {
+  if (await tryTakeLock('open-door', 'lobby', 3)) {
+    await execCommand([
+      'setblock -547 118 1985 air replace',
+      'setblock -546 118 1985 minecraft:repeater[facing=west,delay=2]',
+      'setblock -547 118 1985 minecraft:redstone_block replace',
+    ]);
+  }
 }
 
 async function updateDoorState() {
@@ -451,6 +450,40 @@ async function updateDoorState() {
   }
 }
 
+async function teleportPlayersInEntrance() {
+  const players = await Player.find({
+    // state: [QueueStates.IN_TRANSIT_TO_DUNGEON],
+    'lastLocation.x': {
+      $lte: -544,
+      $gte: -553,
+    },
+    'lastLocation.z': {
+      $gte: 1977,
+      $lte: 1983,
+    },
+  });
+
+  if (players.length > 0) {
+    // There's at least one player in the queue. Open the door.
+    logger.info(`Found ${players.length} players in the dungeon entrance`);
+
+    for (let player of players) {
+      // Move them out of the entrance, even if they're about to get teleported into the dungeon
+      if (await tryTakeLock('teleport-out-of-entrance', player.playerName, 10)) {
+        await execCommand([
+          `tp ${player.playerName} -512 114 1980 90 0`,
+        ]);
+      }
+
+      if (player.state === QueueStates.IN_TRANSIT_TO_DUNGEON) {
+        // Teleport player to dungeon instance
+        logger.info(`Teleporting ${player.playerName} into their dungeon`);
+        await tryMovePlayerToDungeon(player);
+      }
+    }
+  }
+}
+
 const runWorker = async () => {
   logger.info('Running background worker...');
   await assignQueuedPlayersToDungeons();
@@ -460,6 +493,7 @@ const runWorker = async () => {
   await movePlayersToDungeons();
 
   await updateDoorState();
+  await teleportPlayersInEntrance();
 
   await cleanupStaleRecords();
 };

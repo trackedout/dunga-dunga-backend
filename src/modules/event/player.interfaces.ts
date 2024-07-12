@@ -9,6 +9,12 @@ export enum QueueStates {
   IN_QUEUE = 'in-queue',
 }
 
+export interface Location {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export interface IPlayer {
   playerName: string;
   server: string;
@@ -16,6 +22,7 @@ export interface IPlayer {
   isAllowedToPlayDO2: boolean;
   lastSelectedDeck: string;
   lastSeen: Date;
+  lastLocation: Location;
 }
 
 export interface IPlayerDoc extends IPlayer, Document {}
