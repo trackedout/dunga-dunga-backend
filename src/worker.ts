@@ -438,7 +438,7 @@ async function closeDoor() {
 
 async function updateDoorState() {
   const players = await Player.find({
-    state: [QueueStates.IN_DUNGEON, QueueStates.IN_TRANSIT_TO_DUNGEON],
+    state: [QueueStates.IN_TRANSIT_TO_DUNGEON],
   });
 
   if (players.length > 0) {
