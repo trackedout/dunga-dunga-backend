@@ -439,10 +439,15 @@ async function closeDoor() {
 async function updateDoorState() {
   const players = await Player.find({
     state: [QueueStates.IN_TRANSIT_TO_DUNGEON],
+    lastSeen: {
+      // Seen in the last minute
+      $gte: new Date(Date.now() - 1000 * 60),
+    },
   });
 
   if (players.length > 0) {
     // There's at least one player in the queue. Open the door.
+    logger.info(`Found ${players.length} players in queue. Opening dungeon door`);
     await openDoor();
   } else {
     // Nobody is in the queue. Close the door.
@@ -461,10 +466,13 @@ async function teleportPlayersInEntrance() {
       $gte: 1977,
       $lte: 1983,
     },
+    lastSeen: {
+      // Seen in the last minute
+      $gte: new Date(Date.now() - 1000 * 60),
+    },
   });
 
   if (players.length > 0) {
-    // There's at least one player in the queue. Open the door.
     logger.info(`Found ${players.length} players in the dungeon entrance`);
 
     for (let player of players) {
