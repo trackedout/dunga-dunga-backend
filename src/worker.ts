@@ -10,6 +10,7 @@ import { notifyOps } from './modules/task';
 import { IInstanceDoc, InstanceStates } from './modules/event/instance.interfaces';
 import config from './config/config';
 import { PlayerEvents, ServerEvents } from './modules/event/event.interfaces';
+import Player from './modules/event/player.model';
 
 // similar to bash `nc -z -w <timeout> <ip> <port>`
 // e.g. `nc -z -w 1 dungeon 25565`
@@ -387,6 +388,69 @@ async function cleanupStaleRecords() {
   await Task.deleteMany({ createdAt: { $lte: cutoffDate } }).exec();
 }
 
+async function openDoor() {
+  if (await isLockPresent('open-door', 'lobby')) {
+    const message = `Lock is present for open-door, skipping`;
+    logger.info(message);
+
+    return;
+  }
+
+  // Prevent opening door again for 45 seconds (animation takes about 32 seconds)
+  await takeLock('open-door', 'lobby', 45);
+
+  // We can also move the player immediately, but we may disable this in the future
+  await Task.create({
+    server: 'lobby',
+    type: 'execute-command',
+    state: 'SCHEDULED',
+    arguments: [
+      "setblock -546 118 1985 air",
+      "setblock -538 110 1984 minecraft:redstone_block"
+    ],
+    sourceIP: '127.0.0.1',
+  });
+}
+
+async function closeDoor() {
+  if (await isLockPresent('open-door', 'lobby')) {
+    const message = `Lock is present for open-door, skipping`;
+    logger.info(message);
+
+    return;
+  }
+
+  // Prevent opening door again for 10 seconds to prevent close->open spam
+  await takeLock('open-door', 'lobby', 10);
+
+  // We can also move the player immediately, but we may disable this in the future
+  await Task.create({
+    server: 'lobby',
+    type: 'execute-command',
+    state: 'SCHEDULED',
+    arguments: [
+      "setblock -547 118 1985 air replace",
+      "setblock -546 118 1985 minecraft:repeater[facing=west,delay=2]",
+      "setblock -547 118 1985 minecraft:redstone_block replace"
+    ],
+    sourceIP: '127.0.0.1',
+  });
+}
+
+async function updateDoorState() {
+  const players = await Player.find({
+    state: [QueueStates.IN_DUNGEON, QueueStates.IN_TRANSIT_TO_DUNGEON],
+  });
+
+  if (players.length > 0) {
+    // There's at least one player in the queue. Open the door.
+    await openDoor();
+  } else {
+    // Nobody is in the queue. Close the door.
+    await closeDoor();
+  }
+}
+
 const runWorker = async () => {
   logger.info('Running background worker...');
   await assignQueuedPlayersToDungeons();
@@ -394,6 +458,8 @@ const runWorker = async () => {
   await checkInstanceNetworkConnection();
 
   await movePlayersToDungeons();
+
+  await updateDoorState();
 
   await cleanupStaleRecords();
 };
