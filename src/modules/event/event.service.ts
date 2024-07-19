@@ -44,7 +44,7 @@ async function getMessageForEvent(event: NewCreatedEvent) {
   const playerNameBold = `**${event.player}**`;
 
   switch (event.name.toString()) {
-    case PlayerEvents.JOINED_NETWORK:
+    case PlayerEvents.SEEN:
       // 5 minutes ago
       const cutoffDate = new Date(Date.now() - 1000 * 60 * 5);
 
