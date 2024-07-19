@@ -8,10 +8,7 @@ import { IOptions } from '../paginate/paginate';
 import * as scoreService from './score.service';
 
 export const createScore = catchAsync(async (req: Request, res: Response) => {
-  const score = await scoreService.createScore({
-    ...req.body,
-    // sourceIP: req.ip?.split(":").slice(-1)[0],
-  });
+  const score = await scoreService.createScores([req.body]);
   res.status(httpStatus.CREATED).send(score);
 });
 
