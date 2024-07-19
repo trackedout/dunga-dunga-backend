@@ -7,10 +7,12 @@ import pick from '../utils/pick';
 import { IOptions } from '../paginate/paginate';
 import * as eventService from './event.service';
 import config from '../../config/config';
+import { logger } from '../logger';
 
 export const createEvent = catchAsync(async (req: Request, res: Response) => {
   const sourceIP = config.env === 'development' ? req.body.sourceIP : null;
 
+  logger.debug(`Event: ${JSON.stringify(req.body, null, 4)}`);
   const event = await eventService.createEvent({
     ...req.body,
     sourceIP: sourceIP || req.ip?.split(':').slice(-1)[0],

@@ -146,7 +146,7 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
       state: QueueStates.IN_TRANSIT_TO_DUNGEON,
     });
 
-    const message = "Your dungeon is ready! Pass through the door to get teleported to your instance";
+    const message = 'Your dungeon is ready! Pass through the door to get teleported to your instance';
     await Task.create({
       server: 'lobby',
       type: 'message-player',
@@ -377,6 +377,16 @@ async function takeLock(type: string, target: string, secondsToExpiry: number) {
   });
 }
 
+async function releaseLock(type: string, target: string) {
+  await Lock.deleteMany({
+    type,
+    target,
+    until: {
+      $gte: new Date(),
+    },
+  });
+}
+
 async function checkInstanceNetworkConnection() {
   const instances = await DungeonInstance.find({}).exec();
   instances.forEach((dungeon) => {
@@ -419,6 +429,8 @@ async function openDoor() {
   // Prevent opening door again for 35 seconds.
   // Animation takes about 32 seconds to get to the 'close door' bit.
   if (await tryTakeLock('open-door', 'lobby', 35)) {
+    await releaseLock('close-door', 'lobby');
+
     await execCommand([
       'setblock -546 118 1985 air',
       'setblock -538 110 1984 minecraft:redstone_block',
@@ -428,11 +440,13 @@ async function openDoor() {
 
 async function closeDoor() {
   if (await tryTakeLock('open-door', 'lobby', 3)) {
-    await execCommand([
-      'setblock -547 118 1985 air replace',
-      'setblock -546 118 1985 minecraft:repeater[facing=west,delay=2]',
-      'setblock -547 118 1985 minecraft:redstone_block replace',
-    ]);
+    if (await tryTakeLock('close-door', 'lobby', 60 * 5)) {
+      await execCommand([
+        'setblock -547 118 1985 air replace',
+        'setblock -546 118 1985 minecraft:repeater[facing=west,delay=2]',
+        'setblock -547 118 1985 minecraft:redstone_block replace',
+      ]);
+    }
   }
 }
 
