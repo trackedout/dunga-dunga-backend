@@ -6,12 +6,12 @@ const createEventBody: Record<keyof NewCreatedEvent, any> = {
   name: Joi.string().required().min(3),
   player: Joi.string().required().min(1),
   server: Joi.string().required().min(1),
-  runId: Joi.string().min(5),
   x: Joi.number().default(0),
   y: Joi.number().default(0),
   z: Joi.number().default(0),
   count: Joi.number().integer().default(1),
   sourceIP: Joi.string().optional(),
+  metadata: Joi.any(),
 };
 
 export const createEvent = {

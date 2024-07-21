@@ -14,6 +14,9 @@ import { logger } from '../logger';
 import { notifyOps } from '../task';
 import { InstanceStates } from './instance.interfaces';
 import { Card } from '../card';
+import { Claim } from '../claim';
+import { ClaimStates, ClaimTypes, RunTypes } from '../claim/claim.interfaces';
+import { v4 as uuidv4 } from 'uuid';
 
 let webhookClient: WebhookClient | null = null;
 
@@ -157,6 +160,15 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
     playerName: eventBody.player,
   }).exec();
 
+  await Claim.updateMany({
+    player: eventBody.player,
+    type: ClaimTypes.DUNGEON,
+    state: ClaimStates.PENDING,
+  }, {
+    state: ClaimStates.INVALID,
+    stateReason: 'Player joined lobby (JOINED_NETWORK event)'
+  });
+
   if (!player) {
     await Players.create({
       playerName: eventBody.player,
@@ -190,6 +202,8 @@ async function updatePlayerLastSeenDate(eventBody: NewCreatedEvent) {
     let state = player.state;
     if (state === QueueStates.IN_TRANSIT_TO_DUNGEON && eventBody.server.match(/^d[0-9]{3}/)) {
       state = QueueStates.IN_DUNGEON;
+    } else if (eventBody.server === 'builders') {
+      state = QueueStates.IN_BUILDERS;
     }
 
     await player
@@ -200,7 +214,7 @@ async function updatePlayerLastSeenDate(eventBody: NewCreatedEvent) {
           x: eventBody.x,
           y: eventBody.y,
           z: eventBody.z,
-        }
+        },
       })
       .exec();
   }
@@ -321,10 +335,32 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     throw new ApiError(httpStatus.PRECONDITION_FAILED, `Player '${eventBody.player}' has no cards`);
   }
 
+  if (await Claim.findOne({
+    player: player.playerName,
+    type: ClaimTypes.DUNGEON,
+    state: {
+      $nin: [ClaimStates.PERSISTING, ClaimStates.FINALIZED, ClaimStates.INVALID],
+    },
+  }).exec()) {
+    throw new ApiError(httpStatus.PRECONDITION_FAILED, `Active claim already exists for this player`);
+  }
+
+  const claim = await Claim.create({
+    player: player.playerName,
+    type: ClaimTypes.DUNGEON,
+    state: ClaimStates.PENDING,
+    metadata: {
+      'run-id': uuidv4(),
+      'deck-id': eventBody.count,
+      'run-type': RunTypes.PRACTICE,
+    },
+  });
+
   await player.updateOne({
     state: QueueStates.IN_QUEUE,
     server: eventBody.server,
     lastSelectedDeck: eventBody.count,
+    activeClaimId: claim.id,
   });
   logger.info(`Placed ${player.playerName} in the dungeon queue with Deck #${eventBody.count}`);
 }
@@ -363,7 +399,7 @@ async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
   //   throw new ApiError(httpStatus.BAD_REQUEST, `Failed to connect to the dungeon instance: ${e}`);
   // });
 
-  logger.debug(`Dungeon ip: ${dungeonInstance.ip}`);
+  logger.debug(`Dungeon IP: ${dungeonInstance.ip}`);
 
   logger.info(`Removing ${queuedPlayer.playerName} from queue and moving them to dungeon instance ${dungeonInstance.name}`);
 

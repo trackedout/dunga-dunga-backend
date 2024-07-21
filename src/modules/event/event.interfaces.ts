@@ -32,8 +32,9 @@ export interface IEvent {
   z: number;
 
   server: string;
-  runId: string;
   sourceIP: string;
+
+  metadata: Map<string, string>;
 }
 
 export interface IEventDoc extends IEvent, Document {

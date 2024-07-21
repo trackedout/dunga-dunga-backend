@@ -20,20 +20,26 @@ components:
           type: double
         server:
           type: string
-        runId:
-          type: string
         sourceIP:
           type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
       example:
         name: joined-network
         player: 4Ply
         server: lobby
-        runId: 1111-2222-3333-4444
         sourceIP: "127.0.0.1"
         x: 0
         y: 0
         z: 0
         count: 1
+        metadata:
+          deck-id: 1
+          run-id: 123123-123-123-123-123
+          run-type: practice
+          world-age: 123123123
 
     Card:
       type: object
@@ -111,6 +117,35 @@ components:
         player: 4Ply
         key: do2.wins
         value: 1
+
+    Claim:
+      type: object
+      properties:
+        id:
+          type: string
+        player:
+          type: string
+        claimant:
+          type: string
+        type:
+          type: string
+        state:
+          type: string
+        stateReason:
+          type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+      example:
+        player: 4Ply
+        type: dungeon
+        state: pending
+        metadata:
+          deck-id: 1
+          run-id: 123123-123-123-123-123
+          run-type: practice
+          tome-count: 1
 
     StatusSection:
       type: object

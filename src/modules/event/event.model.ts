@@ -25,11 +25,6 @@ const eventSchema = new mongoose.Schema<IEventDoc, IEventModel>(
       required: true,
       trim: true,
     },
-    runId: {
-      type: String,
-      required: false,
-      trim: true,
-    },
     x: {
       type: Number,
       required: true,
@@ -46,6 +41,11 @@ const eventSchema = new mongoose.Schema<IEventDoc, IEventModel>(
       type: String,
       required: true,
       trim: true,
+    },
+    metadata: {
+      type: Map<String, String>,
+      required: false,
+      index: false,
     },
     processingFailed: {
       type: Boolean,

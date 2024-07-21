@@ -51,6 +51,10 @@ const instanceSchema = new mongoose.Schema<IInstanceDoc, IInstanceModel>(
       type: Date,
       required: false,
     },
+    claimFilters: {
+      type: Map<String, Array<String>>,
+      required: false,
+    }
   },
   {
     timestamps: true,

@@ -4,6 +4,7 @@ import eventRoute from './event.route';
 import cardRoute from './card.route';
 import itemRoute from './item.route';
 import scoreRoute from './score.route';
+import claimRoute from './claim.route';
 import tasksRoute from './tasks.route';
 import statusRoute from './status.route';
 import config from '../../config/config';
@@ -27,6 +28,10 @@ const defaultIRoute: IRoute[] = [
   {
     path: '/scores',
     route: scoreRoute,
+  },
+  {
+    path: '/claims',
+    route: claimRoute,
   },
   {
     path: '/storage',

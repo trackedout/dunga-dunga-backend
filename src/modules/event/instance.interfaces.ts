@@ -5,6 +5,7 @@ export interface IInstance {
   name: string;
   ip: string;
   state: InstanceStates;
+  claimFilters: Map<string, string[]>;
   reservedBy: string;
   inUseDate: Date;
   reservedDate: Date;

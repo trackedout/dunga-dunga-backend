@@ -30,6 +30,11 @@ const playerSchema = new mongoose.Schema<IPlayerDoc, IPlayerModel>(
       required: false,
       trim: true,
     },
+    activeClaimId: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     lastSeen: {
       type: Date,
       required: false,

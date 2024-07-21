@@ -3,6 +3,7 @@ import Joi from 'joi';
 import httpStatus from 'http-status';
 import pick from '../utils/pick';
 import ApiError from '../errors/ApiError';
+import { logger } from '../logger';
 
 const validate =
   (schema: Record<string, any>) =>
@@ -14,6 +15,7 @@ const validate =
       .validate(object);
 
     if (error) {
+      logger.error(`Request validation error for body: ${JSON.stringify(req.body, null, 4)}`)
       const errorMessage = error.details.map((details) => details.message).join(', ');
       return next(new ApiError(httpStatus.BAD_REQUEST, errorMessage));
     }

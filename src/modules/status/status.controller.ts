@@ -16,7 +16,7 @@ export const getStatus = catchAsync(async (_req: Request, res: Response) => {
   }).exec();
 
   const staleCutoff = new Date();
-  staleCutoff.setMinutes(staleCutoff.getMinutes() - 5);
+  staleCutoff.setMinutes(staleCutoff.getMinutes() - 2);
 
   const players = await Player.find({
     lastSeen: { $gte: staleCutoff },
@@ -74,6 +74,10 @@ export const getStatus = catchAsync(async (_req: Request, res: Response) => {
         {
           key: '<aqua>In lobby</aqua>',
           value: players.filter((player) => player.state === QueueStates.IN_LOBBY).length,
+        },
+        {
+          key: '<dark_green>In builders</dark_green>',
+          value: players.filter((player) => player.state === QueueStates.IN_BUILDERS).length,
         },
         {
           key: '<red>Offline</red>',

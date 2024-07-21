@@ -11,6 +11,8 @@ import { notifyOps } from './modules/task';
 import { IInstanceDoc, InstanceStates } from './modules/event/instance.interfaces';
 import config from './config/config';
 import { PlayerEvents, ServerEvents } from './modules/event/event.interfaces';
+import { Claim } from './modules/claim';
+import { ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 
 // similar to bash `nc -z -w <timeout> <ip> <port>`
 // e.g. `nc -z -w 1 dungeon 25565`
@@ -98,67 +100,14 @@ async function degradeDungeon(dungeon: IInstanceDoc) {
 
     await dungeon.updateOne(update).exec();
   }
-}
 
-async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
-  const { playerName } = player;
-  logger.info(`Attempting to find an available dungeon for ${playerName}`);
+  const activeClaims = await Claim.find({
+    type: ClaimTypes.DUNGEON,
+    state: [ClaimStates.PENDING, ClaimStates.IN_USE],
+    claimant: dungeon.name,
+  });
 
-  const minHealthyDateCutoff = new Date();
-  minHealthyDateCutoff.setSeconds(minHealthyDateCutoff.getSeconds() - 15);
-
-  const dungeon = await DungeonInstance.findOneAndUpdate(
-    {
-      state: InstanceStates.AVAILABLE,
-      requiresRebuild: false,
-      name: {
-        $regex: /^d[0-9]{3}/,
-      },
-      healthySince: {
-        $lte: minHealthyDateCutoff,
-      },
-    },
-    {
-      state: InstanceStates.RESERVED,
-      reservedBy: playerName,
-      reservedDate: Date.now(),
-    },
-    {
-      // Return the updated document after executing this update
-      new: true,
-      sort: { healthySince: 1 },
-    },
-  ).exec();
-
-  if (dungeon) {
-    logger.info(`Acquired an available dungeon for ${playerName}: ${dungeon}`);
-
-    // Validate dungeon is responding to socket requests before connecting
-    // Removes unreachable instances from pool
-    await checkIfIpIsReachable(dungeon.ip).catch(async () => {
-      await degradeDungeon(dungeon);
-      throw new Error(`${dungeon.name} at ${dungeon.ip} is unreachable`);
-    });
-    logger.debug(`Finished checking ${dungeon.ip}'s health`);
-
-    logger.debug(`Setting ${playerName}'s state as ${QueueStates.IN_TRANSIT_TO_DUNGEON}`);
-    await player.updateOne({
-      state: QueueStates.IN_TRANSIT_TO_DUNGEON,
-    });
-
-    const message = 'Your dungeon is ready! Pass through the door to get teleported to your instance';
-    await Task.create({
-      server: 'lobby',
-      type: 'message-player',
-      state: 'SCHEDULED',
-      targetPlayer: playerName,
-      arguments: [message],
-      sourceIP: '127.0.0.1',
-    });
-
-  } else {
-    logger.warn(`Could not find an available dungeon for ${playerName}`);
-  }
+  await Promise.all(activeClaims.map(claim => claim.updateOne({ state: ClaimStates.INVALID, stateReason: 'Dungeon is unhealthy' })));
 }
 
 async function assignQueuedPlayersToDungeons() {
@@ -181,6 +130,111 @@ async function assignQueuedPlayersToDungeons() {
   } else {
     logger.debug(`There are no players in queue, skipping queue processing`);
   }
+}
+
+async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
+  const { playerName, activeClaimId } = player;
+  logger.info(`Attempting to find an available dungeon for ${playerName} (claimID: ${activeClaimId})`);
+
+  const minHealthyDateCutoff = new Date();
+  minHealthyDateCutoff.setSeconds(minHealthyDateCutoff.getSeconds() - 15);
+
+  const claim = await Claim.findById(activeClaimId);
+  if (!claim) {
+    throw new Error(`${playerName} is in queue without an active claim`);
+  }
+
+  const dungeons: IInstanceDoc[] = await DungeonInstance.find(
+    {
+      state: InstanceStates.AVAILABLE,
+      requiresRebuild: false,
+      name: {
+        $regex: /^d[0-9]{3}/,
+      },
+      healthySince: {
+        $lte: minHealthyDateCutoff,
+      },
+    },
+  );
+
+  let dungeon: IInstanceDoc | null = null;
+  for (let availableDungeon of dungeons) {
+    if (isClaimSupportedByDungeon(availableDungeon, claim)) {
+      dungeon = availableDungeon;
+      break;
+    }
+  }
+
+  if (!dungeon) {
+    logger.warn(`Could not find an available dungeon for ${playerName}`);
+    return;
+  }
+
+  logger.debug(`Found matching dungeon for claim: ${dungeon}`);
+  dungeon = await DungeonInstance.findOneAndUpdate(
+    {
+      _id: dungeon.id,
+      state: dungeon.state,
+      ip: dungeon.ip,
+    },
+    {
+      state: InstanceStates.RESERVED,
+      reservedBy: playerName,
+      reservedDate: Date.now(),
+    },
+    {
+      // Return the updated document after executing this update
+      new: true,
+      sort: { healthySince: 1 },
+    },
+  ).exec();
+
+  if (!dungeon) {
+    throw new Error(`Failed to update dungeon during claim process (dungeon state changed in the background)`);
+  }
+
+  logger.info(`Acquired an available dungeon for ${playerName}: ${dungeon}`);
+
+  // Validate dungeon is responding to socket requests before connecting
+  // Removes unreachable instances from pool
+  await checkIfIpIsReachable(dungeon.ip).catch(async () => {
+    await degradeDungeon(dungeon);
+    throw new Error(`${dungeon.name} at ${dungeon.ip} is unreachable`);
+  });
+  logger.debug(`Finished checking ${dungeon.ip}'s health`);
+
+  logger.debug(`Setting ${playerName}'s state as ${QueueStates.IN_TRANSIT_TO_DUNGEON}`);
+  await player.updateOne({
+    state: QueueStates.IN_TRANSIT_TO_DUNGEON,
+  }).exec();
+
+  logger.debug(`Setting Claim ${claim.id}'s state as ${ClaimStates.ACQUIRED}`);
+  await claim.updateOne({
+    state: ClaimStates.ACQUIRED,
+  }).exec();
+
+  const message = 'Your dungeon is ready! Pass through the door to get teleported to your instance';
+  await Task.create({
+    server: 'lobby',
+    type: 'message-player',
+    state: 'SCHEDULED',
+    targetPlayer: playerName,
+    arguments: [message],
+    sourceIP: '127.0.0.1',
+  });
+}
+
+function isClaimSupportedByDungeon(dungeon: IInstanceDoc, claim: IClaimDoc) {
+  if (dungeon.claimFilters && claim.metadata) {
+    for (let [key, values] of dungeon.claimFilters) {
+      if (claim.metadata.has(key) && !values.includes(<string>claim.metadata.get(key))) {
+        logger.warn(`${dungeon.name} cannot support claim ${claim.id} as ${key} only allows ${values}`);
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 async function markDungeonAsHealthy(dungeon: IInstanceDoc) {
@@ -242,9 +296,60 @@ async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
         reservationDate: null,
       })
       .exec();
+
+    const activeClaims = await Claim.find({
+      player: playerName,
+      type: ClaimTypes.DUNGEON,
+      state: [ClaimStates.PENDING, ClaimStates.IN_USE],
+      claimant: dungeon.name,
+    });
+
+    await Promise.all(activeClaims.map(claim => claim.updateOne({ state: ClaimStates.INVALID, stateReason: 'Player did not enter dungeon' })));
   }
 
   return dungeon;
+}
+
+async function invalidateClaims() {
+  const activeClaims = await Claim.find({
+    type: ClaimTypes.DUNGEON,
+    state: [ClaimStates.PENDING, ClaimStates.ACQUIRED],
+    updatedAt: {
+      // Updated more than 30 seconds ago, to prevent eventual consistency issues with player states not yet being updated
+      $lte: new Date(Date.now() - 1000 * 30),
+    }
+  });
+
+  await Promise.all(activeClaims.map(async (claim: IClaimDoc) => {
+    const playerName = claim.player;
+    const player = await Players.findOne({
+      playerName,
+    }).exec();
+
+    if (!player) {
+      const message = `Player ${playerName} does not exist. Invalidating claim ${claim.id}`;
+      logger.warn(message);
+      await notifyOps(message);
+
+      await claim.updateOne({
+        state: ClaimStates.INVALID,
+      });
+    } else {
+      if (![
+        QueueStates.IN_QUEUE,
+        QueueStates.IN_DUNGEON,
+        QueueStates.IN_TRANSIT_TO_DUNGEON,
+      ].includes(player.state)) {
+        const message = `Player ${playerName} is in state ${player?.state} with an active claim. Invalidating claim ${claim.id}`;
+        logger.warn(message);
+        await notifyOps(message);
+
+        await claim.updateOne({
+          state: ClaimStates.INVALID,
+        });
+      }
+    }
+  }));
 }
 
 async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
@@ -337,7 +442,7 @@ async function movePlayersToDungeons() {
     // const jobs = playersThatNeedToMove.map(tryMovePlayerToDungeon);
     // await Promise.all(jobs);
   } else {
-    logger.debug(`There are no players in queue, skipping queue processing`);
+    logger.debug(`There are no players in queue, skipping teleport processing`);
   }
 }
 
@@ -440,7 +545,7 @@ async function openDoor() {
 
 async function closeDoor() {
   if (await tryTakeLock('open-door', 'lobby', 3)) {
-    if (await tryTakeLock('close-door', 'lobby', 60 * 5)) {
+    if (await tryTakeLock('close-door', 'lobby', 60 * 30)) {
       await execCommand([
         'setblock -547 118 1985 air replace',
         'setblock -546 118 1985 minecraft:repeater[facing=west,delay=2]',
@@ -508,6 +613,8 @@ async function teleportPlayersInEntrance() {
 
 const runWorker = async () => {
   logger.info('Running background worker...');
+
+  await invalidateClaims();
   await assignQueuedPlayersToDungeons();
   // TODO: Run health check for inUse dungeons
   await checkInstanceNetworkConnection();
