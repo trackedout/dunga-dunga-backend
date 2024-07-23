@@ -41,6 +41,10 @@ async function notifyDiscord(event: NewCreatedEvent) {
 }
 
 async function getMessageForEvent(event: NewCreatedEvent) {
+  if (event.player.toLowerCase() === 'tangocam') {
+    return;
+  }
+
   const playerNameBold = `**${event.player}**`;
 
   switch (event.name.toString()) {
