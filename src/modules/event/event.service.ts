@@ -1,9 +1,7 @@
 import httpStatus from 'http-status';
 import mongoose from 'mongoose';
-import { WebhookClient } from 'discord.js';
 import Event from './event.model';
 import Players from './player.model';
-import Player from './player.model';
 import DungeonInstance from './instance.model';
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
@@ -17,77 +15,7 @@ import { Card } from '../card';
 import { Claim } from '../claim';
 import { ClaimStates, ClaimTypes, RunTypes } from '../claim/claim.interfaces';
 import { v4 as uuidv4 } from 'uuid';
-
-let webhookClient: WebhookClient | null = null;
-
-if (process.env['DISCORD_WEBHOOK_URL']) {
-  webhookClient = new WebhookClient({
-    url: process.env['DISCORD_WEBHOOK_URL'],
-  });
-  logger.info(`Discord webhook notifications enabled`);
-} else {
-  logger.warn(`Missing Discord webhook URL`);
-}
-
-async function notifyDiscord(event: NewCreatedEvent) {
-  let message = await getMessageForEvent(event);
-  if (!message) {
-    return;
-  }
-
-  if (webhookClient) {
-    await webhookClient.send({
-      content: message,
-      username: 'Dunga-Dunga',
-    });
-  }
-}
-
-async function getMessageForEvent(event: NewCreatedEvent) {
-  if (event.player.toLowerCase() === 'tangocam') {
-    return;
-  }
-
-  const playerNameBold = `**${event.player}**`;
-
-  switch (event.name.toString()) {
-    case PlayerEvents.SEEN:
-      // 5 minutes ago
-      const cutoffDate = new Date(Date.now() - 1000 * 60 * 5);
-
-      const player = await Player.findOne({
-        playerName: event.player,
-      }).exec();
-
-      if (!player) {
-        return `${playerNameBold} joined the network for the first time! Welcome! :leaves:`;
-      } else if (!player.lastSeen || player.lastSeen < cutoffDate) {
-        return `${playerNameBold} joined the network`;
-      } else {
-        return '';
-      }
-
-    case 'game-won':
-      return `${playerNameBold} survived Decked Out! :tada:`;
-
-    case 'game-lost':
-      return `${playerNameBold} was defeated by the dungeon <:Ravager:1166890345188040846>`;
-
-    case PlayerEvents.JOINED_QUEUE:
-      return `${playerNameBold} queued for a dungeon run (Deck #${event.count})`;
-
-    case 'difficulty-selected-easy':
-    case 'difficulty-selected-medium':
-    case 'difficulty-selected-hard':
-    case 'difficulty-selected-deadly':
-      const difficulty = event.name.toString().split('-')[2];
-      return `${playerNameBold} started a run on *${difficulty}* mode!`;
-    case 'difficulty-selected-deepfrost':
-      return `${playerNameBold} started a run on *DEEPFROST* mode!? Flee with extra flee!!`;
-  }
-
-  return '';
-}
+import { notifyDiscord } from './discord';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -166,7 +94,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
     state: ClaimStates.PENDING,
   }, {
     state: ClaimStates.INVALID,
-    stateReason: 'Player joined lobby (JOINED_NETWORK event)'
+    stateReason: 'Player joined lobby (JOINED_NETWORK event)',
   });
 
   if (!player) {
