@@ -317,7 +317,7 @@ async function invalidateClaims() {
     updatedAt: {
       // Updated more than 30 seconds ago, to prevent eventual consistency issues with player states not yet being updated
       $lte: new Date(Date.now() - 1000 * 30),
-    }
+    },
   });
 
   await Promise.all(activeClaims.map(async (claim: IClaimDoc) => {
@@ -595,17 +595,17 @@ async function teleportPlayersInEntrance() {
     logger.info(`Found ${players.length} players in the dungeon entrance`);
 
     for (let player of players) {
-      // Move them out of the entrance, even if they're about to get teleported into the dungeon
-      if (await tryTakeLock('teleport-out-of-entrance', player.playerName, 10)) {
-        await execCommand([
-          `tp ${player.playerName} -512 114 1980 90 0`,
-        ]);
-      }
-
       if (player.state === QueueStates.IN_TRANSIT_TO_DUNGEON) {
         // Teleport player to dungeon instance
         logger.info(`Teleporting ${player.playerName} into their dungeon`);
         await tryMovePlayerToDungeon(player);
+      } else {
+        // Move them out of the entrance if they are not meant to be there
+        if (await tryTakeLock('teleport-out-of-entrance', player.playerName, 10)) {
+          await execCommand([
+            `tp ${player.playerName} -512 114 1980 90 0`,
+          ]);
+        }
       }
     }
   }
