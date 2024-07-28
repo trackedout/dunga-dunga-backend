@@ -28,7 +28,12 @@ export interface IPlayer {
   activeClaimId: string;
 }
 
-export interface IPlayerDoc extends IPlayer, Document {}
+export interface ITimestamps {
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface IPlayerDoc extends IPlayer, Document, ITimestamps {}
 
 export interface IPlayerModel extends Model<IPlayerDoc> {
   paginate(filter: Record<string, any>, options: Record<string, any>): Promise<QueryResult>;

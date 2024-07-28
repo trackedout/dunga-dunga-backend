@@ -102,7 +102,6 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
       playerName: eventBody.player,
       server: eventBody.server,
       state: QueueStates.IN_LOBBY,
-      lastSeen: new Date(),
     });
 
     await addDefaultCards(eventBody.player);
@@ -110,7 +109,6 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
     await player.updateOne({
       server: eventBody.server,
       state: QueueStates.IN_LOBBY,
-      lastSeen: new Date(),
     });
   }
 }

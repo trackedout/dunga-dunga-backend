@@ -53,8 +53,12 @@ async function getMessageForEvent(event: NewCreatedEvent) {
         playerName: event.player,
       }).exec();
 
-      if (!player) {
-        return `${playerNameBold} joined the network for the first time! Welcome! :leaves:`;
+      if (!player || (!player.lastSeen && player.createdAt >= cutoffDate)) {
+        if (event.server === 'lobby') {
+          return `${playerNameBold} joined the network for the first time! Welcome! :leaves:`;
+        } else {
+          return '';
+        }
       } else if (!player.lastSeen || player.lastSeen < cutoffDate) {
         return `${playerNameBold} joined the network`;
       } else {
