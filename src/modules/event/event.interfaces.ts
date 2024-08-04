@@ -22,8 +22,12 @@ export enum ServerEvents {
   SHUTDOWN_ALL_EMPTY_DUNGEONS = 'shutdown-all-empty-dungeons',
 }
 
+export enum TradeEvents {
+  TRADE_REQUESTED = 'trade-requested',
+}
+
 export interface IEvent {
-  name: PlayerEvents | ServerEvents;
+  name: PlayerEvents | ServerEvents | TradeEvents;
   count: number;
 
   player: string;

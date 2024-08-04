@@ -5,7 +5,7 @@ import Players from './player.model';
 import DungeonInstance from './instance.model';
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
-import { IEventDoc, NewCreatedEvent, PlayerEvents, ServerEvents, UpdateEventBody } from './event.interfaces';
+import { IEventDoc, NewCreatedEvent, PlayerEvents, ServerEvents, TradeEvents, UpdateEventBody } from './event.interfaces';
 import { QueueStates } from './player.interfaces';
 import Task from '../task/task.model';
 import { logger } from '../logger';
@@ -16,6 +16,7 @@ import { Claim } from '../claim';
 import { ClaimStates, ClaimTypes, RunTypes } from '../claim/claim.interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import { notifyDiscord } from './discord';
+import { Score } from '../score';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -70,6 +71,10 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
 
       case ServerEvents.SHUTDOWN_ALL_EMPTY_DUNGEONS:
         await shutdownAllEmptyDungeons();
+        break;
+
+      case TradeEvents.TRADE_REQUESTED:
+        await performTrade(eventBody);
         break;
 
       default:
@@ -471,6 +476,102 @@ async function shutdownAllEmptyDungeons() {
       }),
     ),
   );
+}
+
+async function performTrade(eventBody: NewCreatedEvent) {
+  const playerName = eventBody.player;
+  const player = await Players.findOne({
+    playerName: playerName,
+  }).exec();
+
+  if (!player) {
+    throw new ApiError(httpStatus.NOT_FOUND, `Player '${playerName}' not found`);
+  }
+
+  logger.debug(`Event metadata: ${JSON.stringify(eventBody.metadata, null, 4)}`);
+  const metadata = new Map(Object.entries(eventBody.metadata));
+  /*
+                            "run-type" to trade.runType,
+                            "source-scoreboard" to trade.sourceScoreboardName,
+                            "source-inversion-scoreboard" to trade.sourceInversionScoreboardName,
+                            "source-count" to trade.sourceItemCount.toString(),
+                            "target-scoreboard" to trade.targetScoreboardName,
+                            "target-count" to trade.targetItemCount.toString(),
+   */
+
+  const sourceScoreboard = metadata.get('source-scoreboard');
+  const sourceInversionScoreboard = metadata.get('source-inversion-scoreboard');
+  const sourceCount = parseInt(metadata.get('source-count'));
+  const targetScoreboard = metadata.get('target-scoreboard');
+  const targetCount = parseInt(metadata.get('target-count'));
+
+  const sourceScore = await Score.findOne({
+    player: playerName,
+    key: sourceScoreboard,
+  }).exec();
+
+  if (!sourceScore) {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Source scoreboard '${sourceScoreboard}' does not exist`);
+  }
+
+  if (sourceScoreboard !== sourceInversionScoreboard) {
+    let sourceInversionScore = await Score.findOne({
+      player: playerName,
+      key: sourceInversionScoreboard,
+    }).exec();
+
+    let inversionScore = 0;
+    if (sourceInversionScore) {
+      inversionScore = sourceInversionScore.value;
+    }
+    const currentValue = sourceScore.value - inversionScore;
+    if (currentValue - sourceCount < 0) {
+      throw new ApiError(httpStatus.BAD_REQUEST, `Calculated score of '${sourceScoreboard}' - ${sourceInversionScoreboard} is ${currentValue} which is too low for this trade`);
+    }
+
+    if (!sourceInversionScore) {
+      await Score.create({
+        player: playerName,
+        key: sourceInversionScoreboard,
+        value: sourceCount,
+      });
+    } else {
+      await sourceInversionScore.updateOne({
+        value: sourceInversionScore.value + sourceCount,
+      });
+    }
+  } else {
+    // Source scoreboard and inversion scoreboard is the same, so just remove from source scoreboard
+    const currentValue = sourceScore.value;
+    if (currentValue - sourceCount < 0) {
+      throw new ApiError(httpStatus.BAD_REQUEST, `Calculated score of '${sourceScoreboard}' - ${sourceInversionScoreboard} is ${currentValue} which is too low for this trade`);
+    }
+
+    await sourceScore.updateOne({
+      value: currentValue - sourceCount,
+    });
+  }
+
+  if (targetScoreboard === '') {
+    // Dummy scoreboard should not get updated
+    return;
+  }
+
+  let targetScore = await Score.findOne({
+    player: playerName,
+    key: targetScoreboard,
+  }).exec();
+  if (!targetScore) {
+    await Score.create({
+      player: playerName,
+      key: targetScoreboard,
+      value: targetCount,
+    });
+  } else {
+    await targetScore.updateOne({
+      value: targetScore.value + targetCount,
+    });
+  }
 }
 
 /**
