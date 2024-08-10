@@ -108,20 +108,46 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
       server: eventBody.server,
       state: QueueStates.IN_LOBBY,
     });
-
-    await addDefaultCards(eventBody.player);
   } else {
     await player.updateOne({
       server: eventBody.server,
       state: QueueStates.IN_LOBBY,
     });
   }
+
+  await ensureDeckIsSeeded(eventBody.player, 'p1');
+  await ensureDeckIsSeeded(eventBody.player, 'c1');
+
+  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.practice', 32);
+  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.competitive', 8);
 }
 
-async function addDefaultCards(playerName: string) {
-  await Card.create({ name: 'moment_of_clarity', player: playerName, server: 'lobby', deckId: '1' });
-  await Card.create({ name: 'sneak', player: playerName, server: 'lobby', deckId: '1' });
-  await Card.create({ name: 'treasure_hunter', player: playerName, server: 'lobby', deckId: '1' });
+async function ensureDeckIsSeeded(playerName: string, deckId: string) {
+  if (!(await Card.findOne({ player: playerName, deckType: deckId[0] }).exec())) {
+    logger.warn(`${playerName} has no cards in ${deckId}, adding initial cards`);
+    await addDefaultCards(playerName, deckId);
+  }
+}
+
+async function addDefaultCards(playerName: string, deckId: string) {
+  await Card.create({ name: 'moment_of_clarity', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
+  await Card.create({ name: 'sneak', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
+  await Card.create({ name: 'treasure_hunter', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
+}
+
+async function ensureScoreboardIsSeeded(playerName: string, key: string, defaultValue: number) {
+  if (!(await Score.findOne({ player: playerName, key: key }).exec())) {
+    logger.warn(`${playerName} does not have score value set for ${key}, setting it to ${defaultValue}`);
+    await Score.create({ player: playerName, key: key, value: defaultValue });
+
+    await Task.create({
+      server: 'lobby',
+      type: 'update-inventory',
+      state: 'SCHEDULED',
+      targetPlayer: playerName,
+      sourceIP: '127.0.0.1',
+    });
+  }
 }
 
 async function updatePlayerLastSeenDate(eventBody: NewCreatedEvent) {
