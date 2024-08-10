@@ -72,7 +72,7 @@ export const deleteCard = async (filter: DeleteCard): Promise<ICardDoc | null> =
  * @param {Pick<ICard, 'name'>[]} cards - The array of new cards to overwrite with
  */
 export const overwritePlayerDeck = async (filter: OverwritePlayerDeckFilter, cards: string[]) => {
-  const { player, server, deckId } = filter;
+  const { player, server, deckType } = filter;
 
   await Card.deleteMany(filter).exec();
 
@@ -80,7 +80,7 @@ export const overwritePlayerDeck = async (filter: OverwritePlayerDeckFilter, car
     name,
     player,
     server,
-    deckId,
+    deckType,
   }));
 
   await Card.insertMany(newCards);

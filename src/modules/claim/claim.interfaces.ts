@@ -29,6 +29,7 @@ export enum ClaimTypes {
 
 export enum RunTypes {
   PRACTICE = 'practice',
+  COMPETITIVE = 'competitive',
 }
 
 export enum ClaimStates {

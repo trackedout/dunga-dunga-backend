@@ -22,11 +22,15 @@ const cardSchema = new mongoose.Schema<ICardDoc, ICardModel>(
       required: true,
       trim: true,
     },
-    deckId: {
+    deckType: {
       type: String,
       required: true,
-      default: '1',
+      trim: true,
       index: true,
+    },
+    hiddenInDecks: {
+      type: [String],
+      required: false,
     },
   },
   {

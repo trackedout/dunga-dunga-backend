@@ -17,9 +17,14 @@ export const createCard = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getCards = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.query, ['name', 'server', 'player', 'deckId']);
+  const filter = pick(req.query, ['name', 'server', 'player', 'deckType', 'deckId']);
   if (filter.deckId === 'active') {
     filter.deckId = await getSelectedDeck(filter.player);
+  }
+
+  if (filter.deckId) {
+    filter.hiddenInDecks = { '$ne': filter.deckId };
+    delete filter.deckId;
   }
 
   const options: IOptions = pick(req.query, ['sortBy', 'limit', 'page', 'projectBy']);
@@ -36,7 +41,7 @@ async function getSelectedDeck(playerName: String) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Player does not exist');
   }
 
-  return player.lastSelectedDeck || '1';
+  return player.lastSelectedDeck || 'p1';
 }
 
 export const getCard = catchAsync(async (req: Request, res: Response) => {
@@ -57,13 +62,13 @@ export const updateCard = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const deleteCard = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.body, ['id', 'name', 'player', 'deckId']);
+  const filter = pick(req.body, ['id', 'name', 'player', 'deckType']);
   await cardService.deleteCard(filter);
   res.status(httpStatus.NO_CONTENT).send();
 });
 
 export const overwritePlayerDeck = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.query, ['player', 'server', 'deckId']);
+  const filter = pick(req.query, ['player', 'server', 'deckType']);
   await cardService.overwritePlayerDeck(filter, req.body);
   res.status(httpStatus.NO_CONTENT).send();
 });

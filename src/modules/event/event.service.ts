@@ -276,21 +276,25 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     throw new ApiError(httpStatus.PRECONDITION_FAILED, `Active claim already exists for this player`);
   }
 
+  const metadata = new Map(Object.entries(eventBody.metadata));
+  const deckId = metadata.get('deck-id') || 'p1'; // TODO: Throw error if missing
+
   const claim = await Claim.create({
     player: player.playerName,
     type: ClaimTypes.DUNGEON,
     state: ClaimStates.PENDING,
     metadata: {
       'run-id': uuidv4(),
-      'deck-id': eventBody.count,
-      'run-type': RunTypes.PRACTICE,
+      'deck-id': deckId,
+      // TODO: Set the default based on deck ID, or just throw an error
+      'run-type': metadata.get('run-type') || RunTypes.PRACTICE,
     },
   });
 
   await player.updateOne({
     state: QueueStates.IN_QUEUE,
     server: eventBody.server,
-    lastSelectedDeck: eventBody.count,
+    lastSelectedDeck: deckId,
     activeClaimId: claim.id,
   });
   logger.info(`Placed ${player.playerName} in the dungeon queue with Deck #${eventBody.count}`);

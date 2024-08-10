@@ -52,13 +52,17 @@ components:
           type: string
         server:
           type: string
-        deckId:
+        deckType:
           type: string
+        hiddenInDecks:
+          type: array
+          items:
+            type: string
       example:
         name: moment_of_clarity
         player: 4Ply
         server: lobby
-        deckId: "1"
+        deckType: "p"
 
     Item:
       type: object

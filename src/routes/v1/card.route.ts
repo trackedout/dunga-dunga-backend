@@ -77,10 +77,16 @@ export default router;
  *           type: string
  *         description: Player
  *       - in: query
+ *         name: deckType
+ *         schema:
+ *           type: string
+ *         default: p
+ *         description: Deck Type
+ *       - in: query
  *         name: deckId
  *         schema:
  *           type: string
- *         default: 1
+ *         default: p1
  *         description: Deck ID
  *       - in: query
  *         name: sortBy

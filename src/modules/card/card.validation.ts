@@ -6,7 +6,8 @@ const createCardBody: Record<keyof NewCreatedCard, any> = {
   name: Joi.string().required().min(3),
   player: Joi.string().required().min(1),
   server: Joi.string().required().min(1),
-  deckId: Joi.string().optional().min(1),
+  deckType: Joi.string().required().min(1),
+  hiddenInDecks: Joi.array().items(Joi.string().required()).min(0),
 };
 
 export const createCard = {
@@ -18,6 +19,7 @@ export const getCards = {
     name: Joi.string(),
     player: Joi.string().required(),
     server: Joi.string(),
+    deckType: Joi.string().min(1),
     deckId: Joi.string(),
 
     sortBy: Joi.string(),
@@ -51,7 +53,8 @@ export const deleteCard = {
     id: Joi.string(),
     name: Joi.string(),
     player: Joi.string().required(),
-    deckId: Joi.string().required(),
+    deckType: Joi.string().required().min(1),
+    deckId: Joi.string(),
     server: Joi.string(),
   }),
 };
@@ -60,7 +63,8 @@ export const overwritePlayerDeck = {
   query: Joi.object().keys({
     player: Joi.string().required().min(3),
     server: Joi.string().required().min(1),
-    deckId: Joi.string().required().min(1),
+    deckType: Joi.string().required().min(1),
+    deckId: Joi.string(),
   }),
   body: Joi.array().items(Joi.string()),
 };

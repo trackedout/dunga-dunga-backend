@@ -37,6 +37,21 @@ export async function notifyDiscord(event: NewCreatedEvent) {
   }
 }
 
+function getFullRunType(metadata: Map<string, any>) {
+  switch (metadata.get('run-type')) {
+    case 'c':
+      return 'Competitive';
+    case 'p':
+      return 'Practice';
+    default:
+      return 'Unknown';
+  }
+}
+
+function getDeckId(metadata: Map<string, string>) {
+  return metadata.get('deck-id')?.substring(1);
+}
+
 async function getMessageForEvent(event: NewCreatedEvent) {
   if (event.player.toLowerCase() === 'tangocam') {
     return;
@@ -72,7 +87,8 @@ async function getMessageForEvent(event: NewCreatedEvent) {
       return `${playerNameBold} was defeated by the dungeon <:Ravager:1166890345188040846>`;
 
     case PlayerEvents.JOINED_QUEUE:
-      return `${playerNameBold} queued for a dungeon run (Deck #${event.count})`;
+      const metadata = new Map(Object.entries(event.metadata));
+      return `${playerNameBold} queued for a ${getFullRunType(metadata)} run (Deck #${getDeckId(metadata)})`;
 
     case 'difficulty-selected-easy':
     case 'difficulty-selected-medium':
