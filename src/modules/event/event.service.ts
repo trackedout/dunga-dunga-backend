@@ -17,6 +17,7 @@ import { ClaimStates, ClaimTypes, RunTypes } from '../claim/claim.interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import { notifyDiscord } from './discord';
 import { Score } from '../score';
+import { getSelectedDeck } from '../card/card.controller';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -75,6 +76,10 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
 
       case TradeEvents.TRADE_REQUESTED:
         await performTrade(eventBody);
+        break;
+
+      case PlayerEvents.CARD_VISIBILITY_UPDATED:
+        await updateCardVisibility(eventBody);
         break;
 
       default:
@@ -521,14 +526,25 @@ async function performTrade(eventBody: NewCreatedEvent) {
   logger.debug(`Event metadata: ${JSON.stringify(eventBody.metadata, null, 4)}`);
   const metadata = new Map(Object.entries(eventBody.metadata));
   /*
-                            "run-type" to trade.runType,
-                            "source-scoreboard" to trade.sourceScoreboardName,
-                            "source-inversion-scoreboard" to trade.sourceInversionScoreboardName,
-                            "source-count" to trade.sourceItemCount.toString(),
-                            "target-scoreboard" to trade.targetScoreboardName,
-                            "target-count" to trade.targetItemCount.toString(),
+      "run-type" to trade.runType,
+      "source-scoreboard" to trade.sourceScoreboardName,
+      "source-inversion-scoreboard" to trade.sourceInversionScoreboardName,
+      "source-count" to trade.sourceItemCount.toString(),
+      "target-scoreboard" to trade.targetScoreboardName,
+      "target-count" to trade.targetItemCount.toString(),
+
+      Example:
+      {
+        "run-type": "competitive",
+        "source-scoreboard": "do2.inventory.shards.competitive",
+        "source-inversion-scoreboard": "do2.inventory.shards.competitive",
+        "source-count": "1",
+        "target-scoreboard": "queue",
+        "target-count": "1"
+      }
    */
 
+  const runType = metadata.get('run-type')[0].toLowerCase();
   const sourceScoreboard = metadata.get('source-scoreboard');
   const sourceInversionScoreboard = metadata.get('source-inversion-scoreboard');
   const sourceCount = parseInt(metadata.get('source-count'));
@@ -556,6 +572,18 @@ async function performTrade(eventBody: NewCreatedEvent) {
       },
     }).exec()) {
       throw new ApiError(httpStatus.PRECONDITION_FAILED, `Active claim already exists for this player`);
+    }
+
+    const activeDeckId = await getSelectedDeck(player.playerName, runType);
+    const cardCount = await Card.countDocuments({
+      player: playerName,
+      deckType: runType,
+      hiddenInDecks: { '$ne': activeDeckId },
+    }).exec();
+
+    logger.info(`Player has ${cardCount} cards in Deck ${activeDeckId}`);
+    if (cardCount === 0) {
+      throw new ApiError(httpStatus.PRECONDITION_FAILED, `Deck ${activeDeckId} is empty`);
     }
 
     targetScoreboard = '';
@@ -619,6 +647,83 @@ async function performTrade(eventBody: NewCreatedEvent) {
       value: targetScore.value + targetCount,
     });
   }
+}
+
+async function updateCardVisibility(eventBody: NewCreatedEvent) {
+  const playerName = eventBody.player;
+  const player = await Players.findOne({
+    playerName: playerName,
+  }).exec();
+
+  if (!player) {
+    throw new ApiError(httpStatus.NOT_FOUND, `Player '${playerName}' not found`);
+  }
+
+  logger.debug(`Event metadata: ${JSON.stringify(eventBody.metadata, null, 4)}`);
+  const metadata = new Map(Object.entries(eventBody.metadata));
+  /*
+      metadata = mapOf(
+        "run-type" to deckIdToUpdate.shortRunType(),
+        "deck-id" to deckIdToUpdate,
+      ).plus(cardsToHide.map { "hide-card-${it.key}" to it.value.toString() })
+   */
+
+  const runType = metadata.get('run-type');
+  const deckId = metadata.get('deck-id');
+
+  if (!runType || !deckId) {
+    throw new ApiError(httpStatus.NOT_FOUND, `At least one metadata field not found: [run-type, deck-id]`);
+  }
+
+  const cards = await Card.find({
+    player: playerName,
+    deckType: runType,
+  }).exec();
+
+  let cardUpdates: Promise<any>[] = [];
+
+  let cardsToHide: string[] = [];
+  for (let key of metadata.keys()) {
+    if (key.startsWith('hide-card-')) {
+      const cardName = key.replace('hide-card-', '');
+      const numberToHide = metadata.get(key);
+      cardsToHide.push(cardName);
+      let hidden = 0;
+
+      for (let card of cards) {
+        if (card.name === cardName) {
+          const thisCardIsHidden = card.hiddenInDecks.includes(deckId);
+          if (thisCardIsHidden) {
+            hidden++;
+          }
+
+          if (hidden > numberToHide && thisCardIsHidden) {
+            cardUpdates.push(card.updateOne({
+              hiddenInDecks: card.hiddenInDecks.filter(id => id !== deckId),
+            }));
+            hidden--;
+          } else if (hidden < numberToHide && !thisCardIsHidden) {
+            cardUpdates.push(card.updateOne({
+              hiddenInDecks: [...card.hiddenInDecks, deckId],
+            }));
+            hidden++;
+          }
+        }
+      }
+    }
+  }
+
+  for (let card of cards) {
+    if (!cardsToHide.includes(card.name)) {
+      if (card.hiddenInDecks.includes(deckId)) {
+        cardUpdates.push(card.updateOne({
+          hiddenInDecks: card.hiddenInDecks.filter(id => id !== deckId),
+        }));
+      }
+    }
+  }
+
+  await Promise.all(cardUpdates);
 }
 
 /**

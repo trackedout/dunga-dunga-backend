@@ -19,7 +19,7 @@ export const createCard = catchAsync(async (req: Request, res: Response) => {
 export const getCards = catchAsync(async (req: Request, res: Response) => {
   const filter = pick(req.query, ['name', 'server', 'player', 'deckType', 'deckId']);
   if (filter.deckId === 'active') {
-    filter.deckId = await getSelectedDeck(filter.player);
+    filter.deckId = await getSelectedDeck(filter.player, filter.deckType);
   }
 
   if (filter.deckId) {
@@ -32,7 +32,7 @@ export const getCards = catchAsync(async (req: Request, res: Response) => {
   res.send(result);
 });
 
-async function getSelectedDeck(playerName: String) {
+export async function getSelectedDeck(playerName: String, deckType: String) {
   const player = await Player.findOne({
     playerName,
   }).exec();
@@ -41,7 +41,8 @@ async function getSelectedDeck(playerName: String) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Player does not exist');
   }
 
-  return player.lastSelectedDeck || 'p1';
+  // TODO: Support last deck selection for multiple deck types
+  return `${deckType}1`;
 }
 
 export const getCard = catchAsync(async (req: Request, res: Response) => {

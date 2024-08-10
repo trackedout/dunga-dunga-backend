@@ -13,6 +13,8 @@ export enum PlayerEvents {
   // Really means connected to Lobby server
   JOINED_NETWORK = 'joined-network',
   SEEN = 'player-seen',
+
+  CARD_VISIBILITY_UPDATED = 'card-visibility-updated',
 }
 
 export enum ServerEvents {
