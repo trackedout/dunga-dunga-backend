@@ -502,7 +502,7 @@ async function performTrade(eventBody: NewCreatedEvent) {
   const sourceScoreboard = metadata.get('source-scoreboard');
   const sourceInversionScoreboard = metadata.get('source-inversion-scoreboard');
   const sourceCount = parseInt(metadata.get('source-count'));
-  const targetScoreboard = metadata.get('target-scoreboard');
+  let targetScoreboard = metadata.get('target-scoreboard');
   const targetCount = parseInt(metadata.get('target-count'));
 
   const sourceScore = await Score.findOne({
@@ -512,6 +512,23 @@ async function performTrade(eventBody: NewCreatedEvent) {
 
   if (!sourceScore) {
     throw new ApiError(httpStatus.BAD_REQUEST, `Source scoreboard '${sourceScoreboard}' does not exist`);
+  }
+
+  if (targetScoreboard === 'queue') {
+    if (player.state !== QueueStates.IN_LOBBY) {
+      throw new ApiError(httpStatus.PRECONDITION_FAILED, `Player '${eventBody.player}' is in state ${player.state}, preventing re-queue`);
+    }
+    if (await Claim.findOne({
+      player: player.playerName,
+      type: ClaimTypes.DUNGEON,
+      state: {
+        $nin: [ClaimStates.PERSISTING, ClaimStates.FINALIZED, ClaimStates.INVALID],
+      },
+    }).exec()) {
+      throw new ApiError(httpStatus.PRECONDITION_FAILED, `Active claim already exists for this player`);
+    }
+
+    targetScoreboard = '';
   }
 
   if (sourceScoreboard !== sourceInversionScoreboard) {
