@@ -43,8 +43,6 @@ export default router;
  *           application/json:
  *             schema:
  *                $ref: '#/components/schemas/Task'
- *       "400":
- *         $ref: '#/components/responses/DuplicateEmail'
  *       "401":
  *         $ref: '#/components/responses/Unauthorized'
  *       "403":
@@ -182,8 +180,6 @@ export default router;
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Task'
- *       "400":
- *         $ref: '#/components/responses/DuplicateEmail'
  *       "401":
  *         $ref: '#/components/responses/Unauthorized'
  *       "403":
@@ -191,4 +187,3 @@ export default router;
  *       "404":
  *         $ref: '#/components/responses/NotFound'
  */
-

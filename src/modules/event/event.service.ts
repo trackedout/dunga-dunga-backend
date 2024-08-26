@@ -556,7 +556,7 @@ async function performTrade(eventBody: NewCreatedEvent) {
     key: sourceScoreboard,
   }).exec();
 
-  if (!sourceScore) {
+  if (!sourceScore && sourceScoreboard !== '') {
     throw new ApiError(httpStatus.BAD_REQUEST, `Source scoreboard '${sourceScoreboard}' does not exist`);
   }
 
@@ -589,42 +589,48 @@ async function performTrade(eventBody: NewCreatedEvent) {
     targetScoreboard = '';
   }
 
-  if (sourceScoreboard !== sourceInversionScoreboard) {
-    let sourceInversionScore = await Score.findOne({
-      player: playerName,
-      key: sourceInversionScoreboard,
-    }).exec();
-
-    let inversionScore = 0;
-    if (sourceInversionScore) {
-      inversionScore = sourceInversionScore.value;
-    }
-    const currentValue = sourceScore.value - inversionScore;
-    if (currentValue - sourceCount < 0) {
-      throw new ApiError(httpStatus.BAD_REQUEST, `Calculated score of '${sourceScoreboard}' - ${sourceInversionScoreboard} is ${currentValue} which is too low for this trade`);
+  if (sourceScoreboard !== '') {
+    if (!sourceScore) {
+      throw new ApiError(httpStatus.BAD_REQUEST, `Source scoreboard '${sourceScoreboard}' does not exist but source is not empty (this should never happen here)`);
     }
 
-    if (!sourceInversionScore) {
-      await Score.create({
+    if (sourceScoreboard !== sourceInversionScoreboard) {
+      let sourceInversionScore = await Score.findOne({
         player: playerName,
         key: sourceInversionScoreboard,
-        value: sourceCount,
-      });
-    } else {
-      await sourceInversionScore.updateOne({
-        value: sourceInversionScore.value + sourceCount,
-      });
-    }
-  } else {
-    // Source scoreboard and inversion scoreboard is the same, so just remove from source scoreboard
-    const currentValue = sourceScore.value;
-    if (currentValue - sourceCount < 0) {
-      throw new ApiError(httpStatus.BAD_REQUEST, `Calculated score of '${sourceScoreboard}' - ${sourceInversionScoreboard} is ${currentValue} which is too low for this trade`);
-    }
+      }).exec();
 
-    await sourceScore.updateOne({
-      value: currentValue - sourceCount,
-    });
+      let inversionScore = 0;
+      if (sourceInversionScore) {
+        inversionScore = sourceInversionScore.value;
+      }
+      const currentValue = sourceScore.value - inversionScore;
+      if (currentValue - sourceCount < 0) {
+        throw new ApiError(httpStatus.BAD_REQUEST, `Calculated score of '${sourceScoreboard}' - ${sourceInversionScoreboard} is ${currentValue} which is too low for this trade`);
+      }
+
+      if (!sourceInversionScore) {
+        await Score.create({
+          player: playerName,
+          key: sourceInversionScoreboard,
+          value: sourceCount,
+        });
+      } else {
+        await sourceInversionScore.updateOne({
+          value: sourceInversionScore.value + sourceCount,
+        });
+      }
+    } else {
+      // Source scoreboard and inversion scoreboard is the same, so just remove from source scoreboard
+      const currentValue = sourceScore.value;
+      if (currentValue - sourceCount < 0) {
+        throw new ApiError(httpStatus.BAD_REQUEST, `Calculated score of '${sourceScoreboard}' - ${sourceInversionScoreboard} is ${currentValue} which is too low for this trade`);
+      }
+
+      await sourceScore.updateOne({
+        value: currentValue - sourceCount,
+      });
+    }
   }
 
   if (targetScoreboard === '') {

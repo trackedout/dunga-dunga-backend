@@ -191,15 +191,6 @@ components:
           type: string
 
   responses:
-    DuplicateEmail:
-      description: Email already taken
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: 400
-            message: Email already taken
     Unauthorized:
       description: Unauthorized
       content:
@@ -228,8 +219,3 @@ components:
             code: 404
             message: Not found
 
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
