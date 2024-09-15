@@ -51,17 +51,18 @@ export const updateCard = {
 export const deleteCard = {
   body: Joi.object().keys({
     id: Joi.string(),
-    name: Joi.string(),
+    name: Joi.string().required(),
     player: Joi.string().required(),
     deckType: Joi.string().required().min(1),
     deckId: Joi.string(),
     server: Joi.string(),
+    hiddenInDecks: Joi.any().optional(),
   }),
 };
 
 export const overwritePlayerDeck = {
   query: Joi.object().keys({
-    player: Joi.string().required().min(3),
+    player: Joi.string().required().min(1),
     server: Joi.string().required().min(1),
     deckType: Joi.string().required().min(1),
     deckId: Joi.string(),

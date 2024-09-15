@@ -66,19 +66,12 @@ components:
 
     Item:
       type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        player:
-          type: string
-        server:
-          type: string
+      $ref: '#/components/schemas/Card'
       example:
         name: crown
         player: 4Ply
         server: lobby
+        deckType: "p"
 
     Task:
       type: object

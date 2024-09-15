@@ -19,6 +19,6 @@ export type UpdateCardBody = Partial<ICard>;
 
 export type NewCreatedCard = Required<ICard>;
 
-export type DeleteCard = Pick<ICard, 'name' | 'player' | 'deckType'>;
+export type DeleteCard = Required<Pick<ICard, 'name' | 'player' | 'deckType'>>;
 
 export type OverwritePlayerDeckFilter = Required<Pick<ICard, 'player' | 'server' | 'deckType'>>;

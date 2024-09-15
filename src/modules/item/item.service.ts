@@ -3,15 +3,15 @@ import mongoose from 'mongoose';
 import Item from './item.model';
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
-import { DeleteItem, IItemDoc, NewCreatedItem, UpdateItemBody } from './item.interfaces';
+import { DeleteCard, ICardDoc, NewCreatedCard, UpdateCardBody } from '../card/card.interfaces';
 import Player from '../event/player.model';
 
 /**
  * Create a Item, associating it with a Player's deck
- * @param {NewCreatedItem} itemBody
- * @returns {Promise<IItemDoc>}
+ * @param {NewCreatedCard} itemBody
+ * @returns {Promise<ICardDoc>}
  */
-export const createItem = async (itemBody: NewCreatedItem): Promise<IItemDoc> => {
+export const createItem = async (itemBody: NewCreatedCard): Promise<ICardDoc> => {
   const player = await Player.findOne({ playerName: itemBody.player }).exec();
   if (!player) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Player does not exist');
@@ -32,17 +32,17 @@ export const queryItems = async (filter: Record<string, any>, options: IOptions)
 /**
  * Get item by id
  * @param {mongoose.Types.ObjectId} id
- * @returns {Promise<IItemDoc | null>}
+ * @returns {Promise<ICardDoc | null>}
  */
-export const getItemById = async (id: mongoose.Types.ObjectId): Promise<IItemDoc | null> => Item.findById(id);
+export const getItemById = async (id: mongoose.Types.ObjectId): Promise<ICardDoc | null> => Item.findById(id);
 
 /**
  * Update item by id
  * @param {mongoose.Types.ObjectId} itemId
- * @param {UpdateItemBody} updateBody
- * @returns {Promise<IItemDoc | null>}
+ * @param {UpdateCardBody} updateBody
+ * @returns {Promise<ICardDoc | null>}
  */
-export const updateItemById = async (itemId: mongoose.Types.ObjectId, updateBody: UpdateItemBody): Promise<IItemDoc | null> => {
+export const updateItemById = async (itemId: mongoose.Types.ObjectId, updateBody: UpdateCardBody): Promise<ICardDoc | null> => {
   const item = await getItemById(itemId);
   if (!item) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Item not found');
@@ -54,13 +54,13 @@ export const updateItemById = async (itemId: mongoose.Types.ObjectId, updateBody
 
 /**
  * Delete item using a filter
- * @param {DeleteItem} filter
- * @returns {Promise<IItemDoc | null>}
+ * @param {DeleteCard} filter
+ * @returns {Promise<ICardDoc | null>}
  */
-export const deleteItem = async (filter: DeleteItem): Promise<IItemDoc | null> => {
+export const deleteItem = async (filter: DeleteCard): Promise<ICardDoc | null> => {
   const item = await Item.findOne(filter).exec();
   if (!item) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Item not found');
+    throw new ApiError(httpStatus.NOT_FOUND, `Item not found for filter ${filter}`);
   }
   await item.deleteOne();
   return item;

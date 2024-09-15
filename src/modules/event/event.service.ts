@@ -719,6 +719,7 @@ async function updateCardVisibility(eventBody: NewCreatedEvent) {
     }
   }
 
+  // Show cards that are currently hidden but should no longer be.
   for (let card of cards) {
     if (!cardsToHide.includes(card.name)) {
       if (card.hiddenInDecks.includes(deckId)) {

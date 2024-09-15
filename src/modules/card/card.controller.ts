@@ -63,7 +63,7 @@ export const updateCard = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const deleteCard = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.body, ['id', 'name', 'player', 'deckType']);
+  const filter = pick(req.body, ['name', 'player', 'deckType']);
   await cardService.deleteCard(filter);
   res.status(httpStatus.NO_CONTENT).send();
 });

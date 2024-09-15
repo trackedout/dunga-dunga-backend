@@ -5,6 +5,7 @@ import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
 import { DeleteCard, ICardDoc, NewCreatedCard, OverwritePlayerDeckFilter, UpdateCardBody } from './card.interfaces';
 import Player from '../event/player.model';
+import { logger } from '../logger';
 
 /**
  * Create a Card, associating it with a Player's deck
@@ -60,6 +61,7 @@ export const updateCardById = async (cardId: mongoose.Types.ObjectId, updateBody
 export const deleteCard = async (filter: DeleteCard): Promise<ICardDoc | null> => {
   const card = await Card.findOne(filter).exec();
   if (!card) {
+    logger.error(`Card not found for filter ${JSON.stringify(filter, null, 4)}`);
     throw new ApiError(httpStatus.NOT_FOUND, `Card not found for filter ${filter}`);
   }
   await card.deleteOne();

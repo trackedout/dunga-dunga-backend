@@ -1,16 +1,17 @@
 import express, { Router } from 'express';
 import { validate } from '../../modules/validate';
-import { itemController, itemValidation } from '../../modules/item';
+import { cardValidation } from '../../modules/card';
+import { itemController } from '../../modules/item';
 
 const router: Router = express.Router();
 
-router.route('/items').get(validate(itemValidation.getItems), itemController.getItems);
+router.route('/items').get(validate(cardValidation.getCards), itemController.getItems);
 
-router.route('/add-item').post(validate(itemValidation.createItem), itemController.createItem);
+router.route('/add-item').post(validate(cardValidation.createCard), itemController.createItem);
 
-router.route('/delete-item').post(validate(itemValidation.deleteItem), itemController.deleteItem);
+router.route('/delete-item').post(validate(cardValidation.deleteCard), itemController.deleteItem);
 
-router.route('/:itemId').get(validate(itemValidation.getItem), itemController.getItem);
+router.route('/:itemId').get(validate(cardValidation.getCard), itemController.getItem);
 
 export default router;
 
@@ -63,10 +64,16 @@ export default router;
  *           type: string
  *         description: Player
  *       - in: query
+ *         name: deckType
+ *         schema:
+ *           type: string
+ *         default: p
+ *         description: Deck Type
+ *       - in: query
  *         name: deckId
  *         schema:
  *           type: string
- *         default: 1
+ *         default: p1
  *         description: Deck ID
  *       - in: query
  *         name: sortBy
