@@ -5,6 +5,7 @@ import { IEvent, NewCreatedEvent, PlayerEvents } from './event.interfaces';
 import { EmbedBuilder, EmbedField, WebhookClient } from 'discord.js';
 import { Claim } from '../claim';
 import { ClaimTypes } from '../claim/claim.interfaces';
+import Task from '../task/task.model';
 
 let webhookClient: WebhookClient | null = null;
 
@@ -18,7 +19,7 @@ if (process.env['DISCORD_WEBHOOK_URL']) {
 }
 
 export async function notifyDiscord(event: NewCreatedEvent) {
-  let message = await getMessageForEvent(event);
+  let message = await getDiscordMessageForEvent(event);
   if (!message) {
     return;
   }
@@ -37,6 +38,21 @@ export async function notifyDiscord(event: NewCreatedEvent) {
   }
 }
 
+export async function notifyLobby(event: NewCreatedEvent) {
+  let message = await getLobbyMessageForEvent(event);
+  if (!message) {
+    return;
+  }
+
+  await Task.create({
+    server: 'lobby',
+    type: 'broadcast-message',
+    arguments: [message],
+    state: 'SCHEDULED',
+    sourceIP: '127.0.0.1',
+  });
+}
+
 function getFullRunType(metadata: Map<string, any>) {
   switch (metadata.get('run-type')) {
     case 'c':
@@ -52,7 +68,7 @@ function getDeckId(metadata: Map<string, string>) {
   return metadata.get('deck-id')?.substring(1);
 }
 
-async function getMessageForEvent(event: NewCreatedEvent) {
+async function getDiscordMessageForEvent(event: NewCreatedEvent) {
   if (event.player.toLowerCase() === 'tangocam') {
     return;
   }
@@ -98,6 +114,55 @@ async function getMessageForEvent(event: NewCreatedEvent) {
       return `${playerNameBold} started a run on *${difficulty}* mode!`;
     case 'difficulty-selected-deepfrost':
       return `${playerNameBold} started a run on *DEEPFROST* mode!? Flee with extra flee!!`;
+  }
+
+  return '';
+}
+
+async function getLobbyMessageForEvent(event: NewCreatedEvent) {
+  if (event.player.toLowerCase() === 'tangocam') {
+    return;
+  }
+
+  const playerName = `${event.player}`;
+
+  switch (event.name.toString()) {
+    case PlayerEvents.SEEN:
+      // 5 minutes ago
+      const cutoffDate = new Date(Date.now() - 1000 * 60 * 5);
+
+      const player = await Player.findOne({
+        playerName: event.player,
+      }).exec();
+
+      if (!player || (!player.lastSeen && player.createdAt >= cutoffDate)) {
+        if (event.server === 'lobby') {
+          return `${playerName} joined the network for the first time! Welcome!`;
+        } else {
+          return '';
+        }
+      } else {
+        return '';
+      }
+
+    case 'game-won':
+      return `${playerName} survived Decked Out!`;
+
+    case 'game-lost':
+      return `${playerName} was defeated by the dungeon`;
+
+    case PlayerEvents.JOINED_QUEUE:
+      const metadata = new Map(Object.entries(event.metadata));
+      return `${playerName} queued for a ${getFullRunType(metadata)} run (Deck #${getDeckId(metadata)})`;
+
+    case 'difficulty-selected-easy':
+    case 'difficulty-selected-medium':
+    case 'difficulty-selected-hard':
+    case 'difficulty-selected-deadly':
+      const difficulty = event.name.toString().split('-')[2];
+      return `${playerName} started a run on ${difficulty} mode!`;
+    case 'difficulty-selected-deepfrost':
+      return `${playerName} started a run on DEEPFROST mode!? Flee with extra flee!!`;
   }
 
   return '';

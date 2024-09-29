@@ -15,7 +15,7 @@ import { Card } from '../card';
 import { Claim } from '../claim';
 import { ClaimStates, ClaimTypes, RunTypes } from '../claim/claim.interfaces';
 import { v4 as uuidv4 } from 'uuid';
-import { notifyDiscord } from './discord';
+import { notifyDiscord, notifyLobby } from './discord';
 import { Score } from '../score';
 import { getSelectedDeck } from '../card/card.controller';
 
@@ -26,6 +26,7 @@ import { getSelectedDeck } from '../card/card.controller';
  */
 export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc> => {
   notifyDiscord(eventBody);
+  notifyLobby(eventBody);
 
   try {
     switch (eventBody.name) {

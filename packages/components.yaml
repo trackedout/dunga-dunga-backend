@@ -65,13 +65,13 @@ components:
         deckType: "p"
 
     Item:
-      type: object
-      $ref: '#/components/schemas/Card'
-      example:
-        name: crown
-        player: 4Ply
-        server: lobby
-        deckType: "p"
+      allOf:
+        - $ref: '#/components/schemas/Card'
+        - example:
+            name: crown
+            player: 4Ply
+            server: lobby
+            deckType: "p"
 
     Task:
       type: object
@@ -167,7 +167,6 @@ components:
     Status:
       type: array
       items:
-        type: object
         $ref: '#/components/schemas/StatusSection'
       example:
         - header: Instances
