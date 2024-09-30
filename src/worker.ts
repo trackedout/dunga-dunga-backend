@@ -334,7 +334,10 @@ async function invalidateClaims() {
       await claim.updateOne({
         state: ClaimStates.INVALID,
       });
+
+      await releaseDungeonLeaseForPlayer(playerName);
     } else {
+      logger.info(`Checking if ${playerName} is in a disallowed state for claim ${claim.id}`);
       if (![
         QueueStates.IN_QUEUE,
         QueueStates.IN_DUNGEON,
@@ -347,9 +350,35 @@ async function invalidateClaims() {
         await claim.updateOne({
           state: ClaimStates.INVALID,
         });
+        await releaseDungeonLeaseForPlayer(playerName);
       }
     }
   }));
+}
+
+async function releaseDungeonLeaseForPlayer(playerName: string) {
+  const dungeonInstance = await DungeonInstance.findOne({
+    state: [InstanceStates.RESERVED, InstanceStates.AWAITING_PLAYER],
+    reservedBy: playerName,
+    requiresRebuild: false,
+    reservedDate: {
+      // Reserved in the last 4min 45s
+      $gte: new Date(Date.now() - 1000 * 60 * 4.5),
+    },
+    name: {
+      $regex: /^d[0-9]{3}/,
+    },
+  }).exec();
+
+  if (dungeonInstance) {
+    await dungeonInstance
+      .updateOne({
+        state: InstanceStates.AVAILABLE,
+        reservedBy: null,
+        reservationDate: null,
+      })
+      .exec();
+  }
 }
 
 async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
