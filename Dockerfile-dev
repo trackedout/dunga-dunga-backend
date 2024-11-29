@@ -1,0 +1,14 @@
+# development stage
+FROM node:18-alpine as base
+
+WORKDIR /usr/src/app
+
+COPY package.json yarn.lock tsconfig.json ecosystem.config.json ./
+
+RUN yarn install --pure-lockfile
+
+COPY ./src ./src
+
+RUN yarn compile
+
+CMD ["yarn", "dev:watch"]
