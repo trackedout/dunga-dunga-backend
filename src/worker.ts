@@ -155,7 +155,7 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
         $lte: minHealthyDateCutoff,
       },
     },
-  );
+  ).sort({ healthySince: 1 });
 
   let dungeon: IInstanceDoc | null = null;
   for (let availableDungeon of dungeons) {
