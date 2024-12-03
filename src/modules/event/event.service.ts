@@ -121,7 +121,9 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
     });
   }
 
-  await allowPlayerToPlayDO2(eventBody);
+  await allowPlayerToPlayDO2(eventBody).catch((_) => {
+      // Ignored
+  });
 
   await ensureDeckIsSeeded(eventBody.player, 'p1');
   await ensureDeckIsSeeded(eventBody.player, 'c1');
