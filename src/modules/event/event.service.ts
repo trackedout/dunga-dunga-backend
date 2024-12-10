@@ -1,5 +1,6 @@
 import httpStatus from 'http-status';
 import mongoose from 'mongoose';
+import { Types } from 'mongoose';
 import Event from './event.model';
 import Players from './player.model';
 import DungeonInstance from './instance.model';
@@ -204,21 +205,7 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
 
   if (existingInstance) {
     // Delete any other copies that are not the one we found above
-    await DungeonInstance.deleteMany({
-      $or: [
-        {
-          name: eventBody.server,
-        },
-        {
-          ip: eventBody.sourceIP,
-        },
-      ],
-      _id: {
-        $ne: existingInstance._id,
-      },
-    })
-      .deleteMany()
-      .exec();
+    await deleteDungeons(eventBody.server, eventBody.sourceIP, existingInstance._id);
 
     // Update instance
     const update = {
@@ -239,22 +226,13 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       existingInstance.activePlayers !== update.activePlayers;
     if (anUpdateOccurred) {
       await notifyOps(
-        `Updated ${eventBody.server}: state=${update.state} requiresRebuild=${update.requiresRebuild} activePlayers=${update.activePlayers}`,
+        `Updated ${eventBody.server}: state=${update.state} activePlayers=${update.activePlayers}`,
       );
     }
   } else {
-    await DungeonInstance.find({
-      name: eventBody.server,
-    })
-      .deleteMany()
-      .exec();
-    await DungeonInstance.find({
-      ip: eventBody.sourceIP,
-    })
-      .deleteMany()
-      .exec();
+    await deleteDungeons(eventBody.server, eventBody.sourceIP);
 
-    // create new instance
+    // Register the dungeon as a new instance
     await DungeonInstance.create({
       name: eventBody.server,
       ip: eventBody.sourceIP,
@@ -266,6 +244,28 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
     });
 
     await notifyOps(`Registered new dungeon: ${eventBody.server}@${eventBody.sourceIP}`);
+  }
+}
+
+async function deleteDungeons(name: String, ip: String, existingInstanceId: Types.ObjectId | null = null) {
+  logger.debug(`Deleting dungeons based on query: { name=${name}, ip=${ip}, _id=${existingInstanceId} }`);
+  const existingInstances = await DungeonInstance.find({
+    $or: [
+      {
+        name: name,
+      },
+      {
+        ip: ip,
+      },
+    ],
+    _id: {
+      $ne: existingInstanceId,
+    },
+  }).exec();
+
+  for (const instance of existingInstances) {
+    await notifyOps(`Deleting conflicting dungeon: ${instance.name}@${instance.ip} (conflicts with new instance: ${name}@${ip})`);
+    await instance.deleteOne().exec();
   }
 }
 

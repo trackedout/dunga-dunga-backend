@@ -1,4 +1,4 @@
-import { Model, Document } from 'mongoose';
+import { Model, Document, Types } from 'mongoose';
 import { QueryResult } from '../paginate/paginate';
 
 export interface IInstance {
@@ -24,7 +24,9 @@ export enum InstanceStates {
   UNREACHABLE = 'unreachable', // health-checks failed
 }
 
-export interface IInstanceDoc extends IInstance, Document {}
+export interface IInstanceDoc extends IInstance, Document {
+  _id: Types.ObjectId;
+}
 
 export interface IInstanceModel extends Model<IInstanceDoc> {
   paginate(filter: Record<string, any>, options: Record<string, any>): Promise<QueryResult>;
