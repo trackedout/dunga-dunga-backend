@@ -25,8 +25,14 @@ import { getSelectedDeck } from '../card/card.controller';
  * @returns {Promise<IEventDoc>}
  */
 export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc> => {
-  notifyDiscord(eventBody);
-  notifyLobby(eventBody);
+  let shouldNotify = true;
+  const notify = () => {
+    if (shouldNotify) {
+      shouldNotify = false;
+      notifyDiscord(eventBody);
+      notifyLobby(eventBody);
+    }
+  };
 
   try {
     switch (eventBody.name) {
@@ -47,6 +53,7 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         break;
 
       case PlayerEvents.SEEN:
+        notify();
         await updatePlayerLastSeenDate(eventBody);
         break;
 
@@ -87,6 +94,7 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         break;
     }
 
+    notify();
     return await Event.create(eventBody);
   } catch (e) {
     await Event.create({ ...eventBody, processingFailed: true, error: `${e}` });
@@ -315,17 +323,21 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
   const metadata = new Map(Object.entries(eventBody.metadata));
   const deckId = metadata.get('deck-id') || 'p1'; // TODO: Throw error if missing
 
+  const runId = metadata.get('run-id') || uuidv4();
   const claim = await Claim.create({
     player: player.playerName,
     type: ClaimTypes.DUNGEON,
     state: ClaimStates.PENDING,
     metadata: {
-      'run-id': uuidv4(),
+      'run-id': runId,
       'deck-id': deckId,
       // TODO: Set the default based on deck ID, or just throw an error
       'run-type': metadata.get('run-type') || RunTypes.PRACTICE,
     },
   });
+  metadata.set('run-id', runId);
+  eventBody.metadata = new Map(Object.entries(Object.fromEntries(metadata)));
+  logger.debug(`New event metadata after setting run-id -> ${JSON.stringify(Object.fromEntries(eventBody.metadata), null, 4)}`);
 
   await player.updateOne({
     state: QueueStates.IN_QUEUE,

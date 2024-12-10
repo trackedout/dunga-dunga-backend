@@ -3,11 +3,16 @@ set dotenv-load # Load environment variables from .env file
 _default:
     @just --list --unsorted
 
+_sync-now node:
+  rsync -rav --mkpath ./src/ {{node}}:/tracked-out/dunga-dunga/src/
+
 dev-sync node="salt":
   #!/bin/bash
+  just _sync-now {{node}}
+
   # ins inotify-tools
   while inotifywait -r -e modify,create,delete src; do
-    rsync -rav --mkpath ./src/ {{node}}:/tracked-out/dunga-dunga/src/
+    just _sync-now {{node}}
   done
 
 docker_image := "dunga-dunga-backend:dev"
