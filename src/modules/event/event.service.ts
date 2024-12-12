@@ -138,7 +138,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
   await ensureDeckIsSeeded(eventBody.player, 'c1');
 
   await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.practice', 32);
-  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.competitive', 8);
+  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.competitive', 12);
 }
 
 async function ensureDeckIsSeeded(playerName: string, deckId: string) {
