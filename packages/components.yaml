@@ -110,10 +110,19 @@ components:
           type: string
         value:
           type: number
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
       example:
         player: 4Ply
         key: do2.wins
         value: 1
+        metadata:
+          deck-id: 1
+          run-id: 123123-123-123-123-123
+          run-type: practice
+          world-age: 123123123
 
     Claim:
       type: object

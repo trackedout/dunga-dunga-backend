@@ -2,9 +2,13 @@ import httpStatus from 'http-status';
 import mongoose from 'mongoose';
 import Score from './score.model';
 import ApiError from '../errors/ApiError';
+import Player from '../event/player.model';
 import { IOptions, QueryResult } from '../paginate/paginate';
 import { DeleteScore, IScoreDoc, NewCreatedScore, UpdateScoreBody } from './score.interfaces';
-import Player from '../event/player.model';
+import { eventService } from '../../modules/event';
+import { PlayerEvents } from '../event/event.interfaces';
+import { getMetadata } from '../utils'
+import { logger } from '../logger';
 
 export const createScore = async (scoreBody: NewCreatedScore): Promise<IScoreDoc> => {
   const player = await Player.findOne({ playerName: scoreBody.player }).exec();
@@ -18,9 +22,53 @@ export const createScores = async (scores: NewCreatedScore[]): Promise<IScoreDoc
   if (scores.length === 0) {
     return [];
   }
+  const playerName = scores[0]!!.player;
+
+  // First find existing scores, then log an event showing the score diff (score-modified)
+  const existingScores = await Score.find({
+    player: playerName,
+    key: scores.map((s) => s.key),
+  });
+  for (const existingScore of existingScores) {
+    const newScore = scores.find(s => s.key === existingScore.key);
+    if (!newScore) {
+      continue;
+    }
+
+    const diff = newScore.value - existingScore.value;
+    if (diff === 0) {
+      continue;
+    }
+
+    logger.info(`Emitting '${PlayerEvents.SCORE_MODIFIED}' event for ${playerName} - ${existingScore.key}: ${existingScore.value} -> ${newScore.value} (diff: ${diff})`);
+    logger.debug(`New score: ${JSON.stringify(newScore, null, 4)}`);
+
+    await eventService.createEvent({
+      name: PlayerEvents.SCORE_MODIFIED,
+      count: 1,
+
+      player: playerName,
+      x: 0,
+      y: 0,
+      z: 0,
+
+      server: 'dunga-dunga',
+      sourceIP: '127.0.0.1',
+
+      metadata: new Map([
+        ...getMetadata(newScore.metadata),
+        ...getMetadata({
+          'score-key': existingScore.key,
+          'score-original-value': `${existingScore.value}`,
+          'score-new-value': `${newScore.value}`,
+          'score-diff': `${diff}`,
+        }),
+      ]),
+    });
+  }
 
   await Score.deleteMany({
-    player: scores[0]!!.player,
+    player: playerName,
     key: scores.map((s) => s.key),
   });
 

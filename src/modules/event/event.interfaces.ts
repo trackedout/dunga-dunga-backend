@@ -15,6 +15,7 @@ export enum PlayerEvents {
   SEEN = 'player-seen',
 
   CARD_VISIBILITY_UPDATED = 'card-visibility-updated',
+  SCORE_MODIFIED = 'score-modified',
 }
 
 export enum ServerEvents {

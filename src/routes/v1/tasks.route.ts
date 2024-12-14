@@ -43,10 +43,6 @@ export default router;
  *           application/json:
  *             schema:
  *                $ref: '#/components/schemas/Task'
- *       "401":
- *         $ref: '#/components/responses/Unauthorized'
- *       "403":
- *         $ref: '#/components/responses/Forbidden'
  *
  *   get:
  *     summary: Get all tasks
@@ -116,10 +112,6 @@ export default router;
  *                 totalResults:
  *                   type: integer
  *                   example: 1
- *       "401":
- *         $ref: '#/components/responses/Unauthorized'
- *       "403":
- *         $ref: '#/components/responses/Forbidden'
  *
  */
 
@@ -144,10 +136,6 @@ export default router;
  *           application/json:
  *             schema:
  *                $ref: '#/components/schemas/Task'
- *       "401":
- *         $ref: '#/components/responses/Unauthorized'
- *       "403":
- *         $ref: '#/components/responses/Forbidden'
  *       "404":
  *         $ref: '#/components/responses/NotFound'
  *
@@ -180,10 +168,6 @@ export default router;
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Task'
- *       "401":
- *         $ref: '#/components/responses/Unauthorized'
- *       "403":
- *         $ref: '#/components/responses/Forbidden'
  *       "404":
  *         $ref: '#/components/responses/NotFound'
  */

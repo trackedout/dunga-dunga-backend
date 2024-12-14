@@ -22,6 +22,11 @@ const scoreSchema = new mongoose.Schema<IScoreDoc, IScoreModel>(
       required: true,
       index: true,
     },
+    metadata: {
+      type: Map<String, String>,
+      required: false,
+      index: false,
+    },
   },
   {
     timestamps: true,

@@ -45,8 +45,4 @@ export default router;
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Status'
- *       "401":
- *         $ref: '#/components/responses/Unauthorized'
- *       "403":
- *         $ref: '#/components/responses/Forbidden'
  */

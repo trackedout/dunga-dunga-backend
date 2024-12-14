@@ -6,6 +6,7 @@ const createScoreBody: Record<keyof NewCreatedScore, any> = {
   player: Joi.string().required().min(1),
   key: Joi.string().required().min(3),
   value: Joi.number().required().min(0),
+  metadata: Joi.any(),
 };
 
 export const createScore = {

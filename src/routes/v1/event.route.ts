@@ -38,10 +38,6 @@ export default router;
  *           application/json:
  *             schema:
  *                $ref: '#/components/schemas/Event'
- *       "401":
- *         $ref: '#/components/responses/Unauthorized'
- *       "403":
- *         $ref: '#/components/responses/Forbidden'
  *
  *   get:
  *     summary: Get all events
@@ -106,8 +102,4 @@ export default router;
  *                 totalResults:
  *                   type: integer
  *                   example: 1
- *       "401":
- *         $ref: '#/components/responses/Unauthorized'
- *       "403":
- *         $ref: '#/components/responses/Forbidden'
  */

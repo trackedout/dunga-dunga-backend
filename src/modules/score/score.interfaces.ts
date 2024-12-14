@@ -5,6 +5,7 @@ export interface IScore {
   player: string;
   key: string;
   value: number;
+  metadata: Map<string, string>;
 }
 
 export interface IScoreDoc extends IScore, Document {}

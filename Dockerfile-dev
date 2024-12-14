@@ -7,6 +7,7 @@ COPY package.json yarn.lock tsconfig.json ecosystem.config.json ./
 
 RUN yarn install --pure-lockfile
 
+COPY ./packages ./packages
 COPY ./src ./src
 
 RUN yarn compile

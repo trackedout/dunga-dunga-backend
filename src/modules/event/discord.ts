@@ -5,6 +5,7 @@ import { IEvent, NewCreatedEvent, PlayerEvents } from './event.interfaces';
 import { EmbedBuilder, EmbedField, WebhookClient } from 'discord.js';
 import { Claim } from '../claim';
 import { ClaimTypes, IClaimDoc } from '../claim/claim.interfaces';
+import { getEventMetadata, getMetadata } from '../utils'
 import Task from '../task/task.model';
 import moment from 'moment';
 
@@ -356,14 +357,6 @@ async function getDiscordMessageID(event: IEvent): Promise<string> {
   }
 
   return '';
-}
-
-function getEventMetadata(event: IEvent): Map<string, any> {
-    return event.metadata instanceof Map ? event.metadata : new Map(Object.entries(event.metadata || {}));
-}
-
-function getMetadata(metadata: Object): Map<string, any> {
-    return metadata instanceof Map ? metadata : new Map(Object.entries(metadata || {}));
 }
 
 async function withClaimMetadata(event: IEvent): Promise<Map<string, any>> {
