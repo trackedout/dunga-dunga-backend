@@ -24,6 +24,7 @@ export interface IPlayer {
   lastSelectedDeck: string;
   lastSeen: Date;
   lastLocation: Location;
+  lastQueuedAt: Date;
 
   activeClaimId: string;
 }

@@ -340,6 +340,7 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     server: eventBody.server,
     lastSelectedDeck: deckId,
     activeClaimId: claim.id,
+    lastQueuedAt: new Date(),
   });
   logger.info(`Placed ${player.playerName} in the dungeon queue with Deck #${eventBody.count}`);
 }

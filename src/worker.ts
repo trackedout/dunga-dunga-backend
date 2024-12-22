@@ -120,14 +120,17 @@ async function assignQueuedPlayersToDungeons() {
       $gte: new Date(Date.now() - 1000 * 60 * 3),
     },
   })
-    .sort({ queueTime: 1 })
+    .sort({ lastQueuedAt: 1 })
     .exec();
 
   if (playersInQueue.length > 0) {
     logger.debug(`Players in queue: ${playersInQueue.map((p: IPlayerDoc) => p.playerName)}`);
 
-    const jobs = playersInQueue.map((player) => attemptToAssignPlayerToDungeon(player));
-    await Promise.all(jobs);
+    for (let player of playersInQueue) {
+      await attemptToAssignPlayerToDungeon(player).catch((e) => {
+        logger.error(e);
+      });
+    }
   } else {
     logger.debug(`There are no players in queue, skipping queue processing`);
   }
@@ -213,7 +216,7 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
   });
   logger.debug(`Finished checking ${dungeon.ip}'s health`);
 
-  logger.debug(`Setting ${playerName}'s state as ${QueueStates.IN_TRANSIT_TO_DUNGEON}`);
+  logger.info(`Setting ${playerName}'s state as ${QueueStates.IN_TRANSIT_TO_DUNGEON}`);
   await player.updateOne({
     state: QueueStates.IN_TRANSIT_TO_DUNGEON,
   }).exec();
@@ -221,8 +224,10 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
   logger.info(`Setting Claim ${claim.id}'s state as ${ClaimStates.ACQUIRED}`);
   await claim.updateOne({
     state: ClaimStates.ACQUIRED,
-    stateReason: `Acquired dungeon ${dungeon} for ${playerName}`,
+    stateReason: `Acquired dungeon ${dungeon.name} for ${playerName}`,
   }).exec();
+
+  await notifyOps(`Acquired dungeon ${dungeon.name} for ${playerName}`);
 
   const message = 'Your dungeon is ready! Pass through the door to get teleported to your instance';
   await Task.create({
@@ -645,7 +650,7 @@ async function teleportPlayersWithInstantQueue() {
       $gte: new Date(Date.now() - 1000 * 60),
     },
   })
-    .sort({ queueTime: 1 })
+    .sort({ lastQueuedAt: 1 })
     .exec();
 
   if (playersThatNeedToMove.length > 0) {

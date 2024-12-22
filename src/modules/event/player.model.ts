@@ -39,6 +39,10 @@ const playerSchema = new mongoose.Schema<IPlayerDoc, IPlayerModel>(
       type: Date,
       required: false,
     },
+    lastQueuedAt: {
+      type: Date,
+      required: false,
+    },
     lastLocation: {
       type: {
         x: {
