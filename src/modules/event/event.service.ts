@@ -45,10 +45,6 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         await addPlayerToQueue(eventBody);
         break;
 
-      case PlayerEvents.READY_FOR_DUNGEON:
-        await movePlayerToDungeon(eventBody);
-        break;
-
       case PlayerEvents.JOINED_NETWORK:
         await createPlayerRecordIfMissing(eventBody);
         break;
@@ -348,69 +344,6 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
   logger.info(`Placed ${player.playerName} in the dungeon queue with Deck #${eventBody.count}`);
 }
 
-async function movePlayerToDungeon(eventBody: NewCreatedEvent) {
-  const playerName = eventBody.player;
-  const queuedPlayer = await Players.findOne({
-    playerName,
-    state: QueueStates.IN_QUEUE,
-    isAllowedToPlayDO2: true,
-  })
-    .sort({ queueTime: -1 })
-    .exec();
-
-  if (!queuedPlayer) {
-    throw new ApiError(httpStatus.BAD_REQUEST, `Player '${playerName}' is not in the queue`);
-  }
-
-  const dungeonInstance = await DungeonInstance.findOne({
-    state: InstanceStates.RESERVED,
-    reservedBy: playerName,
-    requiresRebuild: false,
-    name: {
-      $regex: /^d[0-9]{3}/,
-    },
-  }).exec();
-  if (!dungeonInstance) {
-    throw new ApiError(httpStatus.BAD_REQUEST, `No dungeon instance reserved by ${playerName} found!`);
-  }
-
-  // validate dungeon instance before connecting
-  // Removes unreachable instances from pool
-  // await checkIfIpIsReachable(dungeonInstance.ip).catch((e) => {
-  //   dungeonInstance.deleteOne();
-  //   logger.error(`Could not reach dungeon instance ${dungeonInstance.name} at ${dungeonInstance.ip}. Removing it from the pool.`);
-  //   throw new ApiError(httpStatus.BAD_REQUEST, `Failed to connect to the dungeon instance: ${e}`);
-  // });
-
-  logger.debug(`Dungeon IP: ${dungeonInstance.ip}`);
-
-  logger.info(`Removing ${queuedPlayer.playerName} from queue and moving them to dungeon instance ${dungeonInstance.name}`);
-
-  await dungeonInstance.updateOne({
-    state: InstanceStates.AWAITING_PLAYER,
-  });
-
-  const currentServer = queuedPlayer.server;
-
-  await Task.create({
-    server: currentServer,
-    type: 'bungee-message',
-    state: 'SCHEDULED',
-    targetPlayer: queuedPlayer.playerName,
-    arguments: ['Connect', dungeonInstance.name],
-    sourceIP: eventBody.sourceIP,
-  });
-
-  await queuedPlayer.updateOne({
-    state: QueueStates.IN_TRANSIT_TO_DUNGEON,
-    server: dungeonInstance.name,
-  });
-}
-
-// TODO: Agronet does not send this event
-// dungeon-ready
-// - mark instance free at end of run
-// called from instance if players disconnect unexpectedly
 async function markDungeonAvailable(eventBody: NewCreatedEvent) {
   const dungeonInstance = await DungeonInstance.findOne({
     name: eventBody.server,

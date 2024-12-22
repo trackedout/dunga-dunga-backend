@@ -4,7 +4,7 @@ import { QueryResult } from '../paginate/paginate';
 export enum PlayerEvents {
   ALLOWED_TO_PLAY = 'allowed-to-play',
   JOINED_QUEUE = 'joined-queue',
-  READY_FOR_DUNGEON = 'ready-for-dungeon',
+  READY_FOR_DUNGEON = 'ready-for-dungeon', // not used
 
   DUNGEON_READY = 'dungeon-ready',
   DUNGEON_OFFLINE = 'dungeon-closed',
