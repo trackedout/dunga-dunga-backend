@@ -4,9 +4,9 @@ _default:
     @just --list --unsorted
 
 _sync-now node:
-  rsync -rav --mkpath ./src/ {{node}}:/tracked-out/dunga-dunga/src/
+  rsync -rav --delete --mkpath ./src/ {{node}}:/tracked-out/dunga-dunga/src/
 
-dev-sync node="salt":
+dev-sync node="burn":
   #!/bin/bash
   just _sync-now {{node}}
 
