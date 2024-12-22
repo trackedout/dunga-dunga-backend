@@ -1,10 +1,25 @@
 {
   "apps": [
     {
+      "name": "worker",
+      "script": "dist/worker-runner.js",
+      "node_args": "--experimental-modules --es-module-specifier-resolution=node",
+      "instances": 1,
+      "autorestart": true,
+      "watch": false,
+      "time": true,
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "env_dev": {
+        "NODE_ENV": "development"
+      }
+    },
+    {
       "name": "app",
       "script": "dist/index.js",
       "node_args": "--experimental-modules --es-module-specifier-resolution=node",
-      "instances": 1,
+      "instances": 2,
       "autorestart": true,
       "watch": false,
       "time": true,
