@@ -2,6 +2,7 @@ import { logger } from '../logger';
 import Player from './player.model';
 import Event from './event.model';
 import { IEvent, NewCreatedEvent, PlayerEvents } from './event.interfaces';
+import DungeonInstance from './instance.model';
 import { EmbedBuilder, EmbedField, WebhookClient } from 'discord.js';
 import { Claim } from '../claim';
 import { ClaimTypes, IClaimDoc } from '../claim/claim.interfaces';
@@ -79,6 +80,17 @@ export async function notifyLobby(event: NewCreatedEvent) {
     state: 'SCHEDULED',
     sourceIP: '127.0.0.1',
   });
+
+  const instances = await DungeonInstance.find({}).exec();
+  for (let instance of instances) {
+    await Task.create({
+      server: instance.name,
+      type: 'broadcast-message',
+      arguments: [message],
+      state: 'SCHEDULED',
+      sourceIP: '127.0.0.1',
+    });
+  }
 }
 
 async function getDiscordMessageForEvent(event: NewCreatedEvent) {
@@ -113,15 +125,15 @@ async function getDiscordMessageForEvent(event: NewCreatedEvent) {
     // These are run after the event handler
     case 'game-won':
       await storeEndTime(event, new Date());
-      return `${playerNameBold} survived Decked Out! :tada:`;
+      return `[${await getFullRunTypeWithClaim(event)}] ${playerNameBold} survived Decked Out! :tada:`;
 
     case 'game-lost':
       await storeEndTime(event, new Date());
-      return `${playerNameBold} was defeated by the dungeon <:Ravager:1166890345188040846>`;
+      return `[${await getFullRunTypeWithClaim(event)}] ${playerNameBold} was defeated by the dungeon <:Ravager:1166890345188040846>`;
 
     case PlayerEvents.JOINED_QUEUE:
       const metadata = getEventMetadata(event);
-      return `${playerNameBold} queued for a ${getFullRunTypeFromMetadata(metadata)} run (Deck #${getDeckId(metadata)})`;
+      return `[${getFullRunTypeFromMetadata(metadata)}] ${playerNameBold} queued for a run (Deck #${getDeckId(metadata)})`;
 
     case 'difficulty-selected-easy':
     case 'difficulty-selected-medium':
@@ -130,11 +142,11 @@ async function getDiscordMessageForEvent(event: NewCreatedEvent) {
       const difficulty = event.name.toString().split('-')[2];
       await storeDifficulty(event, difficulty!!);
       await storeStartTime(event, new Date());
-      return `${playerNameBold} started a ${getFullRunTypeFromMetadata(await withClaimMetadata(event))} run on *${difficulty}* mode!`;
+      return `[${await getFullRunTypeWithClaim(event)}] ${playerNameBold} started a run on *${difficulty}* mode!`;
     case 'difficulty-selected-deepfrost':
       await storeDifficulty(event, 'deepfrost');
       await storeStartTime(event, new Date());
-      return `${playerNameBold} started a run on *DEEPFROST* mode!? Flee with extra flee!!`;
+      return `[${await getFullRunTypeWithClaim(event)}] ${playerNameBold} started a run on *DEEPFROST* mode!? Flee with extra flee!!`;
   }
 
   return '';
@@ -167,23 +179,23 @@ async function getLobbyMessageForEvent(event: NewCreatedEvent) {
       }
 
     case 'game-won':
-      return `${playerName} survived Decked Out!`;
+      return `[${await getFullRunTypeWithClaim(event)}] ${playerName} survived Decked Out!`;
 
     case 'game-lost':
-      return `${playerName} was defeated by the dungeon`;
+      return `[${await getFullRunTypeWithClaim(event)}] ${playerName} was defeated by the dungeon`;
 
     case PlayerEvents.JOINED_QUEUE:
       const metadata = getEventMetadata(event);
-      return `${playerName} queued for a ${getFullRunTypeFromMetadata(metadata)} run (Deck #${getDeckId(metadata)})`;
+      return `[${getFullRunTypeFromMetadata(metadata)}] ${playerName} queued for a run (Deck #${getDeckId(metadata)})`;
 
     case 'difficulty-selected-easy':
     case 'difficulty-selected-medium':
     case 'difficulty-selected-hard':
     case 'difficulty-selected-deadly':
       const difficulty = event.name.toString().split('-')[2];
-      return `${playerName} started a run on ${difficulty} mode!`;
+      return `[${await getFullRunTypeWithClaim(event)}] ${playerName} started a run on ${difficulty} mode!`;
     case 'difficulty-selected-deepfrost':
-      return `${playerName} started a run on DEEPFROST mode!? Flee with extra flee!!`;
+      return `[${await getFullRunTypeWithClaim(event)}] ${playerName} started a run on DEEPFROST mode!? Flee with extra flee!!`;
   }
 
   return '';
@@ -303,6 +315,10 @@ async function getRunDescription(runId: string, claim: IClaimDoc | null): Promis
 
 function getDeckId(metadata: Map<string, string>) {
   return metadata.get('deck-id')?.substring(1);
+}
+
+async function getFullRunTypeWithClaim(event: IEvent) {
+  return getFullRunTypeFromMetadata(await withClaimMetadata(event));
 }
 
 function getFullRunTypeFromMetadata(metadata: Map<string, any>) {
