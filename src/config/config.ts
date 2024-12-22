@@ -24,6 +24,7 @@ const config = {
       useCreateIndex: true,
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      poolSize: 50,
     },
   },
 };
