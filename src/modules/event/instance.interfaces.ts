@@ -7,6 +7,7 @@ export interface IInstance {
   state: InstanceStates;
   claimFilters: Map<string, string[]>;
   reservedBy: string;
+  claimId: string;
   inUseDate: Date;
   reservedDate: Date;
   activePlayers: number;

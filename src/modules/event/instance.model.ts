@@ -38,6 +38,11 @@ const instanceSchema = new mongoose.Schema<IInstanceDoc, IInstanceModel>(
       required: true,
       trim: true,
     },
+    claimId: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     requiresRebuild: {
       type: Boolean,
       required: true,
