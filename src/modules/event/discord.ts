@@ -257,13 +257,15 @@ async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEvent): P
         prefixToRemove: 'card-played-',
       })));
 
-      fields.push(...(await mapAndCountEvents({
-        runId,
-        playerName: event.player,
-        title: 'Cards bought',
-        nameFilterRegex: /card-bought-*/,
-        prefixToRemove: 'card-bought-',
-      })));
+      if (claim && claim.metadata.get('run-type') !== 'c') {
+        fields.push(...(await mapAndCountEvents({
+          runId,
+          playerName: event.player,
+          title: 'Cards bought',
+          nameFilterRegex: /card-bought-*/,
+          prefixToRemove: 'card-bought-',
+        })));
+      }
     }
 
     const embed = new EmbedBuilder()
