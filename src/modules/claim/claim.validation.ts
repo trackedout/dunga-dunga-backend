@@ -24,6 +24,7 @@ export const getClaims = {
     player: Joi.string(),
     type: Joi.string(),
     state: Joi.string(),
+    claimant: Joi.string(),
 
     sortBy: Joi.string(),
     projectBy: Joi.string(),

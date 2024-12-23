@@ -1,6 +1,8 @@
-import { IEvent } from '../event/event.interfaces';
+export interface EventMetadataContainer {
+    metadata: Map<string, any> | any;
+}
 
-export function getEventMetadata(event: IEvent): Map<string, any> {
+export function getEventMetadata(event: EventMetadataContainer): Map<string, any> {
     return event.metadata instanceof Map ? event.metadata : new Map(Object.entries(event.metadata || {}));
 }
 

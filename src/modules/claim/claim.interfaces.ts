@@ -36,7 +36,6 @@ export enum ClaimStates {
   PENDING = 'pending',
   ACQUIRED = 'acquired', // dungeon instances query for this state
 
-  // Maybe
   IN_USE = 'in-use',
   INVALID = 'invalid',
 

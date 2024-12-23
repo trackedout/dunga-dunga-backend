@@ -13,6 +13,7 @@ import config from './config/config';
 import { PlayerEvents, ServerEvents } from './modules/event/event.interfaces';
 import { Claim } from './modules/claim';
 import { ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
+import { notifyDiscord } from './modules/event/discord';
 
 // similar to bash `nc -z -w <timeout> <ip> <port>`
 // e.g. `nc -z -w 1 dungeon 25565`
@@ -108,7 +109,7 @@ async function degradeDungeon(dungeon: IInstanceDoc) {
     claimant: dungeon.name,
   });
 
-  await Promise.all(activeClaims.map(claim => claim.updateOne({ state: ClaimStates.INVALID, stateReason: 'Dungeon is unhealthy' })));
+  await Promise.all(activeClaims.map(claim => invalidateClaimAndNotify(claim, 'Dungeon is unhealthy' )));
 }
 
 async function assignQueuedPlayersToDungeons() {
@@ -225,6 +226,7 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
   await claim.updateOne({
     state: ClaimStates.ACQUIRED,
     stateReason: `Acquired dungeon ${dungeon.name} for ${playerName}`,
+    claimant: dungeon.name,
   }).exec();
 
   await notifyOps(`Acquired dungeon ${dungeon.name} for ${playerName}`);
@@ -321,7 +323,7 @@ async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
       claimant: dungeon.name,
     });
 
-    await Promise.all(activeClaims.map(claim => claim.updateOne({ state: ClaimStates.INVALID, stateReason: `Player did not enter dungeon within ${cutoffMinutes} minutes` })));
+    await Promise.all(activeClaims.map(claim => invalidateClaimAndNotify(claim, `Player did not enter dungeon within ${cutoffMinutes} minutes` )));
   }
 
   return dungeon;
@@ -348,11 +350,7 @@ async function invalidateClaims() {
       logger.warn(message);
       await notifyOps(message);
 
-      await claim.updateOne({
-        state: ClaimStates.INVALID,
-        stateReason: message,
-      });
-
+      await invalidateClaimAndNotify(claim, message);
       await releaseDungeonLeaseForPlayer(playerName);
     } else {
       logger.info(`Checking if ${playerName} is in a disallowed state for claim ${claim.id}`);
@@ -365,14 +363,26 @@ async function invalidateClaims() {
         logger.warn(message);
         await notifyOps(message);
 
-        await claim.updateOne({
-          state: ClaimStates.INVALID,
-          stateReason: message,
-        });
+        await invalidateClaimAndNotify(claim, message);
         await releaseDungeonLeaseForPlayer(playerName);
       }
     }
   }));
+}
+
+async function invalidateClaimAndNotify(claim: IClaimDoc, message: string) {
+  await claim.updateOne({
+    state: ClaimStates.INVALID,
+    stateReason: message,
+  });
+
+  notifyDiscord({
+    name: 'claim-invalidated',
+    player: claim.player,
+    server: '',
+    metadata: claim.metadata,
+    invalidationReason: message,
+  });
 }
 
 async function releaseDungeonLeaseForPlayer(playerName: string) {

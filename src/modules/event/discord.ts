@@ -1,16 +1,32 @@
 import { logger } from '../logger';
 import Player from './player.model';
 import Event from './event.model';
-import { IEvent, NewCreatedEvent, PlayerEvents } from './event.interfaces';
+import { IEvent, PlayerEvents } from './event.interfaces';
 import DungeonInstance from './instance.model';
 import { EmbedBuilder, EmbedField, WebhookClient } from 'discord.js';
 import { Claim } from '../claim';
 import { ClaimTypes, IClaimDoc } from '../claim/claim.interfaces';
-import { getEventMetadata, getMetadata } from '../utils'
+import { getEventMetadata, getMetadata, EventMetadataContainer } from '../utils'
 import Task from '../task/task.model';
 import moment from 'moment';
 
 let webhookClient: WebhookClient | null = null;
+
+interface EventWithServer {
+  name: string;
+  player: string;
+  server: string;
+}
+
+interface EventPlayerContainer {
+  player: string;
+}
+
+type ClaimRelatedEvent = EventMetadataContainer & EventPlayerContainer;
+
+interface InvalidatedEvent {
+  invalidationReason?: string;
+}
 
 if (process.env['DISCORD_WEBHOOK_URL']) {
   webhookClient = new WebhookClient({
@@ -21,7 +37,7 @@ if (process.env['DISCORD_WEBHOOK_URL']) {
   logger.warn(`Missing Discord webhook URL`);
 }
 
-export async function notifyDiscord(event: NewCreatedEvent) {
+export async function notifyDiscord(event: EventWithServer & ClaimRelatedEvent & InvalidatedEvent) {
   let message = await getDiscordMessageForEvent(event);
   if (!message) {
     return;
@@ -38,6 +54,7 @@ export async function notifyDiscord(event: NewCreatedEvent) {
       'difficulty-selected-hard',
       'difficulty-selected-deadly',
       'difficulty-selected-deepfrost',
+      'claim-invalidated',
     ];
     if (eventsToEnrich.includes(event.name.toString())) {
       embeds.push(...(await getGameEndedEmbeds(event)));
@@ -67,7 +84,7 @@ export async function notifyDiscord(event: NewCreatedEvent) {
   }
 }
 
-export async function notifyLobby(event: NewCreatedEvent) {
+export async function notifyLobby(event: EventWithServer & ClaimRelatedEvent) {
   let message = await getLobbyMessageForEvent(event);
   if (!message) {
     return;
@@ -93,7 +110,7 @@ export async function notifyLobby(event: NewCreatedEvent) {
   }
 }
 
-async function getDiscordMessageForEvent(event: NewCreatedEvent) {
+async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEvent & InvalidatedEvent) {
   if (event.player.toLowerCase() === 'tangocam') {
     return;
   }
@@ -135,6 +152,10 @@ async function getDiscordMessageForEvent(event: NewCreatedEvent) {
       const metadata = getEventMetadata(event);
       return `[${getFullRunTypeFromMetadata(metadata)}] ${playerNameBold} queued for a run (Deck #${getDeckId(metadata)})`;
 
+    case 'claim-invalidated':
+      await storeEndTime(event, new Date());
+      return `[${await getFullRunTypeWithClaim(event)}] ${playerNameBold}'s dungeon claim has been invalidated :warning: \n**Reason**: \`${event.invalidationReason}\``;
+
     case 'difficulty-selected-easy':
     case 'difficulty-selected-medium':
     case 'difficulty-selected-hard':
@@ -152,7 +173,7 @@ async function getDiscordMessageForEvent(event: NewCreatedEvent) {
   return '';
 }
 
-async function getLobbyMessageForEvent(event: NewCreatedEvent) {
+async function getLobbyMessageForEvent(event: EventWithServer & ClaimRelatedEvent) {
   if (event.player.toLowerCase() === 'tangocam') {
     return;
   }
@@ -201,7 +222,7 @@ async function getLobbyMessageForEvent(event: NewCreatedEvent) {
   return '';
 }
 
-async function getGameEndedEmbeds(event: NewCreatedEvent): Promise<Array<EmbedBuilder>> {
+async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEvent): Promise<Array<EmbedBuilder>> {
   const metadata = await withClaimMetadata(event);
 
   const embeds: Array<EmbedBuilder> = [];
@@ -215,22 +236,25 @@ async function getGameEndedEmbeds(event: NewCreatedEvent): Promise<Array<EmbedBu
 
     const claim = await findClaim(event);
     const endTime = claim && claim.metadata.get('end-time');
-    if (endTime) {
+    if (endTime || event.name === 'claim-invalidated') {
       fields.push(...(await mapAndCountEvents({
-        event, runId,
+        runId,
+        playerName: event.player,
         title: 'Dangers encountered',
         nameFilterRegex: /(hazard-activated|clank-generated)/,
       })));
 
       fields.push(...(await mapAndCountEvents({
-        event, runId,
+        runId,
+        playerName: event.player,
         title: 'Cards played',
         nameFilterRegex: /card-played-*/,
         prefixToRemove: 'card-played-',
       })));
 
       fields.push(...(await mapAndCountEvents({
-        event, runId,
+        runId,
+        playerName: event.player,
         title: 'Cards bought',
         nameFilterRegex: /card-bought-*/,
         prefixToRemove: 'card-bought-',
@@ -249,17 +273,17 @@ async function getGameEndedEmbeds(event: NewCreatedEvent): Promise<Array<EmbedBu
 
 interface MapAndCountEventsParams {
   title: string;
-  event: Required<IEvent>;
+  playerName: string;
   runId: string;
   nameFilterRegex: RegExp;
   prefixToRemove?: string;
   inline?: boolean;
 }
 
-async function mapAndCountEvents({ title, event, runId, nameFilterRegex, prefixToRemove, inline }: MapAndCountEventsParams): Promise<Array<EmbedField>> {
+async function mapAndCountEvents({ title, playerName, runId, nameFilterRegex, prefixToRemove, inline }: MapAndCountEventsParams): Promise<Array<EmbedField>> {
   const events = await Event.find({
     player: {
-      $in: [event.player, '@'],
+      $in: [playerName, '@'],
     },
     name: nameFilterRegex,
     'metadata.run-id': runId,
@@ -296,6 +320,11 @@ async function getRunDescription(runId: string, claim: IClaimDoc | null): Promis
       items.push(`**Difficulty**: ${difficulty}`);
     }
 
+    const dungeon = claim.claimant;
+    if (dungeon) {
+      items.push(`**Dungeon**: ${dungeon}`);
+    }
+
     const startTime = claim.metadata.get('start-time');
     const endTime = claim.metadata.get('end-time');
     if (startTime) {
@@ -317,7 +346,7 @@ function getDeckId(metadata: Map<string, string>) {
   return metadata.get('deck-id')?.substring(1);
 }
 
-async function getFullRunTypeWithClaim(event: IEvent) {
+async function getFullRunTypeWithClaim(event: ClaimRelatedEvent) {
   return getFullRunTypeFromMetadata(await withClaimMetadata(event));
 }
 
@@ -336,7 +365,7 @@ function getFullRunType(runType: String | undefined) {
   }
 }
 
-async function findClaim(event: IEvent): Promise<IClaimDoc | null> {
+async function findClaim(event: ClaimRelatedEvent): Promise<IClaimDoc | null> {
   const metadata = getEventMetadata(event);
   const runId = metadata.get('run-id');
   if (!runId) {
@@ -359,7 +388,7 @@ async function findClaim(event: IEvent): Promise<IClaimDoc | null> {
   return null;
 }
 
-async function getDiscordMessageID(event: IEvent): Promise<string> {
+async function getDiscordMessageID(event: ClaimRelatedEvent): Promise<string> {
   const metadata = getEventMetadata(event);
   const runId = metadata.get('run-id');
 
@@ -375,7 +404,7 @@ async function getDiscordMessageID(event: IEvent): Promise<string> {
   return '';
 }
 
-async function withClaimMetadata(event: IEvent): Promise<Map<string, any>> {
+async function withClaimMetadata(event: ClaimRelatedEvent): Promise<Map<string, any>> {
   const eventMetadata = getEventMetadata(event);
   let claimMetadata = getMetadata({});
   const claim = await findClaim(event);
@@ -392,23 +421,23 @@ async function withClaimMetadata(event: IEvent): Promise<Map<string, any>> {
   return metadata;
 }
 
-async function storeDiscordMessageID(event: IEvent, messageID: String) {
+async function storeDiscordMessageID(event: ClaimRelatedEvent, messageID: String) {
   await setMetadataValue(event, 'discord-message-id', messageID);
 }
 
-async function storeDifficulty(event: IEvent, difficulty: String) {
+async function storeDifficulty(event: ClaimRelatedEvent, difficulty: String) {
   await setMetadataValue(event, 'difficulty', difficulty);
 }
 
-async function storeStartTime(event: IEvent, startTime: Date) {
+async function storeStartTime(event: ClaimRelatedEvent, startTime: Date) {
   await setMetadataValue(event, 'start-time', (startTime.getTime() / 1000 | 0).toString());
 }
 
-async function storeEndTime(event: IEvent, endTime: Date) {
+async function storeEndTime(event: ClaimRelatedEvent, endTime: Date) {
   await setMetadataValue(event, 'end-time', (endTime.getTime() / 1000 | 0).toString());
 }
 
-async function setMetadataValue(event: IEvent, metadataKey: String, value: String) {
+async function setMetadataValue(event: ClaimRelatedEvent, metadataKey: String, value: String) {
   const metadata = getEventMetadata(event);
   const runId = metadata.get('run-id');
   logger.debug(`Updating 'metadata.${metadataKey}' for run ${runId} to ${value}`);
