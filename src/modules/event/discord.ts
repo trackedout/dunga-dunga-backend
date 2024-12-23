@@ -153,6 +153,11 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
       return `[${getFullRunTypeFromMetadata(metadata)}] ${playerNameBold} queued for a run (Deck #${getDeckId(metadata)})`;
 
     case 'claim-invalidated':
+      const claim = await findClaim(event);
+      if (claim && claim.metadata.get('end-time')) {
+        return ''; // Skip processing if the game had already ended
+      }
+
       await storeEndTime(event, new Date());
       return `[${await getFullRunTypeWithClaim(event)}] ${playerNameBold}'s dungeon claim has been invalidated :warning: \n**Reason**: \`${event.invalidationReason}\``;
 
