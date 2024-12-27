@@ -39,45 +39,56 @@ if (process.env['DISCORD_WEBHOOK_URL']) {
 
 export async function notifyDiscord(event: EventWithServer & ClaimRelatedEvent & InvalidatedEvent) {
   let message = await getDiscordMessageForEvent(event);
-  if (!message) {
-    return;
-  }
 
   if (webhookClient) {
     const embeds = [];
+    // Supports both strings and regexes
     const eventsToEnrich = [
       PlayerEvents.JOINED_QUEUE,
-      'game-won',
-      'game-lost',
-      'difficulty-selected-easy',
-      'difficulty-selected-medium',
-      'difficulty-selected-hard',
-      'difficulty-selected-deadly',
-      'difficulty-selected-deepfrost',
+      /game-*/,
+      /difficulty-selected-*/,
+      /card-bought-.*/,
       'claim-invalidated',
+      'player-died',
     ];
-    if (eventsToEnrich.includes(event.name.toString())) {
+
+    // Only edit messages for some events, notably excluding things like 'played-seen'
+    const eventsToEdit = [
+      ...eventsToEnrich,
+    ];
+
+    if (eventsToEnrich.some(e => typeof e === 'string' ? e === event.name : e.test(event.name))) {
       embeds.push(...(await getGameEndedEmbeds(event)));
     }
 
-    const options = {
-      content: message,
+    var options : {
+      content?: string;
+      username: string;
+      embeds: Array<EmbedBuilder>;
+    } = {
       username: 'Dunga-Dunga',
       embeds: embeds,
     };
 
-    let lastMessageID: string | null = await getDiscordMessageID(event);
-    if (lastMessageID) {
-      try {
-        await webhookClient.editMessage(lastMessageID, options);
-      } catch (error) {
-        logger.error(`Failed to edit message: ${error}`);
-        lastMessageID = null; // Reset if editing fails
+    if (message) {
+      options.content = message;
+    }
+
+    var lastMessageID: string | null = null;
+    if (eventsToEdit.some(e => typeof e === 'string' ? e === event.name : e.test(event.name))) {
+      lastMessageID = await getDiscordMessageID(event);
+      if (lastMessageID) {
+        try {
+          await webhookClient.editMessage(lastMessageID, options);
+        } catch (error) {
+          logger.error(`Failed to edit message: ${error}`);
+          lastMessageID = null; // Reset if editing fails
+        }
       }
     }
 
     // Either this is the first message, or editing failed
-    if (!lastMessageID) {
+    if (!lastMessageID && message) {
       const sentMessage = await webhookClient.send(options);
       await storeDiscordMessageID(event, sentMessage.id);
     }
@@ -146,7 +157,19 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
 
     case 'game-lost':
       await storeEndTime(event, new Date());
-      return `[${await getFullRunTypeWithClaim(event)}] ${playerNameBold} was defeated by the dungeon <:Ravager:1166890345188040846>`;
+      const killer = await getKiller(event);
+      const extra = killer && killer !== "unknown" ? ` (specifically by ${killer})` : '';
+      return `[${await getFullRunTypeWithClaim(event)}] ${playerNameBold} was defeated by the dungeon${extra} <:Ravager:1166890345188040846>`;
+
+    case 'player-died': {
+      const killer = getEventMetadata(event).get('killer');
+      if (!killer || killer === "unknown") {
+        return '';
+      }
+
+      await storeKiller(event, killer);
+      return '';
+    }
 
     case PlayerEvents.JOINED_QUEUE:
       const metadata = getEventMetadata(event);
@@ -208,7 +231,18 @@ async function getLobbyMessageForEvent(event: EventWithServer & ClaimRelatedEven
       return `[${await getFullRunTypeWithClaim(event)}] ${playerName} survived Decked Out!`;
 
     case 'game-lost':
-      return `[${await getFullRunTypeWithClaim(event)}] ${playerName} was defeated by the dungeon`;
+      const killer = await getKiller(event);
+      const extra = killer && killer !== "unknown" ? ` (specifically by ${killer})` : '';
+      return `[${await getFullRunTypeWithClaim(event)}] ${playerName} was defeated by the dungeon${extra}`;
+
+    case 'player-died': {
+      const metadata = getEventMetadata(event);
+      const deathMessage = metadata.get('death-message');
+      if (!deathMessage) {
+        return '';
+      }
+      return `[${await getFullRunTypeWithClaim(event)}] ${deathMessage}`;
+    }
 
     case PlayerEvents.JOINED_QUEUE:
       const metadata = getEventMetadata(event);
@@ -239,8 +273,7 @@ async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEvent): P
   if (runId) {
     const fields = [];
 
-    const claim = await findClaim(event);
-    const endTime = claim && claim.metadata.get('end-time');
+    const endTime = metadata.get('end-time');
     if (endTime || event.name === 'claim-invalidated') {
       fields.push(...(await mapAndCountEvents({
         runId,
@@ -257,7 +290,7 @@ async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEvent): P
         prefixToRemove: 'card-played-',
       })));
 
-      if (claim && claim.metadata.get('run-type') !== 'c') {
+      if (metadata.get('run-type') !== 'c') {
         fields.push(...(await mapAndCountEvents({
           runId,
           playerName: event.player,
@@ -268,6 +301,7 @@ async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEvent): P
       }
     }
 
+    const claim = await findClaim(event);
     const embed = new EmbedBuilder()
       .setDescription((await getRunDescription(runId, claim)))
       .setFields(fields)
@@ -325,6 +359,11 @@ async function getRunDescription(runId: string, claim: IClaimDoc | null): Promis
     const difficulty = claim.metadata.get('difficulty');
     if (difficulty) {
       items.push(`**Difficulty**: ${difficulty}`);
+    }
+
+    const killer = claim.metadata.get('killer');
+    if (killer && killer !== "unknown") {
+      items.push(`**Killer**: ${killer}`);
     }
 
     const dungeon = claim.claimant;
@@ -442,6 +481,25 @@ async function storeStartTime(event: ClaimRelatedEvent, startTime: Date) {
 
 async function storeEndTime(event: ClaimRelatedEvent, endTime: Date) {
   await setMetadataValue(event, 'end-time', (endTime.getTime() / 1000 | 0).toString());
+}
+
+async function storeKiller(event: ClaimRelatedEvent, killer: String) {
+  await setMetadataValue(event, 'killer', killer);
+}
+
+async function getKiller(event: EventWithServer & ClaimRelatedEvent): Promise<string | undefined> {
+  const metadata = getEventMetadata(event);
+  const killer = metadata.get('killer');
+  if (killer) {
+    return killer;
+  }
+
+  const claim = await findClaim(event);
+  if (claim) {
+    return claim.metadata.get('killer');
+  }
+
+  return '';
 }
 
 async function setMetadataValue(event: ClaimRelatedEvent, metadataKey: String, value: String) {

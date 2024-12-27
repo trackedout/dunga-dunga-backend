@@ -27,11 +27,11 @@ import { getSelectedDeck } from '../card/card.controller';
  */
 export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc> => {
   let shouldNotify = true;
-  const notify = () => {
+  const notify = async () => {
     if (shouldNotify) {
       shouldNotify = false;
-      notifyDiscord(eventBody);
-      notifyLobby(eventBody);
+      await notifyDiscord(eventBody);
+      await notifyLobby(eventBody);
     }
   };
 
