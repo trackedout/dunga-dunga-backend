@@ -21,12 +21,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Checkout config
+        uses: actions/checkout@v4
+        with:
+          repository: trackedout/dunga-dunga-backend
+          path: cliff-config
+          fetch-depth: 0
+
       - name: Generate changelog for tag
         uses: orhun/git-cliff-action@main
         if: startsWith(github.ref, 'refs/tags/')
         id: git-cliff
         with:
-          config: cliff.toml
+          config: cliff-config/cliff.toml
           args: --strip all -v --latest --github-repo ${{ github.repository }}
 
       - name: Create Github release
