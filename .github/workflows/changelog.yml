@@ -4,6 +4,9 @@ permissions:
 
 on:
   workflow_call:
+    secrets:
+      SSH_PRIVATE_KEY:
+        required: true
   push:
     branches: ['main']
     tags:
@@ -26,6 +29,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: trackedout/dunga-dunga-backend
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
           path: cliff-config
           fetch-depth: 0
 
