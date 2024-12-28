@@ -52,7 +52,7 @@ jobs:
         uses: orhun/git-cliff-action@main
         id: git-cliff-all
         with:
-          config: cliff.toml
+          config: cliff-config/cliff.toml
           args: --strip all -v --github-repo ${{ github.repository }}
 
       - name: Create Github release
