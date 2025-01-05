@@ -1,6 +1,6 @@
 # Decked Out 2 Backend API
 
-API backend server for Decked Out 2.
+API backend server for Decked Out 2 on the [Tracked Out](https://trackedout.org) network.
 
 ## Quick Start
 
@@ -12,7 +12,7 @@ Once that's running, navigate to http://localhost:3000/v1/docs in your browser t
 
 ### Inventory
 - **GET /storage/items**: Retrieve a list of all items in the inventory.
-  - **Parameters**: 
+  - **Parameters**:
     - `name` (optional): Filter items by name.
     - `player` (optional): Filter items by player.
     - `deckType` (optional): Filter items by deck type.
@@ -63,7 +63,7 @@ Once that's running, navigate to http://localhost:3000/v1/docs in your browser t
 
 ### Claims
 - **GET /claims**: Retrieve a list of all claims.
-  - **Parameters**: 
+  - **Parameters**:
     - `player` (optional): Filter claims by player.
     - `state` (optional): Filter claims by state.
     - `type` (optional): Filter claims by type.
