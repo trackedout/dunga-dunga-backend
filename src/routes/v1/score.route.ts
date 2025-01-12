@@ -68,6 +68,11 @@ export default router;
  *           type: string
  *         description: project by query in the form of field:hide/include (ex. name:hide)
  *       - in: query
+ *         name: prefixFilter
+ *         schema:
+ *           type: string
+ *         description: filter by prefix
+ *       - in: query
  *         name: limit
  *         schema:
  *           type: integer

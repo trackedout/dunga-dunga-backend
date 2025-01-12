@@ -18,7 +18,12 @@ export const createScores = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getScores = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.query, ['player']);
+  const filter = pick(req.query, ['player', 'prefixFilter']);
+  if (filter.prefixFilter) {
+    filter.key = new RegExp(`^${filter.prefixFilter}`);
+    delete(filter.prefixFilter);
+  }
+
   const options: IOptions = pick(req.query, ['sortBy', 'limit', 'page', 'projectBy']);
   const result = await scoreService.queryScores(filter, options);
   res.send(result);

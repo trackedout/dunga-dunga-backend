@@ -20,6 +20,7 @@ export const createScores = {
 export const getScores = {
   query: Joi.object().keys({
     player: Joi.string().required(),
+    prefixFilter: Joi.string(),
 
     sortBy: Joi.string(),
     projectBy: Joi.string(),
