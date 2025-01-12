@@ -2,6 +2,10 @@
 
 API backend server for Decked Out 2 on the [Tracked Out](https://trackedout.org) network.
 
+### Changelog
+
+For a list of changes, see the [latest release notes](https://github.com/trackedout/dunga-dunga-backend/releases/tag/latest).
+
 ## Quick Start
 
 Checkout https://github.com/trackedout/davybones and run it in dev mode by setting `DEV=1` in `.env` and running `just start`.
@@ -151,3 +155,11 @@ For detailed API documentation, visit the Swagger UI at http://localhost:3000/v1
 ## Additional Information
 
 For more details, see https://github.com/trackedout/internal-docs/blob/main/infra/README.md#components.
+
+### Contributors
+
+Thank you to all our contributors for your hard work and support!
+
+<a href="https://github.com/trackedout/dunga-dunga-backend/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=trackedout/dunga-dunga-backend"/>
+</a>
