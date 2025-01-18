@@ -33,6 +33,8 @@ const scoreSchema = new mongoose.Schema<IScoreDoc, IScoreModel>(
   }
 );
 
+scoreSchema.index({ player: 1, key: 1 });
+
 // add plugin that converts mongoose to json
 scoreSchema.plugin(toJSON);
 scoreSchema.plugin(paginate);

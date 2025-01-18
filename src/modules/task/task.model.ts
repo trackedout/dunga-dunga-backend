@@ -49,6 +49,8 @@ const taskSchema = new mongoose.Schema<ITaskDoc, ITaskModel>(
   }
 );
 
+taskSchema.index({ createdAt: 1 });
+
 // add plugin that converts mongoose to json
 taskSchema.plugin(toJSON);
 taskSchema.plugin(paginate);

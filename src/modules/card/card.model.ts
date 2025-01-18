@@ -38,6 +38,8 @@ const cardSchema = new mongoose.Schema<ICardDoc, ICardModel>(
   }
 );
 
+cardSchema.index({ player: 1, deckType: 1, hiddenInDecks: 1 });
+
 // add plugin that converts mongoose to json
 cardSchema.plugin(toJSON);
 cardSchema.plugin(paginate);

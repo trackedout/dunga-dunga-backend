@@ -43,6 +43,9 @@ const claimSchema = new mongoose.Schema<IClaimDoc, IClaimModel>(
   }
 );
 
+claimSchema.index({ type: 1, state: 1, claimant: 1 });
+claimSchema.index({ player: 1, type: 1, state: 1 });
+
 // add plugin that converts mongoose to json
 claimSchema.plugin(toJSON);
 claimSchema.plugin(paginate);

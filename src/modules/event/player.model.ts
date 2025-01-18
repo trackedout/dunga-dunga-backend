@@ -66,6 +66,8 @@ const playerSchema = new mongoose.Schema<IPlayerDoc, IPlayerModel>(
   }
 );
 
+playerSchema.index({ state: 1, isAllowedToPlayDO2: 1, lastSeen: 1, lastQueuedAt: 1 });
+
 // add plugin that converts mongoose to json
 playerSchema.plugin(toJSON);
 playerSchema.plugin(paginate);
