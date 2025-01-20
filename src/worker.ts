@@ -231,6 +231,15 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
 
   await notifyOps(`Acquired dungeon ${dungeon.name} for ${playerName}`);
 
+  await Task.create({
+    server: dungeon.name,
+    type: 'prepare-for-player',
+    state: 'SCHEDULED',
+    targetPlayer: playerName,
+    arguments: [],
+    sourceIP: '127.0.0.1',
+  });
+
   const message = 'Your dungeon is ready! Pass through the door to get teleported to your instance';
   await Task.create({
     server: 'lobby',
