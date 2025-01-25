@@ -519,7 +519,7 @@ async function tryMovePlayerToDungeon(player: IPlayerDoc) {
     const message = `Could not find reserved instance for ${playerName}, and therefore cannot move them to their instance`;
     logger.warn(message);
     await notifyOps(message);
-    await notifyPlayer(playerName, `Could not find your reserved dungeon instance. Please re-queue`);
+    await notifyPlayer(playerName, `<red>Could not find your reserved dungeon instance. Please re-queue and contact a moderator for a shard refund.`);
     return null;
   }
 
