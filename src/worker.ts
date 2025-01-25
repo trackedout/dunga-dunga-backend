@@ -1,4 +1,4 @@
-import net from 'net';
+import { Rcon } from 'rcon-client';
 import Players from './modules/event/player.model';
 import Player from './modules/event/player.model';
 import logger from './modules/logger/logger';
@@ -15,48 +15,56 @@ import { Claim } from './modules/claim';
 import { ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 import { notifyDiscord } from './modules/event/discord';
 
-async function checkIfIpIsReachableWithRetry(ip: string, port: number = 25565, timeout: number = 1000, retries: number = 3): Promise<boolean> {
+async function checkIfIpIsReachableWithRetry(ip: string, port: number = 25575, timeout: number = 1000, retries: number = 3): Promise<boolean> {
   for (let i = 0; i < retries; i++) {
     try {
       logger.info(`Checking if ${ip} is reachable (attempt ${i + 1}/${retries})`);
       return await checkIfIpIsReachable(ip, port, timeout);
     } catch (err: any) {
       logger.warn(`Retry ${i + 1} for ${ip}:${port} failed: ${err.message}`);
+      // Retry after 500ms
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
 
   throw new Error(`Failed to connect to ${ip}:${port} after ${retries} retries`);
 }
 
-// similar to bash `nc -z -w <timeout> <ip> <port>`
-// e.g. `nc -z -w 1 dungeon 25565`
-function checkIfIpIsReachable(ip: string, port: number = 25565, timeout: number = 1000): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    const socket = new net.Socket();
+async function checkIfIpIsReachable(ip: string, port: number = 25575, timeout: number = 1000): Promise<boolean> {
+  return new Promise(async (resolve, reject) => {
+    const rconOptions = {
+      host: ip,
+      port: port,
+      password: 'mc',
+    };
 
-    logger.debug(`Checking if ${ip} is reachable using socket connection`);
-    // Set up the timeout
+    const rcon = new Rcon(rconOptions);
+
     const timer = setTimeout(() => {
       const errorMessage = `Failed to connect to ${ip}:${port} (timeout after ${timeout}ms)`;
       logger.error(errorMessage);
-      socket.destroy();
+      rcon.end().catch((err) => logger.warn(`Error closing RCON connection: ${err.message}`));
       reject(new Error(errorMessage));
     }, timeout);
 
-    socket
-      .once('connect', () => {
-        logger.info(`Connected to ${ip}:${port}, considering this dungeon as healthy`);
-        clearTimeout(timer);
-        socket.destroy();
-        resolve(true);
-      })
-      .once('error', () => {
-        const errorMessage = `Failed to connect to ${ip}:${port} (error encountered during socket connection)`;
-        logger.error(errorMessage);
-        clearTimeout(timer);
-        reject(new Error(errorMessage));
-      })
-      .connect(port, ip);
+    try {
+      await rcon.connect();
+      logger.info(`Connected to ${ip}:${port} using RCON, considering this dungeon as healthy`);
+
+      // Send a simple command to check the server status
+      const response = await rcon.send('list'); // The 'list' command returns the players currently online
+      logger.debug(`RCON response from ${ip}:${port}: ${response}`);
+
+      clearTimeout(timer);
+      await rcon.end().catch((err) => logger.warn(`Error closing RCON connection: ${err.message}`));
+      resolve(true);
+    } catch (error: any) {
+      const errorMessage = `Failed to connect to ${ip}:${port} using RCON (error encountered during socket connection): ${error.message}`;
+      logger.error(errorMessage);
+      clearTimeout(timer);
+      await rcon.end().catch((err) => logger.warn(`Error closing RCON connection: ${err.message}`));
+      reject(new Error(errorMessage));
+    }
   });
 }
 
