@@ -306,7 +306,7 @@ async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
   const reservationCutoffDate = new Date();
   reservationCutoffDate.setMinutes(reservationCutoffDate.getMinutes() - cutoffMinutes); // You have 5 minutes to enter the instance
   if (dungeon.state === InstanceStates.RESERVED && dungeon.reservedDate <= reservationCutoffDate) {
-    const message = `Dungeon instance ${dungeon.name} was reserved but unused for over ${cutoffMinutes} minutes, marking it as available`;
+    const message = `Dungeon instance ${dungeon.name} was reserved but unused for over ${cutoffMinutes} minutes, shutting it down`;
     logger.info(message);
     await notifyOps(message);
 
@@ -326,27 +326,34 @@ async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
       type: 'message-player',
       state: 'SCHEDULED',
       targetPlayer: playerName,
-      arguments: [`You did not join your dungeon within ${cutoffMinutes} minutes. Your dungeon has been released`],
+      arguments: [`<red>You did not join your dungeon within ${cutoffMinutes} minutes. Your dungeon has been released`],
       sourceIP: '127.0.0.1',
     });
 
+    const activeClaims = await Claim.find({
+      player: playerName,
+      type: ClaimTypes.DUNGEON,
+      state: [ClaimStates.PENDING, ClaimStates.IN_USE, ClaimStates.ACQUIRED],
+      claimant: dungeon.name,
+    });
+
+    await Promise.all(activeClaims.map(claim => invalidateClaimAndNotify(claim, `Player did not enter dungeon within ${cutoffMinutes} minutes` )));
+
     await dungeon
       .updateOne({
-        state: InstanceStates.AVAILABLE,
+        state: InstanceStates.BUILDING,
         reservedBy: null,
         reservationDate: null,
         claimId: null,
       })
       .exec();
 
-    const activeClaims = await Claim.find({
-      player: playerName,
-      type: ClaimTypes.DUNGEON,
-      state: [ClaimStates.PENDING, ClaimStates.IN_USE],
-      claimant: dungeon.name,
+    await Task.create({
+      server: dungeon.name,
+      type: 'shutdown-server-if-empty',
+      state: 'SCHEDULED',
+      sourceIP: '127.0.0.1',
     });
-
-    await Promise.all(activeClaims.map(claim => invalidateClaimAndNotify(claim, `Player did not enter dungeon within ${cutoffMinutes} minutes` )));
   }
 
   return dungeon;
@@ -449,11 +456,18 @@ async function releaseDungeonLeaseForPlayer(playerName: string) {
   if (dungeonInstance) {
     await dungeonInstance
       .updateOne({
-        state: InstanceStates.AVAILABLE,
+        state: InstanceStates.BUILDING,
         reservedBy: null,
         reservationDate: null,
       })
       .exec();
+
+    await Task.create({
+      server: dungeonInstance.name,
+      type: 'shutdown-server-if-empty',
+      state: 'SCHEDULED',
+      sourceIP: '127.0.0.1',
+    });
   }
 }
 
