@@ -15,13 +15,26 @@ import { Claim } from './modules/claim';
 import { ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 import { notifyDiscord } from './modules/event/discord';
 
+async function checkIfIpIsReachableWithRetry(ip: string, port: number = 25565, timeout: number = 1000, retries: number = 3): Promise<boolean> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      logger.info(`Checking if ${ip} is reachable (attempt ${i + 1}/${retries})`);
+      return await checkIfIpIsReachable(ip, port, timeout);
+    } catch (err: any) {
+      logger.warn(`Retry ${i + 1} for ${ip}:${port} failed: ${err.message}`);
+    }
+  }
+
+  throw new Error(`Failed to connect to ${ip}:${port} after ${retries} retries`);
+}
+
 // similar to bash `nc -z -w <timeout> <ip> <port>`
 // e.g. `nc -z -w 1 dungeon 25565`
 function checkIfIpIsReachable(ip: string, port: number = 25565, timeout: number = 1000): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const socket = new net.Socket();
 
-    logger.debug(`Checking if ${ip} is reachable`);
+    logger.debug(`Checking if ${ip} is reachable using socket connection`);
     // Set up the timeout
     const timer = setTimeout(() => {
       const errorMessage = `Failed to connect to ${ip}:${port} (timeout after ${timeout}ms)`;
@@ -544,7 +557,7 @@ async function releaseLock(type: string, target: string) {
 async function checkInstanceNetworkConnection() {
   const instances = await DungeonInstance.find({}).exec();
   instances.forEach((dungeon) => {
-    checkIfIpIsReachable(dungeon.ip)
+    checkIfIpIsReachableWithRetry(dungeon.ip)
       .then(() => markDungeonAsHealthy(dungeon))
       .then(() => releaseDungeonIfLeaseExpired(dungeon))
       .then(() => tearDownDungeonIfEmpty(dungeon))
