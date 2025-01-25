@@ -7,7 +7,7 @@ import DungeonInstance from './modules/event/instance.model';
 import Event from './modules/event/event.model';
 import Task from './modules/task/task.model';
 import Lock from './modules/lock/lock.model';
-import { notifyOps } from './modules/task';
+import { notifyOps, notifyPlayer } from './modules/task';
 import { IInstanceDoc, InstanceStates } from './modules/event/instance.interfaces';
 import config from './config/config';
 import { PlayerEvents, ServerEvents } from './modules/event/event.interfaces';
@@ -220,7 +220,7 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
 
   // Validate dungeon is responding to socket requests before connecting
   // Removes unreachable instances from pool
-  await checkIfIpIsReachable(dungeon.ip).catch(async () => {
+  await checkIfIpIsReachableWithRetry(dungeon.ip).catch(async () => {
     const message = `${dungeon.name}@${dungeon.ip} became unreachable after being reserved by ${playerName}. This should self-recover`;
     logger.error(message);
     await notifyOps(message);
@@ -253,15 +253,8 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
     sourceIP: '127.0.0.1',
   });
 
-  const message = 'Your dungeon is ready! Pass through the door to get teleported to your instance';
-  await Task.create({
-    server: 'lobby',
-    type: 'message-player',
-    state: 'SCHEDULED',
-    targetPlayer: playerName,
-    arguments: [message],
-    sourceIP: '127.0.0.1',
-  });
+  const message = '<aqua>Your dungeon is ready! Pass through the door to get teleported to your instance';
+  await notifyPlayer(playerName, message);
 }
 
 function isClaimSupportedByDungeon(dungeon: IInstanceDoc, claim: IClaimDoc) {
@@ -366,6 +359,30 @@ async function invalidateClaims() {
     const player = await Players.findOne({
       playerName,
     }).exec();
+
+    // If claim is ACQUIRED and dungeon is not marked as reserved, invalidate the claim
+    if (claim.state === ClaimStates.ACQUIRED) {
+      const dungeonInstance = await DungeonInstance.findOne({
+        state: [InstanceStates.RESERVED, InstanceStates.AWAITING_PLAYER, InstanceStates.IN_USE],
+        name: claim.claimant,
+        requiresRebuild: false,
+      }).exec();
+
+      if (!dungeonInstance) {
+        const message = `Dungeon instance ${claim.claimant} for claim ${claim.id} is no longer available. Invalidating claim`;
+        logger.warn(message);
+        await notifyOps(message);
+
+        await invalidateClaimAndNotify(claim, message);
+        // Place the player back in the lobby
+        await player?.updateOne({
+          state: QueueStates.IN_LOBBY,
+        }).exec();
+        await notifyPlayer(playerName, `<red>Your dungeon (${claim.claimant}) encountered an error and is no longer available. Please re-queue and contact a moderator for a shard refund.`);
+
+        return;
+      }
+    }
 
     if (!player) {
       const message = `Player ${playerName} does not exist. Invalidating claim ${claim.id}`;
@@ -502,6 +519,7 @@ async function tryMovePlayerToDungeon(player: IPlayerDoc) {
     const message = `Could not find reserved instance for ${playerName}, and therefore cannot move them to their instance`;
     logger.warn(message);
     await notifyOps(message);
+    await notifyPlayer(playerName, `Could not find your reserved dungeon instance. Please re-queue`);
     return null;
   }
 
