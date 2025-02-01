@@ -174,7 +174,7 @@ async function updatePlayerLastSeenDate(eventBody: NewCreatedEvent) {
     let state = player.state;
     if (state === QueueStates.IN_TRANSIT_TO_DUNGEON && eventBody.server.match(/^d[0-9]{3}/)) {
       state = QueueStates.IN_DUNGEON;
-    } else if (eventBody.server === 'builders') {
+    } else if (eventBody.server.startsWith('builders')) {
       state = QueueStates.IN_BUILDERS;
     }
 

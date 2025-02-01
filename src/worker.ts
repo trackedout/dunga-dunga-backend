@@ -298,7 +298,7 @@ async function markDungeonAsHealthy(dungeon: IInstanceDoc) {
 }
 
 async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
-  if (dungeon.name === 'builders') {
+  if (dungeon.name.startsWith('builders')) {
     return dungeon;
   }
 
@@ -472,7 +472,7 @@ async function releaseDungeonLeaseForPlayer(playerName: string) {
 }
 
 async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
-  if (dungeon.name === 'builders') {
+  if (dungeon.name.startsWith('builders')) {
     return dungeon;
   }
 
