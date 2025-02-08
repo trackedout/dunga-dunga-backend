@@ -6,7 +6,7 @@ import DungeonInstance from './instance.model';
 import { EmbedBuilder, EmbedField, WebhookClient } from 'discord.js';
 import { Claim } from '../claim';
 import { ClaimTypes, IClaimDoc } from '../claim/claim.interfaces';
-import { getEventMetadata, getMetadata, EventMetadataContainer } from '../utils'
+import { getEventMetadata, getMetadata, EventMetadataContainer } from '../utils';
 import Task from '../task/task.model';
 import moment from 'moment';
 
@@ -61,7 +61,7 @@ export async function notifyDiscord(event: EventWithServer & ClaimRelatedEvent &
       embeds.push(...(await getGameEndedEmbeds(event)));
     }
 
-    var options : {
+    let options: {
       content?: string;
       username: string;
       embeds: Array<EmbedBuilder>;
@@ -74,7 +74,7 @@ export async function notifyDiscord(event: EventWithServer & ClaimRelatedEvent &
       options.content = message;
     }
 
-    var lastMessageID: string | null = null;
+    let lastMessageID: string | null = null;
     if (eventsToEdit.some(e => typeof e === 'string' ? e === event.name : e.test(event.name))) {
       lastMessageID = await getDiscordMessageID(event);
       if (lastMessageID) {
@@ -158,12 +158,12 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
     case 'game-lost':
       await storeEndTime(event, new Date());
       const killer = await getKiller(event);
-      const extra = killer && killer !== "unknown" ? ` (specifically by ${killer})` : '';
+      const extra = killer && killer !== 'unknown' ? ` (specifically by ${killer})` : '';
       return `[${await getFullRunTypeWithClaim(event)}] ${playerNameBold} was defeated by the dungeon${extra} <:Ravager:1166890345188040846>`;
 
     case 'player-died': {
       const killer = getEventMetadata(event).get('killer');
-      if (!killer || killer === "unknown") {
+      if (!killer || killer === 'unknown') {
         return '';
       }
 
@@ -232,7 +232,7 @@ async function getLobbyMessageForEvent(event: EventWithServer & ClaimRelatedEven
 
     case 'game-lost':
       const killer = await getKiller(event);
-      const extra = killer && killer !== "unknown" ? ` (specifically by ${killer})` : '';
+      const extra = killer && killer !== 'unknown' ? ` (specifically by ${killer})` : '';
       return `[${await getFullRunTypeWithClaim(event)}] ${playerName} was defeated by the dungeon${extra}`;
 
     case 'player-died': {
@@ -273,7 +273,9 @@ async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEvent): P
   if (runId) {
     const fields = [];
 
+    const claim = await findClaim(event);
     const endTime = metadata.get('end-time');
+
     if (endTime || event.name === 'claim-invalidated') {
       fields.push(...(await mapAndCountEvents({
         runId,
@@ -290,6 +292,8 @@ async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEvent): P
         prefixToRemove: 'card-played-',
       })));
 
+      fields.push(...(await getPingStats(event.player, claim?.claimant || "", endTime)));
+
       if (metadata.get('run-type') !== 'c') {
         fields.push(...(await mapAndCountEvents({
           runId,
@@ -301,7 +305,6 @@ async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEvent): P
       }
     }
 
-    const claim = await findClaim(event);
     const embed = new EmbedBuilder()
       .setDescription((await getRunDescription(runId, claim)))
       .setFields(fields)
@@ -345,6 +348,37 @@ async function mapAndCountEvents({ title, playerName, runId, nameFilterRegex, pr
   return [];
 }
 
+async function getPingStats(playerName: string, dungeon: string, endTime: string): Promise<Array<EmbedField>> {
+  // Look at the 30 seconds leading to the end date (e.g. to when the player died)
+  const cutoffDate = new Date((parseInt(endTime) * 1000) - 1000 * 30);
+
+  const events = await Event.find({
+    player: playerName,
+    name: 'proxy-ping',
+    'metadata.server': dungeon,
+    createdAt: { $gte: cutoffDate },
+  }).exec();
+
+  if (events.length > 0) {
+    const pings = events
+      .map((event: IEvent) => parseInt(getEventMetadata(event).get('ping') || '0', 10))
+      .filter((ping: number) => ping > 0);
+    logger.debug("Pings: " + events);
+    const minPing = Math.min(...pings);
+    const avgPing = pings.reduce((acc, ping) => acc + ping, 0) / pings.length;
+    const maxPing = Math.max(...pings);
+    const value = `- Min: \`${minPing}\`\n- Avg: \`${avgPing.toFixed(2)}\`\n- Max: \`${maxPing}\``;
+
+    return [{
+      name: 'Ping (last 30s)',
+      value: value,
+      inline: true,
+    }];
+  }
+
+  return [];
+}
+
 async function getRunDescription(runId: string, claim: IClaimDoc | null): Promise<string> {
   const items = [
     `**Run ID**: ${runId}`,
@@ -362,7 +396,7 @@ async function getRunDescription(runId: string, claim: IClaimDoc | null): Promis
     }
 
     const killer = claim.metadata.get('killer');
-    if (killer && killer !== "unknown") {
+    if (killer && killer !== 'unknown') {
       items.push(`**Killer**: ${killer}`);
     }
 
@@ -415,8 +449,8 @@ async function findClaim(event: ClaimRelatedEvent): Promise<IClaimDoc | null> {
   const metadata = getEventMetadata(event);
   const runId = metadata.get('run-id');
   if (!runId) {
-      logger.debug(`'metadata.run-id' not set on event, cannot find associated claim`);
-      return null;
+    logger.debug(`'metadata.run-id' not set on event, cannot find associated claim`);
+    return null;
   }
 
   const claims = await Claim.find({
