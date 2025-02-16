@@ -166,8 +166,13 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
       if (!killer || killer === 'unknown') {
         return '';
       }
-
       await storeKiller(event, killer);
+
+      const deathMessage = getEventMetadata(event).get('death-message');
+      if (deathMessage && !deathMessage.includes("slain by nothing")) {
+        await storeDeathMessage(event, deathMessage);
+      }
+
       return '';
     }
 
@@ -241,6 +246,15 @@ async function getLobbyMessageForEvent(event: EventWithServer & ClaimRelatedEven
       if (!deathMessage) {
         return '';
       }
+
+      const claim = await findClaim(event);
+      if (claim && claim.metadata.get('end-time')) {
+        // if game ended more than 10 seconds ago, don't send message
+        if (new Date(parseInt(claim.metadata.get('end-time') || '0') * 1000) < new Date(Date.now() - 1000 * 10)) {
+          return '';
+        }
+      }
+
       return `[${await getFullRunTypeWithClaim(event)}] ${deathMessage}`;
     }
 
@@ -395,9 +409,9 @@ async function getRunDescription(runId: string, claim: IClaimDoc | null): Promis
       items.push(`**Difficulty**: ${difficulty}`);
     }
 
-    const killer = claim.metadata.get('killer');
-    if (killer && killer !== 'unknown') {
-      items.push(`**Killer**: ${killer}`);
+    const deathMessage = claim.metadata.get('death-message');
+    if (deathMessage) {
+      items.push(`**Death**: ${deathMessage}`);
     }
 
     const dungeon = claim.claimant;
@@ -519,6 +533,10 @@ async function storeEndTime(event: ClaimRelatedEvent, endTime: Date) {
 
 async function storeKiller(event: ClaimRelatedEvent, killer: String) {
   await setMetadataValue(event, 'killer', killer);
+}
+
+async function storeDeathMessage(event: ClaimRelatedEvent, message: String) {
+  await setMetadataValue(event, 'death-message', message);
 }
 
 async function getKiller(event: EventWithServer & ClaimRelatedEvent): Promise<string | undefined> {
