@@ -235,10 +235,10 @@ async function getLobbyMessageForEvent(event: EventWithServer & ClaimRelatedEven
     case 'game-won':
       return `[${await getFullRunTypeWithClaim(event)}] ${playerName} survived Decked Out!`;
 
-    case 'game-lost':
-      const killer = await getKiller(event);
-      const extra = killer && killer !== 'unknown' ? ` (specifically by ${killer})` : '';
-      return `[${await getFullRunTypeWithClaim(event)}] ${playerName} was defeated by the dungeon${extra}`;
+    // case 'game-lost':
+    //   const killer = await getKiller(event);
+    //   const extra = killer && killer !== 'unknown' ? ` (specifically by ${killer})` : '';
+    //   return `[${await getFullRunTypeWithClaim(event)}] ${playerName} was defeated by the dungeon${extra}`;
 
     case 'player-died': {
       const metadata = getEventMetadata(event);
@@ -370,14 +370,17 @@ async function getPingStats(playerName: string, dungeon: string, endTime: string
     player: playerName,
     name: 'proxy-ping',
     'metadata.server': dungeon,
-    createdAt: { $gte: cutoffDate },
+    createdAt: {
+      $gte: cutoffDate,
+      $lte: new Date(parseInt(endTime) * 1000),
+    },
   }).exec();
 
   if (events.length > 0) {
     const pings = events
       .map((event: IEvent) => parseInt(getEventMetadata(event).get('ping') || '0', 10))
       .filter((ping: number) => ping > 0);
-    logger.debug("Pings: " + events);
+    // logger.debug("Pings: " + events);
     const minPing = Math.min(...pings);
     const avgPing = pings.reduce((acc, ping) => acc + ping, 0) / pings.length;
     const maxPing = Math.max(...pings);
@@ -424,7 +427,7 @@ async function getRunDescription(runId: string, claim: IClaimDoc | null): Promis
     if (startTime) {
       if (endTime) {
         const diff = (parseInt(endTime) - parseInt(startTime)) * 1000;
-        const diffFormatted = moment.utc(diff).format('mm:ss');
+        const diffFormatted = diff < 3600000 ? moment.utc(diff).format('mm:ss') : moment.utc(diff).format('H[h]:mm[m]:ss[s]');
         items.push(`**Time**: <t:${startTime}:T> to <t:${endTime}:T> (${diffFormatted})`);
       } else {
         items.push(`**Start Time**: <t:${startTime}:R>`);
