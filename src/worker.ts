@@ -15,7 +15,12 @@ import { Claim } from './modules/claim';
 import { ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 import { notifyDiscord } from './modules/event/discord';
 
-async function checkIfIpIsReachableWithRetry(ip: string, port: number = 25575, timeout: number = 1000, retries: number = 3): Promise<boolean> {
+async function checkIfIpIsReachableWithRetry(
+  ip: string,
+  port: number = 25575,
+  timeout: number = 1000,
+  retries: number = 3
+): Promise<boolean> {
   for (let i = 0; i < retries; i++) {
     try {
       logger.info(`Checking if ${ip} is reachable (attempt ${i + 1}/${retries})`);
@@ -130,7 +135,7 @@ async function degradeDungeon(dungeon: IInstanceDoc) {
     claimant: dungeon.name,
   });
 
-  await Promise.all(activeClaims.map(claim => invalidateClaimAndNotify(claim, 'Dungeon is unhealthy' )));
+  await Promise.all(activeClaims.map((claim) => invalidateClaimAndNotify(claim, 'Dungeon is unhealthy')));
 }
 
 async function assignQueuedPlayersToDungeons() {
@@ -170,18 +175,16 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
     throw new Error(`${playerName} is in queue without an active claim`);
   }
 
-  const dungeons: IInstanceDoc[] = await DungeonInstance.find(
-    {
-      state: InstanceStates.AVAILABLE,
-      requiresRebuild: false,
-      name: {
-        $regex: /^d[0-9]{3}/,
-      },
-      healthySince: {
-        $lte: minHealthyDateCutoff,
-      },
+  const dungeons: IInstanceDoc[] = await DungeonInstance.find({
+    state: InstanceStates.AVAILABLE,
+    requiresRebuild: false,
+    name: {
+      $regex: /^d[0-9]{3}/,
     },
-  ).sort({ healthySince: 1 });
+    healthySince: {
+      $lte: minHealthyDateCutoff,
+    },
+  }).sort({ healthySince: 1 });
 
   let dungeon: IInstanceDoc | null = null;
   for (let availableDungeon of dungeons) {
@@ -214,7 +217,7 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
       // Return the updated document after executing this update
       new: true,
       sort: { healthySince: 1 },
-    },
+    }
   ).exec();
 
   if (!dungeon) {
@@ -239,16 +242,20 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
   logger.debug(`Finished checking ${dungeon.ip}'s health`);
 
   logger.info(`Setting ${playerName}'s state as ${QueueStates.IN_TRANSIT_TO_DUNGEON}`);
-  await player.updateOne({
-    state: QueueStates.IN_TRANSIT_TO_DUNGEON,
-  }).exec();
+  await player
+    .updateOne({
+      state: QueueStates.IN_TRANSIT_TO_DUNGEON,
+    })
+    .exec();
 
   logger.info(`Setting Claim ${claim.id}'s state as ${ClaimStates.ACQUIRED}`);
-  await claim.updateOne({
-    state: ClaimStates.ACQUIRED,
-    stateReason: `Acquired dungeon ${dungeon.name} for ${playerName}`,
-    claimant: dungeon.name,
-  }).exec();
+  await claim
+    .updateOne({
+      state: ClaimStates.ACQUIRED,
+      stateReason: `Acquired dungeon ${dungeon.name} for ${playerName}`,
+      claimant: dungeon.name,
+    })
+    .exec();
 
   await notifyOps(`Acquired dungeon ${dungeon.name} for ${playerName}`);
 
@@ -337,7 +344,9 @@ async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
       claimant: dungeon.name,
     });
 
-    await Promise.all(activeClaims.map(claim => invalidateClaimAndNotify(claim, `Player did not enter dungeon within ${cutoffMinutes} minutes` )));
+    await Promise.all(
+      activeClaims.map((claim) => invalidateClaimAndNotify(claim, `Player did not enter dungeon within ${cutoffMinutes} minutes`))
+    );
 
     await dungeon
       .updateOne({
@@ -369,59 +378,62 @@ async function invalidateClaims() {
     },
   });
 
-  await Promise.all(activeClaims.map(async (claim: IClaimDoc) => {
-    const playerName = claim.player;
-    const player = await Players.findOne({
-      playerName,
-    }).exec();
-
-    // If claim is ACQUIRED and dungeon is not marked as reserved, invalidate the claim
-    if (claim.state === ClaimStates.ACQUIRED) {
-      const dungeonInstance = await DungeonInstance.findOne({
-        state: [InstanceStates.RESERVED, InstanceStates.AWAITING_PLAYER, InstanceStates.IN_USE],
-        name: claim.claimant,
-        requiresRebuild: false,
+  await Promise.all(
+    activeClaims.map(async (claim: IClaimDoc) => {
+      const playerName = claim.player;
+      const player = await Players.findOne({
+        playerName,
       }).exec();
 
-      if (!dungeonInstance) {
-        const message = `Dungeon instance ${claim.claimant} for claim ${claim.id} is no longer available. Invalidating claim`;
-        logger.warn(message);
-        await notifyOps(message);
-
-        await invalidateClaimAndNotify(claim, message);
-        // Place the player back in the lobby
-        await player?.updateOne({
-          state: QueueStates.IN_LOBBY,
+      // If claim is ACQUIRED and dungeon is not marked as reserved, invalidate the claim
+      if (claim.state === ClaimStates.ACQUIRED) {
+        const dungeonInstance = await DungeonInstance.findOne({
+          state: [InstanceStates.RESERVED, InstanceStates.AWAITING_PLAYER, InstanceStates.IN_USE],
+          name: claim.claimant,
+          requiresRebuild: false,
         }).exec();
-        await notifyPlayer(playerName, `<red>Your dungeon (${claim.claimant}) encountered an error and is no longer available. Please re-queue and contact a moderator for a shard refund.`);
 
-        return;
+        if (!dungeonInstance) {
+          const message = `Dungeon instance ${claim.claimant} for claim ${claim.id} is no longer available. Invalidating claim`;
+          logger.warn(message);
+          await notifyOps(message);
+
+          await invalidateClaimAndNotify(claim, message);
+          // Place the player back in the lobby
+          await player
+            ?.updateOne({
+              state: QueueStates.IN_LOBBY,
+            })
+            .exec();
+          await notifyPlayer(
+            playerName,
+            `<red>Your dungeon (${claim.claimant}) encountered an error and is no longer available. Please re-queue and contact a moderator for a shard refund.`
+          );
+
+          return;
+        }
       }
-    }
 
-    if (!player) {
-      const message = `Player ${playerName} does not exist. Invalidating claim ${claim.id}`;
-      logger.warn(message);
-      await notifyOps(message);
-
-      await invalidateClaimAndNotify(claim, message);
-      await releaseDungeonLeaseForPlayer(playerName);
-    } else {
-      logger.info(`Checking if ${playerName} is in a disallowed state for claim ${claim.id}`);
-      if (![
-        QueueStates.IN_QUEUE,
-        QueueStates.IN_DUNGEON,
-        QueueStates.IN_TRANSIT_TO_DUNGEON,
-      ].includes(player.state)) {
-        const message = `Player ${playerName} is in state ${player?.state} with an active claim. Invalidating claim ${claim.id}`;
+      if (!player) {
+        const message = `Player ${playerName} does not exist. Invalidating claim ${claim.id}`;
         logger.warn(message);
         await notifyOps(message);
 
         await invalidateClaimAndNotify(claim, message);
         await releaseDungeonLeaseForPlayer(playerName);
+      } else {
+        logger.info(`Checking if ${playerName} is in a disallowed state for claim ${claim.id}`);
+        if (![QueueStates.IN_QUEUE, QueueStates.IN_DUNGEON, QueueStates.IN_TRANSIT_TO_DUNGEON].includes(player.state)) {
+          const message = `Player ${playerName} is in state ${player?.state} with an active claim. Invalidating claim ${claim.id}`;
+          logger.warn(message);
+          await notifyOps(message);
+
+          await invalidateClaimAndNotify(claim, message);
+          await releaseDungeonLeaseForPlayer(playerName);
+        }
       }
-    }
-  }));
+    })
+  );
 }
 
 async function invalidateClaimAndNotify(claim: IClaimDoc, message: string) {
@@ -520,7 +532,7 @@ async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
 async function tryMovePlayerToDungeon(player: IPlayerDoc) {
   const { playerName } = player;
 
-  if (!await tryTakeLock('move-to-dungeon', playerName, 15)) {
+  if (!(await tryTakeLock('move-to-dungeon', playerName, 15))) {
     return null;
   }
 
@@ -541,7 +553,10 @@ async function tryMovePlayerToDungeon(player: IPlayerDoc) {
     const message = `Could not find reserved instance for ${playerName}, and therefore cannot move them to their instance`;
     logger.warn(message);
     await notifyOps(message);
-    await notifyPlayer(playerName, `<red>Could not find your reserved dungeon instance. Please re-queue and contact a moderator for a shard refund.`);
+    await notifyPlayer(
+      playerName,
+      `<red>Could not find your reserved dungeon instance. Please re-queue and contact a moderator for a shard refund.`
+    );
     return null;
   }
 
