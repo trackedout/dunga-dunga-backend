@@ -163,10 +163,9 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
 
     case 'player-died': {
       const killer = getEventMetadata(event).get('killer');
-      if (!killer || killer === 'unknown') {
-        return '';
+      if (killer && killer !== 'unknown') {
+        await storeKiller(event, killer);
       }
-      await storeKiller(event, killer);
 
       const deathMessage = getEventMetadata(event).get('death-message');
       if (deathMessage && !deathMessage.includes("slain by nothing")) {
