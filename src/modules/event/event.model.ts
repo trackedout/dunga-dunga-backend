@@ -63,6 +63,10 @@ const eventSchema = new mongoose.Schema<IEventDoc, IEventModel>(
 );
 
 eventSchema.index({ player: 1, name: 1, 'metadata.run-id': 1 });
+eventSchema.index({ name: 1, createdAt: 1 });
+eventSchema.index({ server: 1, createdAt: 1 });
+eventSchema.index({ player: 1, createdAt: 1 });
+eventSchema.index({ name: 1, server: 1, createdAt: 1 });
 
 // add plugin that converts mongoose to json
 eventSchema.plugin(toJSON);
