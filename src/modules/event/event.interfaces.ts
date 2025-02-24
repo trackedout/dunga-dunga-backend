@@ -19,6 +19,7 @@ export enum PlayerEvents {
 }
 
 export enum ServerEvents {
+  PROXY_PING = 'proxy-ping',
   SERVER_ONLINE = 'server-online',
   SERVER_CLOSING = 'server-closing',
 

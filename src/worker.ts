@@ -629,7 +629,12 @@ async function cleanupStaleRecords() {
   const cutoffDate = new Date(Date.now() - 1000 * 60 * 60 * 24 * 2);
 
   await Event.deleteMany({
-    name: [ServerEvents.SERVER_ONLINE, ServerEvents.SERVER_CLOSING, PlayerEvents.SEEN],
+    name: [
+      ServerEvents.PROXY_PING,
+      ServerEvents.SERVER_ONLINE,
+      ServerEvents.SERVER_CLOSING,
+      PlayerEvents.SEEN
+    ],
     createdAt: { $lte: cutoffDate },
   }).exec();
 
