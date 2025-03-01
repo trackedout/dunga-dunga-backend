@@ -185,7 +185,7 @@ export default router;
  *             type: array
  *             items:
  *                type: string
- *             example: ["moment_of_clarity", "suit_up"]
+ *             example: ["MOC", "SNE"]
  *     responses:
  *       "200":
  *         description: No content

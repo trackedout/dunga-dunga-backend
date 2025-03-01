@@ -145,9 +145,9 @@ async function ensureDeckIsSeeded(playerName: string, deckId: string) {
 }
 
 async function addDefaultCards(playerName: string, deckId: string) {
-  await Card.create({ name: 'moment_of_clarity', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
-  await Card.create({ name: 'sneak', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
-  await Card.create({ name: 'treasure_hunter', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
+  await Card.create({ name: 'MOC', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
+  await Card.create({ name: 'SNE', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
+  await Card.create({ name: 'TRH', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
 }
 
 async function ensureScoreboardIsSeeded(playerName: string, key: string, defaultValue: number) {

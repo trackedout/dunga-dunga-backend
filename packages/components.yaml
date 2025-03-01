@@ -59,7 +59,7 @@ components:
           items:
             type: string
       example:
-        name: moment_of_clarity
+        name: MOC
         player: 4Ply
         server: lobby
         deckType: "p"
