@@ -1,6 +1,5 @@
 import httpStatus from 'http-status';
-import mongoose from 'mongoose';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import Event from './event.model';
 import Players from './player.model';
 import DungeonInstance from './instance.model';
@@ -16,7 +15,7 @@ import { Card } from '../card';
 import { Claim } from '../claim';
 import { ClaimStates, ClaimTypes, RunTypes } from '../claim/claim.interfaces';
 import { v4 as uuidv4 } from 'uuid';
-import { notifyDiscord, notifyLobby } from './discord';
+import { ClaimRelatedEvent, EventWithServer, notifyDiscord, notifyLobby, withClaimMetadata } from './discord';
 import { Score } from '../score';
 import { getSelectedDeck } from '../card/card.controller';
 
@@ -87,6 +86,15 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         await updateCardVisibility(eventBody);
         break;
 
+      case PlayerEvents.PLAYER_DIED:
+      case ServerEvents.CLAIM_INVALIDATED:
+        await resetHardcoreDeck(eventBody);
+        break;
+
+      case PlayerEvents.GAME_WON:
+        await storeBestHardcoreStats(eventBody);
+        break;
+
       default:
         break;
     }
@@ -127,7 +135,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
   }
 
   await allowPlayerToPlayDO2(eventBody).catch((_) => {
-      // Ignored
+    // Ignored
   });
 
   await ensureDeckIsSeeded(eventBody.player, 'p1');
@@ -150,6 +158,12 @@ async function addDefaultCards(playerName: string, deckId: string) {
   await Card.create({ name: 'TRH', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
 }
 
+async function resetScoreboard(playerName: string, key: string, value: number) {
+  await Score.deleteOne({ player: playerName, key: key }).exec();
+
+  await ensureScoreboardIsSeeded(playerName, key, value);
+}
+
 async function ensureScoreboardIsSeeded(playerName: string, key: string, defaultValue: number) {
   if (!(await Score.findOne({ player: playerName, key: key }).exec())) {
     logger.warn(`${playerName} does not have score value set for ${key}, setting it to ${defaultValue}`);
@@ -162,6 +176,103 @@ async function ensureScoreboardIsSeeded(playerName: string, key: string, default
       targetPlayer: playerName,
       sourceIP: '127.0.0.1',
     });
+  }
+}
+
+export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWithServer) {
+  const playerName = eventBody.player;
+  const metadata = await withClaimMetadata(eventBody);
+
+  const logPrefix = '[Hardcore deck reset]';
+  const prefix = `Intercepted '${eventBody.name}' event for ${playerName}`;
+  const runType = metadata.get('run-type');
+  if (runType !== 'h') {
+    const msg = `${prefix} but this is not a hardcore run, skipping deck deletion`;
+    logger.info(`${logPrefix} ${msg}`);
+    return;
+  }
+
+  if (!metadata.get('start-time')) {
+    const msg = `${prefix} but they did not start their game, skipping deck deletion`;
+    logger.info(`${logPrefix} ${msg}`);
+    await notifyOps(msg);
+    return;
+  }
+
+  if (metadata.get('game-won') === 'true') {
+    const msg = `${prefix} but they won their game, skipping deck deletion`;
+    logger.info(`${logPrefix} ${msg}`);
+    await notifyOps(msg);
+    return;
+  }
+
+  const msg = eventBody.name === 'player-died' ?
+    `${prefix} and they died in hardcore mode, deleting their hardcore deck` :
+    `${prefix} and their claim was invalidated, deleting their hardcore deck`;
+  logger.info(`${logPrefix} ${msg}`);
+  await notifyOps(msg);
+
+  await Card.deleteMany({
+    player: playerName,
+    deckType: runType,
+  }).exec();
+
+  await Score.updateMany({
+    player: playerName,
+    key: {
+      $regex: /^hardcore-do2\./,
+    },
+  }, {
+    $set: {
+      value: 0,
+    },
+  }).exec();
+
+  await ensureDeckIsSeeded(eventBody.player, 'h1');
+  await resetScoreboard(eventBody.player, 'do2.inventory.shards.hardcore', 10);
+}
+
+export async function storeBestHardcoreStats(eventBody: ClaimRelatedEvent & EventWithServer) {
+  const playerName = eventBody.player;
+  const metadata = await withClaimMetadata(eventBody);
+
+  const logPrefix = '[Hardcore stats]';
+  const prefix = `Intercepted '${eventBody.name}' event for ${playerName}`;
+  const runType = metadata.get('run-type');
+  if (runType !== 'h') {
+    const msg = `${prefix} but this is not a hardcore run, skipping stats update`;
+    logger.info(`${logPrefix} ${msg}`);
+    return;
+  }
+
+  // Update leaderboard score, storing the highest value for hardcore-do2.lifetime.escaped.tomes
+  const key = 'hardcore-do2.lifetime.escaped.tomes';
+  const currentScore = await Score.findOne({
+    player: playerName,
+    key: key,
+  }).exec();
+
+  const leaderboardScore = await Score.findOne({
+    player: playerName,
+    key: 'leaderboard-' + key,
+  }).exec();
+
+  if (!currentScore) {
+    logger.info(`${logPrefix} `);
+    return
+  }
+  if (!leaderboardScore || leaderboardScore.value < currentScore.value) {
+    if (leaderboardScore) {
+      await leaderboardScore.updateOne({
+        value: currentScore.value,
+      }).exec();
+    } else {
+      await Score.create({
+        player: playerName,
+        key: 'leaderboard-' + key,
+        value: currentScore.value,
+      });
+    }
   }
 }
 

@@ -14,6 +14,7 @@ import { PlayerEvents, ServerEvents } from './modules/event/event.interfaces';
 import { Claim } from './modules/claim';
 import { ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 import { notifyDiscord } from './modules/event/discord';
+import { resetHardcoreDeck } from './modules/event/event.service';
 
 async function checkIfIpIsReachableWithRetry(
   ip: string,
@@ -443,11 +444,18 @@ async function invalidateClaimAndNotify(claim: IClaimDoc, message: string) {
   });
 
   notifyDiscord({
-    name: 'claim-invalidated',
+    name: ServerEvents.CLAIM_INVALIDATED,
     player: claim.player,
     server: '',
     metadata: claim.metadata,
     invalidationReason: message,
+  });
+
+  resetHardcoreDeck({
+    name: ServerEvents.CLAIM_INVALIDATED,
+    player: claim.player,
+    server: '',
+    metadata: claim.metadata,
   });
 }
 

@@ -16,12 +16,18 @@ export enum PlayerEvents {
 
   CARD_VISIBILITY_UPDATED = 'card-visibility-updated',
   SCORE_MODIFIED = 'score-modified',
+
+  PLAYER_DIED = 'player-died',
+
+  GAME_WON = 'game-won',
 }
 
 export enum ServerEvents {
   PROXY_PING = 'proxy-ping',
   SERVER_ONLINE = 'server-online',
   SERVER_CLOSING = 'server-closing',
+
+  CLAIM_INVALIDATED = 'claim-invalidated',
 
   SHUTDOWN_ALL_EMPTY_DUNGEONS = 'shutdown-all-empty-dungeons',
 }

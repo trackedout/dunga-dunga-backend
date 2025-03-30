@@ -1,18 +1,18 @@
 import { logger } from '../logger';
 import Player from './player.model';
 import Event from './event.model';
-import { IEvent, PlayerEvents } from './event.interfaces';
+import { IEvent, PlayerEvents, ServerEvents } from './event.interfaces';
 import DungeonInstance from './instance.model';
 import { EmbedBuilder, EmbedField, WebhookClient } from 'discord.js';
 import { Claim } from '../claim';
 import { ClaimTypes, IClaimDoc } from '../claim/claim.interfaces';
-import { getEventMetadata, getMetadata, EventMetadataContainer } from '../utils';
+import { EventMetadataContainer, getEventMetadata, getMetadata } from '../utils';
 import Task from '../task/task.model';
 import moment from 'moment';
 
 let webhookClient: WebhookClient | null = null;
 
-interface EventWithServer {
+export interface EventWithServer {
   name: string;
   player: string;
   server: string;
@@ -22,7 +22,7 @@ interface EventPlayerContainer {
   player: string;
 }
 
-type ClaimRelatedEvent = EventMetadataContainer & EventPlayerContainer;
+export type ClaimRelatedEvent = EventMetadataContainer & EventPlayerContainer;
 
 interface InvalidatedEvent {
   invalidationReason?: string;
@@ -48,16 +48,14 @@ export async function notifyDiscord(event: EventWithServer & ClaimRelatedEvent &
       /game-*/,
       /difficulty-selected-*/,
       /card-bought-.*/,
-      'claim-invalidated',
-      'player-died',
+      ServerEvents.CLAIM_INVALIDATED,
+      PlayerEvents.PLAYER_DIED,
     ];
 
     // Only edit messages for some events, notably excluding things like 'played-seen'
-    const eventsToEdit = [
-      ...eventsToEnrich,
-    ];
+    const eventsToEdit = [...eventsToEnrich];
 
-    if (eventsToEnrich.some(e => typeof e === 'string' ? e === event.name : e.test(event.name))) {
+    if (eventsToEnrich.some((e) => (typeof e === 'string' ? e === event.name : e.test(event.name)))) {
       embeds.push(...(await getGameEndedEmbeds(event)));
     }
 
@@ -75,7 +73,7 @@ export async function notifyDiscord(event: EventWithServer & ClaimRelatedEvent &
     }
 
     let lastMessageID: string | null = null;
-    if (eventsToEdit.some(e => typeof e === 'string' ? e === event.name : e.test(event.name))) {
+    if (eventsToEdit.some((e) => (typeof e === 'string' ? e === event.name : e.test(event.name)))) {
       lastMessageID = await getDiscordMessageID(event);
       if (lastMessageID) {
         try {
@@ -153,6 +151,7 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
     // These are run after the event handler
     case 'game-won':
       await storeEndTime(event, new Date());
+      await storeGameWon(event);
       return `[${await getFullRunTypeWithClaim(event)}] ${playerNameBold} survived Decked Out! :tada:`;
 
     case 'game-lost':
@@ -161,14 +160,14 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
       const extra = killer && killer !== 'unknown' ? ` (specifically by ${killer})` : '';
       return `[${await getFullRunTypeWithClaim(event)}] ${playerNameBold} was defeated by the dungeon${extra} <:Ravager:1166890345188040846>`;
 
-    case 'player-died': {
+    case PlayerEvents.PLAYER_DIED: {
       const killer = getEventMetadata(event).get('killer');
       if (killer && killer !== 'unknown') {
         await storeKiller(event, killer);
       }
 
       const deathMessage = getEventMetadata(event).get('death-message');
-      if (deathMessage && !deathMessage.includes("slain by nothing")) {
+      if (deathMessage && !deathMessage.includes('slain by nothing')) {
         await storeDeathMessage(event, deathMessage);
       }
 
@@ -179,7 +178,7 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
       const metadata = getEventMetadata(event);
       return `[${getFullRunTypeFromMetadata(metadata)}] ${playerNameBold} queued for a run (Deck #${getDeckId(metadata)})`;
 
-    case 'claim-invalidated':
+    case ServerEvents.CLAIM_INVALIDATED:
       const claim = await findClaim(event);
       if (claim && claim.metadata.get('end-time')) {
         return ''; // Skip processing if the game had already ended
@@ -239,7 +238,7 @@ async function getLobbyMessageForEvent(event: EventWithServer & ClaimRelatedEven
     //   const extra = killer && killer !== 'unknown' ? ` (specifically by ${killer})` : '';
     //   return `[${await getFullRunTypeWithClaim(event)}] ${playerName} was defeated by the dungeon${extra}`;
 
-    case 'player-died': {
+    case PlayerEvents.PLAYER_DIED: {
       const metadata = getEventMetadata(event);
       const deathMessage = metadata.get('death-message');
       if (!deathMessage) {
@@ -289,37 +288,43 @@ async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEvent): P
     const claim = await findClaim(event);
     const endTime = metadata.get('end-time');
 
-    if (endTime || event.name === 'claim-invalidated') {
-      fields.push(...(await mapAndCountEvents({
-        runId,
-        playerName: event.player,
-        title: 'Dangers encountered',
-        nameFilterRegex: /(hazard-activated|clank-generated)/,
-      })));
-
-      fields.push(...(await mapAndCountEvents({
-        runId,
-        playerName: event.player,
-        title: 'Cards played',
-        nameFilterRegex: /card-played-*/,
-        prefixToRemove: 'card-played-',
-      })));
-
-      fields.push(...(await getPingStats(event.player, claim?.claimant || "", endTime)));
-
-      if (metadata.get('run-type') !== 'c') {
-        fields.push(...(await mapAndCountEvents({
+    if (endTime || event.name === ServerEvents.CLAIM_INVALIDATED) {
+      fields.push(
+        ...(await mapAndCountEvents({
           runId,
           playerName: event.player,
-          title: 'Cards bought',
-          nameFilterRegex: /card-bought-*/,
-          prefixToRemove: 'card-bought-',
-        })));
+          title: 'Dangers encountered',
+          nameFilterRegex: /(hazard-activated|clank-generated)/,
+        }))
+      );
+
+      fields.push(
+        ...(await mapAndCountEvents({
+          runId,
+          playerName: event.player,
+          title: 'Cards played',
+          nameFilterRegex: /card-played-*/,
+          prefixToRemove: 'card-played-',
+        }))
+      );
+
+      fields.push(...(await getPingStats(event.player, claim?.claimant || '', endTime)));
+
+      if (metadata.get('run-type') !== 'c') {
+        fields.push(
+          ...(await mapAndCountEvents({
+            runId,
+            playerName: event.player,
+            title: 'Cards bought',
+            nameFilterRegex: /card-bought-*/,
+            prefixToRemove: 'card-bought-',
+          }))
+        );
       }
     }
 
     const embed = new EmbedBuilder()
-      .setDescription((await getRunDescription(runId, claim)))
+      .setDescription(await getRunDescription(runId, claim))
       .setFields(fields)
       .setColor(0x00ffff);
     embeds.push(embed);
@@ -337,7 +342,14 @@ interface MapAndCountEventsParams {
   inline?: boolean;
 }
 
-async function mapAndCountEvents({ title, playerName, runId, nameFilterRegex, prefixToRemove, inline }: MapAndCountEventsParams): Promise<Array<EmbedField>> {
+async function mapAndCountEvents({
+  title,
+  playerName,
+  runId,
+  nameFilterRegex,
+  prefixToRemove,
+  inline,
+}: MapAndCountEventsParams): Promise<Array<EmbedField>> {
   const events = await Event.find({
     player: {
       $in: [playerName, '@'],
@@ -347,15 +359,20 @@ async function mapAndCountEvents({ title, playerName, runId, nameFilterRegex, pr
   }).exec();
 
   if (events.length > 0) {
-    return [{
-      name: title,
-      value: Array.from(events.map((event: IEvent) => prefixToRemove && event.name.replace(prefixToRemove, '') || event.name)
-        .sort()
-        .reduce((acc, e) => acc.set(e, (acc.get(e) || 0) + 1), new Map()))
-        .map(([k, v]) => `- ${k}: \`${v}\``)
-        .join('\n'),
-      inline: inline === undefined || inline,
-    }];
+    return [
+      {
+        name: title,
+        value: Array.from(
+          events
+            .map((event: IEvent) => (prefixToRemove && event.name.replace(prefixToRemove, '')) || event.name)
+            .sort()
+            .reduce((acc, e) => acc.set(e, (acc.get(e) || 0) + 1), new Map())
+        )
+          .map(([k, v]) => `- ${k}: \`${v}\``)
+          .join('\n'),
+        inline: inline === undefined || inline,
+      },
+    ];
   }
 
   return [];
@@ -363,7 +380,7 @@ async function mapAndCountEvents({ title, playerName, runId, nameFilterRegex, pr
 
 async function getPingStats(playerName: string, dungeon: string, endTime: string): Promise<Array<EmbedField>> {
   // Look at the 30 seconds leading to the end date (e.g. to when the player died)
-  const cutoffDate = new Date((parseInt(endTime) * 1000) - 1000 * 30);
+  const cutoffDate = new Date(parseInt(endTime) * 1000 - 1000 * 30);
 
   const events = await Event.find({
     player: playerName,
@@ -385,26 +402,28 @@ async function getPingStats(playerName: string, dungeon: string, endTime: string
     const maxPing = Math.max(...pings);
     const value = `- Min: \`${minPing}\`\n- Avg: \`${avgPing.toFixed(2)}\`\n- Max: \`${maxPing}\``;
 
-    return [{
-      name: 'Ping (last 30s)',
-      value: value,
-      inline: true,
-    }];
+    return [
+      {
+        name: 'Ping (last 30s)',
+        value: value,
+        inline: true,
+      },
+    ];
   }
 
   return [];
 }
 
 async function getRunDescription(runId: string, claim: IClaimDoc | null): Promise<string> {
-  const items = [
-    `**Run ID**: ${runId}`,
-  ];
+  const items = [`**Run ID**: ${runId}`];
 
   if (claim) {
-    items.push(...[
-      `**Run Type**: ${getFullRunType(claim.metadata.get('run-type')) || 'unknown'}`,
-//       `**Deck ID**: ${claim.metadata.get('deck-id') || 'unknown'}`,
-    ]);
+    items.push(
+      ...[
+        `**Run Type**: ${getFullRunType(claim.metadata.get('run-type')) || 'unknown'}`,
+        //       `**Deck ID**: ${claim.metadata.get('deck-id') || 'unknown'}`,
+      ]
+    );
 
     const difficulty = claim.metadata.get('difficulty');
     if (difficulty) {
@@ -432,7 +451,6 @@ async function getRunDescription(runId: string, claim: IClaimDoc | null): Promis
         items.push(`**Start Time**: <t:${startTime}:R>`);
       }
     }
-
   }
 
   return items.join('\n');
@@ -456,12 +474,14 @@ function getFullRunType(runType: String | undefined) {
       return 'Competitive';
     case 'p':
       return 'Practice';
+    case 'h':
+      return 'Hardcore';
     default:
       return 'Unknown';
   }
 }
 
-async function findClaim(event: ClaimRelatedEvent): Promise<IClaimDoc | null> {
+export async function findClaim(event: ClaimRelatedEvent): Promise<IClaimDoc | null> {
   const metadata = getEventMetadata(event);
   const runId = metadata.get('run-id');
   if (!runId) {
@@ -477,8 +497,7 @@ async function findClaim(event: ClaimRelatedEvent): Promise<IClaimDoc | null> {
 
   logger.debug(`Found ${claims.length} matching claims for run ${runId}`);
   if (claims && claims.length > 0) {
-    const claim = claims[0]!!;
-    return claim;
+    return claims[0]!!;
   }
 
   return null;
@@ -500,7 +519,7 @@ async function getDiscordMessageID(event: ClaimRelatedEvent): Promise<string> {
   return '';
 }
 
-async function withClaimMetadata(event: ClaimRelatedEvent): Promise<Map<string, any>> {
+export async function withClaimMetadata(event: ClaimRelatedEvent): Promise<Map<string, any>> {
   const eventMetadata = getEventMetadata(event);
   let claimMetadata = getMetadata({});
   const claim = await findClaim(event);
@@ -526,11 +545,15 @@ async function storeDifficulty(event: ClaimRelatedEvent, difficulty: String) {
 }
 
 async function storeStartTime(event: ClaimRelatedEvent, startTime: Date) {
-  await setMetadataValue(event, 'start-time', (startTime.getTime() / 1000 | 0).toString());
+  await setMetadataValue(event, 'start-time', ((startTime.getTime() / 1000) | 0).toString());
 }
 
 async function storeEndTime(event: ClaimRelatedEvent, endTime: Date) {
-  await setMetadataValue(event, 'end-time', (endTime.getTime() / 1000 | 0).toString());
+  await setMetadataValue(event, 'end-time', ((endTime.getTime() / 1000) | 0).toString());
+}
+
+async function storeGameWon(event: ClaimRelatedEvent) {
+  await setMetadataValue(event, 'game-won', "true");
 }
 
 async function storeKiller(event: ClaimRelatedEvent, killer: String) {
@@ -563,8 +586,10 @@ async function setMetadataValue(event: ClaimRelatedEvent, metadataKey: String, v
 
   const claim = await findClaim(event);
   if (claim) {
-    await claim.updateOne({
-      [`metadata.${metadataKey}`]: value,
-    }).exec();
+    await claim
+      .updateOne({
+        [`metadata.${metadataKey}`]: value,
+      })
+      .exec();
   }
 }
