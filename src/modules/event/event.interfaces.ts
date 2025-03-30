@@ -18,6 +18,7 @@ export enum PlayerEvents {
   SCORE_MODIFIED = 'score-modified',
 
   PLAYER_DIED = 'player-died',
+  HARDCORE_DECK_RESET = 'hardcore-deck-reset',
 
   GAME_WON = 'game-won',
 }

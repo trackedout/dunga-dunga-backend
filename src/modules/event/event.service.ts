@@ -9,7 +9,7 @@ import { IEventDoc, NewCreatedEvent, PlayerEvents, ServerEvents, TradeEvents, Up
 import { QueueStates } from './player.interfaces';
 import Task from '../task/task.model';
 import { logger } from '../logger';
-import { notifyOps } from '../task';
+import { notifyOps, notifyPlayer } from '../task';
 import { InstanceStates } from './instance.interfaces';
 import { Card } from '../card';
 import { Claim } from '../claim';
@@ -87,6 +87,7 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         break;
 
       case PlayerEvents.PLAYER_DIED:
+      case PlayerEvents.HARDCORE_DECK_RESET:
       case ServerEvents.CLAIM_INVALIDATED:
         await resetHardcoreDeck(eventBody);
         break;
@@ -185,6 +186,7 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
 
   const logPrefix = '[Hardcore deck reset]';
   const prefix = `Intercepted '${eventBody.name}' event for ${playerName}`;
+
   const runType = metadata.get('run-type');
   if (runType !== 'h') {
     const msg = `${prefix} but this is not a hardcore run, skipping deck deletion`;
@@ -192,23 +194,43 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
     return;
   }
 
-  if (!metadata.get('start-time')) {
-    const msg = `${prefix} but they did not start their game, skipping deck deletion`;
-    logger.info(`${logPrefix} ${msg}`);
-    await notifyOps(msg);
-    return;
+  if (eventBody.name !== PlayerEvents.HARDCORE_DECK_RESET) {
+    if (!metadata.get('start-time')) {
+      const msg = `${prefix} but they did not start their game, skipping deck deletion`;
+      logger.info(`${logPrefix} ${msg}`);
+      await notifyOps(msg);
+      return;
+    }
+
+    if (metadata.get('game-won') === 'true') {
+      const msg = `${prefix} but they won their game, skipping deck deletion`;
+      logger.info(`${logPrefix} ${msg}`);
+      await notifyOps(msg);
+      return;
+    }
   }
 
-  if (metadata.get('game-won') === 'true') {
-    const msg = `${prefix} but they won their game, skipping deck deletion`;
-    logger.info(`${logPrefix} ${msg}`);
-    await notifyOps(msg);
-    return;
-  }
+  let msg: string;
+  if (eventBody.name === PlayerEvents.PLAYER_DIED) {
+    msg = `${prefix} and they died in hardcore mode, deleting their hardcore deck`;
+  } else if (eventBody.name === PlayerEvents.HARDCORE_DECK_RESET) {
+    msg = `${prefix}, deleting their hardcore deck`;
 
-  const msg = eventBody.name === 'player-died' ?
-    `${prefix} and they died in hardcore mode, deleting their hardcore deck` :
-    `${prefix} and their claim was invalidated, deleting their hardcore deck`;
+    const shards = await Score.findOne({ player: playerName, key: 'do2.inventory.shards.hardcore' }).exec();
+    if (!shards) {
+      await notifyPlayer(
+        playerName,
+        `<red>Hardcore mode has been enabled, good luck.</red>`,
+      );
+    } else {
+      await notifyPlayer(
+        playerName,
+        `<red>Your Hardcore deck has been reset</red>`,
+      );
+    }
+  } else {
+    msg = `${prefix} and their claim was invalidated, deleting their hardcore deck`;
+  }
   logger.info(`${logPrefix} ${msg}`);
   await notifyOps(msg);
 
@@ -259,7 +281,7 @@ export async function storeBestHardcoreStats(eventBody: ClaimRelatedEvent & Even
 
   if (!currentScore) {
     logger.info(`${logPrefix} `);
-    return
+    return;
   }
   if (!leaderboardScore || leaderboardScore.value < currentScore.value) {
     if (leaderboardScore) {
