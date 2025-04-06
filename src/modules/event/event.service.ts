@@ -86,14 +86,15 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         await updateCardVisibility(eventBody);
         break;
 
-      case PlayerEvents.PLAYER_DIED:
       case PlayerEvents.HARDCORE_DECK_RESET:
-      case ServerEvents.CLAIM_INVALIDATED:
         await resetHardcoreDeck(eventBody);
         break;
 
       case PlayerEvents.GAME_WON:
-        await storeBestHardcoreStats(eventBody);
+      case PlayerEvents.PLAYER_DIED:
+      case ServerEvents.CLAIM_INVALIDATED:
+        await notify(); // Ensure game-won metadata is stored on claim
+        await handleHardcoreGameOver(eventBody);
         break;
 
       default:
@@ -180,6 +181,41 @@ async function ensureScoreboardIsSeeded(playerName: string, key: string, default
   }
 }
 
+export async function handleHardcoreGameOver(eventBody: ClaimRelatedEvent & EventWithServer) {
+  const playerName = eventBody.player;
+  const metadata = await withClaimMetadata(eventBody);
+
+  const logPrefix = '[Hardcore stats]';
+  const prefix = `Intercepted '${eventBody.name}' event for ${playerName}`;
+  const runType = metadata.get('run-type');
+  if (runType !== 'h') {
+    const msg = `${prefix} but this is not a hardcore run, skipping stats update`;
+    logger.info(`${logPrefix} ${msg}`);
+    return;
+  }
+
+  if (!metadata.get('start-time')) {
+    const msg = `${prefix} but they did not start their game, ignoring`;
+    logger.info(`${logPrefix} ${msg}`);
+
+    // TODO: Refund shard if it's a claim-invalidated event
+    return;
+  }
+
+  if (metadata.get('game-won') === 'true') {
+    const msg = `${prefix} but they won their game, storing their best stats`;
+    logger.info(`${logPrefix} ${msg}`);
+
+    await storeBestHardcoreStats(eventBody);
+    return;
+  } else {
+    const msg = `${prefix} but they lost their game, resetting their hardcore deck`;
+    logger.info(`${logPrefix} ${msg}`);
+
+    await resetHardcoreDeck(eventBody);
+  }
+}
+
 export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWithServer) {
   const playerName = eventBody.player;
   const metadata = await withClaimMetadata(eventBody);
@@ -256,19 +292,17 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
 
 export async function storeBestHardcoreStats(eventBody: ClaimRelatedEvent & EventWithServer) {
   const playerName = eventBody.player;
-  const metadata = await withClaimMetadata(eventBody);
-
-  const logPrefix = '[Hardcore stats]';
   const prefix = `Intercepted '${eventBody.name}' event for ${playerName}`;
-  const runType = metadata.get('run-type');
-  if (runType !== 'h') {
-    const msg = `${prefix} but this is not a hardcore run, skipping stats update`;
-    logger.info(`${logPrefix} ${msg}`);
-    return;
-  }
 
-  // Update leaderboard score, storing the highest value for hardcore-do2.lifetime.escaped.tomes
-  const key = 'hardcore-do2.lifetime.escaped.tomes';
+  // Update leaderboard score, storing the highest values for each score
+  await updateLeaderboardScore(prefix, playerName, 'hardcore-do2.lifetime.escaped.tomes');
+  await updateLeaderboardScore(prefix, playerName, 'hardcore-do2.lifetime.escaped.crowns');
+  await updateLeaderboardScore(prefix, playerName, 'hardcore-do2.lifetime.escaped.tomes');
+  await updateLeaderboardScore(prefix, playerName, 'hardcore-do2.rustyrepairs');
+  await updateLeaderboardScore(prefix, playerName, 'hardcore-do2.wins');
+}
+
+async function updateLeaderboardScore(prefix: string, playerName: string, key: string) {
   const currentScore = await Score.findOne({
     player: playerName,
     key: key,
@@ -280,9 +314,10 @@ export async function storeBestHardcoreStats(eventBody: ClaimRelatedEvent & Even
   }).exec();
 
   if (!currentScore) {
-    logger.info(`${logPrefix} `);
+    logger.warn(`${prefix} but the player does not have a score for ${key}, skipping`);
     return;
   }
+
   if (!leaderboardScore || leaderboardScore.value < currentScore.value) {
     if (leaderboardScore) {
       await leaderboardScore.updateOne({

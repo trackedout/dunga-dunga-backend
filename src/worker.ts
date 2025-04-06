@@ -14,7 +14,7 @@ import { PlayerEvents, ServerEvents } from './modules/event/event.interfaces';
 import { Claim } from './modules/claim';
 import { ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 import { notifyDiscord } from './modules/event/discord';
-import { resetHardcoreDeck } from './modules/event/event.service';
+import { handleHardcoreGameOver } from './modules/event/event.service';
 
 async function checkIfIpIsReachableWithRetry(
   ip: string,
@@ -443,7 +443,7 @@ async function invalidateClaimAndNotify(claim: IClaimDoc, message: string) {
     stateReason: message,
   });
 
-  notifyDiscord({
+  await notifyDiscord({
     name: ServerEvents.CLAIM_INVALIDATED,
     player: claim.player,
     server: '',
@@ -451,7 +451,7 @@ async function invalidateClaimAndNotify(claim: IClaimDoc, message: string) {
     invalidationReason: message,
   });
 
-  resetHardcoreDeck({
+  await handleHardcoreGameOver({
     name: ServerEvents.CLAIM_INVALIDATED,
     player: claim.player,
     server: '',
