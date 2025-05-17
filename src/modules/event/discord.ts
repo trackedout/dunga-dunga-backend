@@ -9,6 +9,7 @@ import { ClaimTypes, IClaimDoc } from '../claim/claim.interfaces';
 import { EventMetadataContainer, getEventMetadata, getMetadata } from '../utils';
 import Task from '../task/task.model';
 import moment from 'moment';
+import { notifyPlayer } from '../task';
 
 let webhookClient: WebhookClient | null = null;
 
@@ -135,6 +136,13 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
       const player = await Player.findOne({
         playerName: event.player,
       }).exec();
+
+      // 2 weeks ago
+      const cutoffDateForDiscordReminder = new Date(Date.now() - 1000 * 60 * 60 * 24 * 14);
+      if (!player || ((!player.lastSeen || player.lastSeen < cutoffDate) && player.createdAt >= cutoffDateForDiscordReminder)) {
+        const link = `<aqua><click:open_url:'https://discord.gg/XzxzcFEa4S'>https://discord.gg/XzxzcFEa4S</click></aqua>`;
+        await notifyPlayer(event.player, `<gray>Do you know we have a Discord server? Join here:</gray> ${link}`);
+      }
 
       if (!player || (!player.lastSeen && player.createdAt >= cutoffDate)) {
         if (event.server === 'lobby') {
@@ -553,7 +561,7 @@ async function storeEndTime(event: ClaimRelatedEvent, endTime: Date) {
 }
 
 async function storeGameWon(event: ClaimRelatedEvent) {
-  await setMetadataValue(event, 'game-won', "true");
+  await setMetadataValue(event, 'game-won', 'true');
 }
 
 async function storeKiller(event: ClaimRelatedEvent, killer: String) {

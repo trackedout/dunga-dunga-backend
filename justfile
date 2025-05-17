@@ -4,7 +4,7 @@ _default:
     @just --list --unsorted
 
 _sync-now node:
-  rsync -rav --delete --mkpath ./src/ {{node}}:/tracked-out/dunga-dunga/src/
+  rsync -rav --delete --mkpath --rsync-path="sudo rsync" ./src/ {{node}}:/tracked-out/dunga-dunga/src/
 
 dev-sync node="burn":
   #!/bin/bash
