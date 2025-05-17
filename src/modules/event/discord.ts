@@ -140,7 +140,7 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
       // 2 weeks ago
       const cutoffDateForDiscordReminder = new Date(Date.now() - 1000 * 60 * 60 * 24 * 14);
       if (!player || ((!player.lastSeen || player.lastSeen < cutoffDate) && player.createdAt >= cutoffDateForDiscordReminder)) {
-        const link = `<aqua><click:open_url:'https://discord.gg/XzxzcFEa4S'>https://discord.gg/XzxzcFEa4S</click></aqua>`;
+        const link = `<aqua><click:open_url:'https://trackedout.org/discord'>https://trackedout.org/discord</click></aqua>`;
         await notifyPlayer(event.player, `<gray>Do you know we have a Discord server? Join here:</gray> ${link}`);
       }
 
