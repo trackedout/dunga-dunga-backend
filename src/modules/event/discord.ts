@@ -129,32 +129,26 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
 
   switch (event.name.toString()) {
     // This is run before the event handler
-    case PlayerEvents.SEEN:
-      // 5 minutes ago
-      const cutoffDate = new Date(Date.now() - 1000 * 60 * 5);
-
+    case PlayerEvents.JOINED_NETWORK:
       const player = await Player.findOne({
         playerName: event.player,
       }).exec();
 
       // 2 weeks ago
       const cutoffDateForDiscordReminder = new Date(Date.now() - 1000 * 60 * 60 * 24 * 14);
-      if (!player || ((!player.lastSeen || player.lastSeen < cutoffDate) && player.createdAt >= cutoffDateForDiscordReminder)) {
+      if (!player || player.createdAt >= cutoffDateForDiscordReminder) {
         const link = `<aqua><click:open_url:'https://trackedout.org/discord'>https://trackedout.org/discord</click></aqua>`;
         await notifyPlayer(event.player, `<gray>Do you know we have a Discord server? Join here:</gray> ${link}`);
       }
 
-      if (!player || (!player.lastSeen && player.createdAt >= cutoffDate)) {
-        if (event.server === 'lobby') {
-          return `${playerNameBold} joined the network for the first time! Welcome! :leaves:`;
-        } else {
-          return '';
-        }
-      } else if (!player.lastSeen || player.lastSeen < cutoffDate) {
-        return `${playerNameBold} joined the network`;
+      if (!player) {
+        return `${playerNameBold} joined the network for the first time! Welcome! :leaves:`;
       } else {
-        return '';
+        return `${playerNameBold} joined the network`;
       }
+
+    case PlayerEvents.LEFT_NETWORK:
+      return `${playerNameBold} disconnected from the network`;
 
     // These are run after the event handler
     case 'game-won':

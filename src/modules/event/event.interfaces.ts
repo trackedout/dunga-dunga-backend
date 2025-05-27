@@ -10,8 +10,8 @@ export enum PlayerEvents {
   DUNGEON_OFFLINE = 'dungeon-closed',
   CLEAR_DUNGEON = 'clear-dungeon',
 
-  // Really means connected to Lobby server
   JOINED_NETWORK = 'joined-network',
+  LEFT_NETWORK = 'left-network',
   SEEN = 'player-seen',
 
   CARD_VISIBILITY_UPDATED = 'card-visibility-updated',
