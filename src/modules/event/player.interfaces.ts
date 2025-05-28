@@ -4,10 +4,13 @@ import { QueryResult } from '../paginate/paginate';
 export enum QueueStates {
   READY_FOR_DUNGEON = 'ready-for-dungeon',
   IN_DUNGEON = 'in-dungeon',
+  SPECTATING = 'spectating',
   IN_BUILDERS = 'in-builders',
   IN_TRANSIT_TO_DUNGEON = 'in-transit-to-dungeon',
   IN_LOBBY = 'in-lobby',
   IN_QUEUE = 'in-queue',
+  IN_SURVIVAL = 'in-survival',
+  SOMEWHERE_ELSE = 'somewhere-else',
 }
 
 export interface Location {
@@ -30,8 +33,8 @@ export interface IPlayer {
 }
 
 export interface ITimestamps {
-  createdAt: Date
-  updatedAt: Date
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface IPlayerDoc extends IPlayer, Document, ITimestamps {}

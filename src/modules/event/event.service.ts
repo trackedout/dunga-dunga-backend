@@ -6,7 +6,7 @@ import DungeonInstance from './instance.model';
 import ApiError from '../errors/ApiError';
 import { IOptions, QueryResult } from '../paginate/paginate';
 import { IEventDoc, NewCreatedEvent, PlayerEvents, ServerEvents, TradeEvents, UpdateEventBody } from './event.interfaces';
-import { QueueStates } from './player.interfaces';
+import { IPlayer, QueueStates } from './player.interfaces';
 import Task from '../task/task.model';
 import { logger } from '../logger';
 import { notifyOps, notifyPlayer } from '../task';
@@ -45,13 +45,22 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         break;
 
       case PlayerEvents.JOINED_NETWORK:
-        notify();
+        await notify();
         await createPlayerRecordIfMissing(eventBody);
         break;
 
+      case PlayerEvents.JOINED_SERVER:
+        await updatePlayerStateForCurrentServer(eventBody);
+        break;
+
+      // Sent from Citadel / Agronet. Contains in-game location
       case PlayerEvents.SEEN:
-        notify();
-        await updatePlayerLastSeenDate(eventBody);
+        await updatePlayerStateAndLocation(eventBody);
+        break;
+
+      // Sent from proxy. Does NOT contain in-game location
+      case ServerEvents.PROXY_PING:
+        await updatePlayerState(eventBody);
         break;
 
       case ServerEvents.SERVER_ONLINE:
@@ -111,34 +120,7 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
 };
 
 async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
-  const player = await Players.findOne({
-    playerName: eventBody.player,
-  }).exec();
-
-  await Claim.updateMany(
-    {
-      player: eventBody.player,
-      type: ClaimTypes.DUNGEON,
-      state: ClaimStates.PENDING,
-    },
-    {
-      state: ClaimStates.INVALID,
-      stateReason: 'Player joined lobby (JOINED_NETWORK event)',
-    }
-  );
-
-  if (!player) {
-    await Players.create({
-      playerName: eventBody.player,
-      server: eventBody.server,
-      state: QueueStates.IN_LOBBY,
-    });
-  } else {
-    await player.updateOne({
-      server: eventBody.server,
-      state: QueueStates.IN_LOBBY,
-    });
-  }
+  await updatePlayerStateForCurrentServer(eventBody);
 
   await allowPlayerToPlayDO2(eventBody).catch((_) => {
     // Ignored
@@ -149,6 +131,47 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
 
   await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.practice', 32);
   await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.competitive', 21);
+}
+
+async function updatePlayerStateForCurrentServer(eventBody: NewCreatedEvent) {
+  const player = await Players.findOne({
+    playerName: eventBody.player,
+  }).exec();
+
+  const metadata = await withClaimMetadata(eventBody);
+  const server = metadata.get('server') || eventBody.server;
+
+  if (!player) {
+    await Players.create({
+      playerName: eventBody.player,
+      server: server,
+      state: QueueStates.IN_LOBBY,
+    });
+  } else {
+    const state = getNewStateBasedOnPlayerLocation(player, server);
+    await player.updateOne({
+      server: server,
+      state: state,
+    });
+  }
+
+  if (server !== 'lobby') {
+    console.log(`Player joined ${server}, not updating claim states`);
+    return;
+  }
+
+  console.log(`Player joined ${server}, invalidating any active claims`);
+  await Claim.updateMany(
+    {
+      player: eventBody.player,
+      type: ClaimTypes.DUNGEON,
+      state: ClaimStates.PENDING,
+    },
+    {
+      state: ClaimStates.INVALID,
+      stateReason: 'Player joined lobby (joined-server event)',
+    }
+  );
 }
 
 async function ensureDeckIsSeeded(playerName: string, deckId: string) {
@@ -336,23 +359,22 @@ async function updateLeaderboardScore(prefix: string, playerName: string, key: s
   }
 }
 
-async function updatePlayerLastSeenDate(eventBody: NewCreatedEvent) {
+async function updatePlayerStateAndLocation(eventBody: NewCreatedEvent) {
   const player = await Players.findOne({
     playerName: eventBody.player,
   }).exec();
 
+  const metadata = await withClaimMetadata(eventBody);
+  const server = metadata.get('server') || eventBody.server;
+
   if (player) {
-    let state = player.state;
-    if (state === QueueStates.IN_TRANSIT_TO_DUNGEON && eventBody.server.match(/^d[0-9]{3}/)) {
-      state = QueueStates.IN_DUNGEON;
-    } else if (eventBody.server.startsWith('builders')) {
-      state = QueueStates.IN_BUILDERS;
-    }
+    const state = getNewStateBasedOnPlayerLocation(player, server);
 
     await player
       .updateOne({
         lastSeen: new Date(),
         state: state,
+        server: server,
         lastLocation: {
           x: eventBody.x,
           y: eventBody.y,
@@ -361,6 +383,45 @@ async function updatePlayerLastSeenDate(eventBody: NewCreatedEvent) {
       })
       .exec();
   }
+}
+
+async function updatePlayerState(eventBody: NewCreatedEvent) {
+  const player = await Players.findOne({
+    playerName: eventBody.player,
+  }).exec();
+
+  const metadata = await withClaimMetadata(eventBody);
+  const server = metadata.get('server') || eventBody.server;
+
+  if (player) {
+    const state = getNewStateBasedOnPlayerLocation(player, server);
+
+    await player
+      .updateOne({
+        lastSeen: new Date(),
+        state: state,
+        server: server,
+      })
+      .exec();
+  }
+}
+
+function getNewStateBasedOnPlayerLocation(player: IPlayer, server: String) {
+  let state = player.state;
+
+  if (state === QueueStates.IN_TRANSIT_TO_DUNGEON && server.match(/^d[0-9]{3}/)) {
+    state = QueueStates.IN_DUNGEON;
+  } else if (![QueueStates.IN_TRANSIT_TO_DUNGEON, QueueStates.IN_DUNGEON].includes(state) && server.match(/^d[0-9]{3}/)) {
+    state = QueueStates.SPECTATING;
+  } else if (server.startsWith('builders')) {
+    state = QueueStates.IN_BUILDERS;
+  } else if (![QueueStates.IN_QUEUE, QueueStates.IN_TRANSIT_TO_DUNGEON].includes(state) && server.startsWith('lobby')) {
+    state = QueueStates.IN_LOBBY;
+  } else if (server.startsWith('survival')) {
+    state = QueueStates.IN_SURVIVAL;
+  }
+
+  return state;
 }
 
 async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
@@ -448,7 +509,6 @@ async function allowPlayerToPlayDO2(eventBody: NewCreatedEvent) {
   }
 
   await player.updateOne({
-    server: eventBody.server,
     isAllowedToPlayDO2: true,
   });
   logger.info(`Set ${player.playerName} as allowed to play Decked Out 2`);
