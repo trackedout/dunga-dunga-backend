@@ -45,6 +45,7 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         break;
 
       case PlayerEvents.JOINED_NETWORK:
+        notify();
         await createPlayerRecordIfMissing(eventBody);
         break;
 
@@ -92,7 +93,7 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
 
       case PlayerEvents.GAME_WON:
       case PlayerEvents.PLAYER_DIED:
-      case ServerEvents.CLAIM_INVALIDATED:
+      case ServerEvents.CLAIM_INVALIDATED: // TODO: This event is never routed here
         await notify(); // Ensure game-won metadata is stored on claim
         await handleHardcoreGameOver(eventBody);
         break;
@@ -114,14 +115,17 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
     playerName: eventBody.player,
   }).exec();
 
-  await Claim.updateMany({
-    player: eventBody.player,
-    type: ClaimTypes.DUNGEON,
-    state: ClaimStates.PENDING,
-  }, {
-    state: ClaimStates.INVALID,
-    stateReason: 'Player joined lobby (JOINED_NETWORK event)',
-  });
+  await Claim.updateMany(
+    {
+      player: eventBody.player,
+      type: ClaimTypes.DUNGEON,
+      state: ClaimStates.PENDING,
+    },
+    {
+      state: ClaimStates.INVALID,
+      stateReason: 'Player joined lobby (JOINED_NETWORK event)',
+    }
+  );
 
   if (!player) {
     await Players.create({
@@ -254,15 +258,9 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
 
     const shards = await Score.findOne({ player: playerName, key: 'do2.inventory.shards.hardcore' }).exec();
     if (!shards) {
-      await notifyPlayer(
-        playerName,
-        `<red>Hardcore mode has been enabled, good luck.</red>`,
-      );
+      await notifyPlayer(playerName, `<red>Hardcore mode has been enabled, good luck.</red>`);
     } else {
-      await notifyPlayer(
-        playerName,
-        `<red>Your Hardcore deck has been reset</red>`,
-      );
+      await notifyPlayer(playerName, `<red>Your Hardcore deck has been reset</red>`);
     }
   } else {
     msg = `${prefix} and their claim was invalidated, deleting their hardcore deck`;
@@ -275,16 +273,19 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
     deckType: runType,
   }).exec();
 
-  await Score.updateMany({
-    player: playerName,
-    key: {
-      $regex: /^hardcore-do2\./,
+  await Score.updateMany(
+    {
+      player: playerName,
+      key: {
+        $regex: /^hardcore-do2\./,
+      },
     },
-  }, {
-    $set: {
-      value: 0,
-    },
-  }).exec();
+    {
+      $set: {
+        value: 0,
+      },
+    }
+  ).exec();
 
   await ensureDeckIsSeeded(eventBody.player, 'h1');
   await resetScoreboard(eventBody.player, 'do2.inventory.shards.hardcore', 10);
@@ -320,9 +321,11 @@ async function updateLeaderboardScore(prefix: string, playerName: string, key: s
 
   if (!leaderboardScore || leaderboardScore.value < currentScore.value) {
     if (leaderboardScore) {
-      await leaderboardScore.updateOne({
-        value: currentScore.value,
-      }).exec();
+      await leaderboardScore
+        .updateOne({
+          value: currentScore.value,
+        })
+        .exec();
     } else {
       await Score.create({
         player: playerName,
@@ -389,9 +392,7 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       existingInstance.requiresRebuild !== update.requiresRebuild ||
       existingInstance.activePlayers !== update.activePlayers;
     if (anUpdateOccurred) {
-      await notifyOps(
-        `Updated ${eventBody.server}: state=${update.state} activePlayers=${update.activePlayers}`,
-      );
+      await notifyOps(`Updated ${eventBody.server}: state=${update.state} activePlayers=${update.activePlayers}`);
     }
   } else {
     await deleteDungeons(eventBody.server, eventBody.sourceIP);
@@ -474,13 +475,15 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     throw new ApiError(httpStatus.PRECONDITION_FAILED, `Player '${eventBody.player}' has no cards`);
   }
 
-  if (await Claim.findOne({
-    player: player.playerName,
-    type: ClaimTypes.DUNGEON,
-    state: {
-      $nin: [ClaimStates.PERSISTING, ClaimStates.FINALIZED, ClaimStates.INVALID],
-    },
-  }).exec()) {
+  if (
+    await Claim.findOne({
+      player: player.playerName,
+      type: ClaimTypes.DUNGEON,
+      state: {
+        $nin: [ClaimStates.PERSISTING, ClaimStates.FINALIZED, ClaimStates.INVALID],
+      },
+    }).exec()
+  ) {
     throw new ApiError(httpStatus.PRECONDITION_FAILED, `Active claim already exists for this player`);
   }
 
@@ -590,8 +593,8 @@ async function clearDungeon(eventBody: NewCreatedEvent) {
         state: 'SCHEDULED',
         arguments: ['ConnectOther', player.playerName, 'lobby'],
         sourceIP: eventBody.sourceIP,
-      }),
-    ),
+      })
+    )
   );
 
   // Tell the dungeon instance to kick the players
@@ -604,8 +607,8 @@ async function clearDungeon(eventBody: NewCreatedEvent) {
         targetPlayer: player.playerName,
         arguments: ['Sending you back to the lobby'],
         sourceIP: eventBody.sourceIP,
-      }),
-    ),
+      })
+    )
   );
 }
 
@@ -627,8 +630,8 @@ async function shutdownAllEmptyDungeons() {
         type: 'shutdown-server-if-empty',
         state: 'SCHEDULED',
         sourceIP: '127.0.0.1',
-      }),
-    ),
+      })
+    )
   );
 }
 
@@ -683,13 +686,15 @@ async function performTrade(eventBody: NewCreatedEvent) {
     if (player.state !== QueueStates.IN_LOBBY) {
       throw new ApiError(httpStatus.PRECONDITION_FAILED, `Player '${eventBody.player}' is in state ${player.state}, preventing re-queue`);
     }
-    if (await Claim.findOne({
-      player: player.playerName,
-      type: ClaimTypes.DUNGEON,
-      state: {
-        $nin: [ClaimStates.PERSISTING, ClaimStates.FINALIZED, ClaimStates.INVALID],
-      },
-    }).exec()) {
+    if (
+      await Claim.findOne({
+        player: player.playerName,
+        type: ClaimTypes.DUNGEON,
+        state: {
+          $nin: [ClaimStates.PERSISTING, ClaimStates.FINALIZED, ClaimStates.INVALID],
+        },
+      }).exec()
+    ) {
       throw new ApiError(httpStatus.PRECONDITION_FAILED, `Active claim already exists for this player`);
     }
 
@@ -697,7 +702,7 @@ async function performTrade(eventBody: NewCreatedEvent) {
     const cardCount = await Card.countDocuments({
       player: playerName,
       deckType: runType,
-      hiddenInDecks: { '$ne': activeDeckId },
+      hiddenInDecks: { $ne: activeDeckId },
     }).exec();
 
     logger.info(`Player has ${cardCount} cards in Deck ${activeDeckId}`);
@@ -710,7 +715,10 @@ async function performTrade(eventBody: NewCreatedEvent) {
 
   if (sourceScoreboard !== '') {
     if (!sourceScore) {
-      throw new ApiError(httpStatus.BAD_REQUEST, `Source scoreboard '${sourceScoreboard}' does not exist but source is not empty (this should never happen here)`);
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Source scoreboard '${sourceScoreboard}' does not exist but source is not empty (this should never happen here)`
+      );
     }
 
     if (sourceScoreboard !== sourceInversionScoreboard) {
@@ -725,7 +733,10 @@ async function performTrade(eventBody: NewCreatedEvent) {
       }
       const currentValue = sourceScore.value - inversionScore;
       if (currentValue - sourceCount < 0) {
-        throw new ApiError(httpStatus.BAD_REQUEST, `Calculated score of '${sourceScoreboard}' - ${sourceInversionScoreboard} is ${currentValue} which is too low for this trade`);
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          `Calculated score of '${sourceScoreboard}' - ${sourceInversionScoreboard} is ${currentValue} which is too low for this trade`
+        );
       }
 
       if (!sourceInversionScore) {
@@ -743,7 +754,10 @@ async function performTrade(eventBody: NewCreatedEvent) {
       // Source scoreboard and inversion scoreboard is the same, so just remove from source scoreboard
       const currentValue = sourceScore.value;
       if (currentValue - sourceCount < 0) {
-        throw new ApiError(httpStatus.BAD_REQUEST, `Calculated score of '${sourceScoreboard}' - ${sourceInversionScoreboard} is ${currentValue} which is too low for this trade`);
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          `Calculated score of '${sourceScoreboard}' - ${sourceInversionScoreboard} is ${currentValue} which is too low for this trade`
+        );
       }
 
       await sourceScore.updateOne({
@@ -823,14 +837,18 @@ async function updateCardVisibility(eventBody: NewCreatedEvent) {
           }
 
           if (hidden > numberToHide && thisCardIsHidden) {
-            cardUpdates.push(card.updateOne({
-              hiddenInDecks: card.hiddenInDecks.filter(id => id !== deckId),
-            }));
+            cardUpdates.push(
+              card.updateOne({
+                hiddenInDecks: card.hiddenInDecks.filter((id) => id !== deckId),
+              })
+            );
             hidden--;
           } else if (hidden < numberToHide && !thisCardIsHidden) {
-            cardUpdates.push(card.updateOne({
-              hiddenInDecks: [...card.hiddenInDecks, deckId],
-            }));
+            cardUpdates.push(
+              card.updateOne({
+                hiddenInDecks: [...card.hiddenInDecks, deckId],
+              })
+            );
             hidden++;
           }
         }
@@ -842,9 +860,11 @@ async function updateCardVisibility(eventBody: NewCreatedEvent) {
   for (let card of cards) {
     if (!cardsToHide.includes(card.name)) {
       if (card.hiddenInDecks.includes(deckId)) {
-        cardUpdates.push(card.updateOne({
-          hiddenInDecks: card.hiddenInDecks.filter(id => id !== deckId),
-        }));
+        cardUpdates.push(
+          card.updateOne({
+            hiddenInDecks: card.hiddenInDecks.filter((id) => id !== deckId),
+          })
+        );
       }
     }
   }

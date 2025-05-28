@@ -129,7 +129,7 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
 
   switch (event.name.toString()) {
     // This is run before the event handler
-    case PlayerEvents.JOINED_NETWORK:
+    case PlayerEvents.JOINED_NETWORK: {
       const player = await Player.findOne({
         playerName: event.player,
       }).exec();
@@ -141,11 +141,16 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
         await notifyPlayer(event.player, `<gray>Do you know we have a Discord server? Join here:</gray> ${link}`);
       }
 
+      const metadata = getEventMetadata(event);
+      const server = metadata.get('server');
+      const protocol = metadata.get('mc-protocol');
+
       if (!player) {
-        return `${playerNameBold} joined the network for the first time! Welcome! :leaves:`;
+        return `${playerNameBold} (MC ${protocol}) joined the network for the first time! Welcome! :leaves: [connected to ${server}]`;
       } else {
-        return `${playerNameBold} joined the network`;
+        return `${playerNameBold} (MC ${protocol}) joined the network [connected to ${server}]`;
       }
+    }
 
     case PlayerEvents.LEFT_NETWORK:
       return `${playerNameBold} disconnected from the network`;
