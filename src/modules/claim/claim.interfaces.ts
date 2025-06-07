@@ -32,6 +32,11 @@ export enum RunTypes {
   COMPETITIVE = 'competitive',
 }
 
+export enum DungeonTypes {
+  DEFAULT = 'default',
+  SEASON_2 = 'season-2',
+}
+
 export enum ClaimStates {
   PENDING = 'pending',
   ACQUIRED = 'acquired', // dungeon instances query for this state
@@ -42,6 +47,10 @@ export enum ClaimStates {
   // Maybe
   PERSISTING = 'persisting', // Finalizing state (writing scores to DB)
   FINALIZED = 'finalized',
+}
+
+export enum ClaimFilters {
+  DUNGEON_TYPE = 'dungeon-type',
 }
 
 export interface IClaimDoc extends IClaim, Document {}

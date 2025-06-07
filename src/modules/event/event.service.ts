@@ -13,11 +13,12 @@ import { notifyOps, notifyPlayer } from '../task';
 import { InstanceStates } from './instance.interfaces';
 import { Card } from '../card';
 import { Claim } from '../claim';
-import { ClaimStates, ClaimTypes, RunTypes } from '../claim/claim.interfaces';
+import { ClaimFilters, ClaimStates, ClaimTypes, DungeonTypes, RunTypes } from '../claim/claim.interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import { ClaimRelatedEvent, EventWithServer, notifyDiscord, notifyLobby, withClaimMetadata } from './discord';
 import { Score } from '../score';
 import { getSelectedDeck } from '../card/card.controller';
+import { getEventMetadata } from '../utils';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -425,6 +426,9 @@ function getNewStateBasedOnPlayerLocation(player: IPlayer, server: String) {
 }
 
 async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
+  const metadata = getEventMetadata(eventBody);
+  const dungeonType = metadata.get(ClaimFilters.DUNGEON_TYPE) || DungeonTypes.DEFAULT;
+
   // remove old records with the same hostname or IP address
   const existingInstance = await DungeonInstance.findOne({
     name: eventBody.server,
@@ -441,6 +445,9 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       inUseDate: existingInstance.inUseDate || new Date(),
       requiresRebuild: existingInstance.requiresRebuild, // || (existingInstance.activePlayers > 0 && eventBody.count === 0),
       activePlayers: eventBody.count,
+      claimFilters: {
+        [ClaimFilters.DUNGEON_TYPE]: dungeonType,
+      },
     };
     if (eventBody.count > 0) {
       update.state = InstanceStates.IN_USE;
@@ -463,6 +470,9 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       name: eventBody.server,
       ip: eventBody.sourceIP,
       state: InstanceStates.UNREACHABLE,
+      claimFilters: {
+        [ClaimFilters.DUNGEON_TYPE]: dungeonType,
+      },
       requiresRebuild: false,
       activePlayers: eventBody.count,
       unhealthySince: new Date(),
@@ -560,6 +570,9 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
       'deck-id': deckId,
       // TODO: Set the default based on deck ID, or just throw an error
       'run-type': metadata.get('run-type') || RunTypes.PRACTICE,
+
+      // Claim Filters
+      [ClaimFilters.DUNGEON_TYPE]: metadata.get(ClaimFilters.DUNGEON_TYPE) || DungeonTypes.DEFAULT,
     },
   });
   metadata.set('run-id', runId);
