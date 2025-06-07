@@ -1,6 +1,5 @@
 components:
   schemas:
-
     Event:
       type: object
       properties:
@@ -30,7 +29,7 @@ components:
         name: joined-network
         player: 4Ply
         server: lobby
-        sourceIP: "127.0.0.1"
+        sourceIP: '127.0.0.1'
         x: 0
         y: 0
         z: 0
@@ -62,7 +61,7 @@ components:
         name: MOC
         player: 4Ply
         server: lobby
-        deckType: "p"
+        deckType: 'p'
 
     Item:
       allOf:
@@ -71,7 +70,7 @@ components:
             name: crown
             player: 4Ply
             server: lobby
-            deckType: "p"
+            deckType: 'p'
 
     Task:
       type: object
@@ -97,7 +96,7 @@ components:
           - Connect
           - builders
         server: lobby
-        sourceIP: "127.0.0.1"
+        sourceIP: '127.0.0.1'
 
     Score:
       type: object
@@ -123,6 +122,26 @@ components:
           run-id: 123123-123-123-123-123
           run-type: practice
           world-age: 123123123
+
+    Config:
+      type: object
+      properties:
+        id:
+          type: string
+        server:
+          type: string
+        key:
+          type: string
+        value:
+          type: number
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+      example:
+        server: d800
+        key: dungeon-type
+        value: season-2
 
     Claim:
       type: object
@@ -219,4 +238,3 @@ components:
           example:
             code: 404
             message: Not found
-
