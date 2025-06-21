@@ -54,6 +54,10 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         await updatePlayerStateForCurrentServer(eventBody);
         break;
 
+      case PlayerEvents.LEFT_NETWORK:
+        await updatePlayerStateForCurrentServer(eventBody);
+        break;
+
       // Sent from Citadel / Agronet. Contains in-game location
       case PlayerEvents.SEEN:
         await updatePlayerStateAndLocation(eventBody);
@@ -61,7 +65,7 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
 
       // Sent from proxy. Does NOT contain in-game location
       case ServerEvents.PROXY_PING:
-        await updatePlayerState(eventBody);
+        await updatePlayerStateAndLocation(eventBody);
         break;
 
       case ServerEvents.SERVER_ONLINE:
@@ -135,6 +139,55 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
 }
 
 async function updatePlayerStateForCurrentServer(eventBody: NewCreatedEvent) {
+  const playerName = eventBody.player;
+  let player = await Players.findOne({
+    playerName,
+  }).exec();
+
+  const metadata = await withClaimMetadata(eventBody);
+  const server = metadata.get('server') || eventBody.server;
+
+  if (!player) {
+    player = await Players.create({
+      playerName,
+      server,
+      state: QueueStates.SOMEWHERE_ELSE,
+    });
+  }
+
+  await updatePlayerStateAndLocation(eventBody);
+
+  // Invalidate PENDING claims
+  if (server === 'lobby') {
+    await invalidatePendingClaimsForPlayer(eventBody.player, `${playerName} joined lobby, invalidating any active claims`);
+  } else if (eventBody.name === PlayerEvents.JOINED_NETWORK) {
+    await invalidatePendingClaimsForPlayer(eventBody.player, `${playerName} joined network, invalidating any active claims`);
+  } else if (eventBody.name === PlayerEvents.LEFT_NETWORK) {
+    await invalidatePendingClaimsForPlayer(eventBody.player, `${playerName} left the network, invalidating any active claims`);
+  } else {
+    console.log(`${playerName} joined ${server}, not updating claim states`);
+  }
+}
+
+// Invalidate PENDING claims for the target player.
+// Claims that are already ACQUIRED / IN_USE will get cleaned up by the player state recon job.
+async function invalidatePendingClaimsForPlayer(playerName: String, reason: String) {
+  console.log(reason);
+  await Claim.updateMany(
+    {
+      player: playerName,
+      type: ClaimTypes.DUNGEON,
+      state: ClaimStates.PENDING,
+    },
+    {
+      state: ClaimStates.INVALID,
+      stateReason: reason,
+    }
+  );
+}
+
+// Just update player state and location based on current server, but don't invalidate claims
+async function updatePlayerStateAndLocation(eventBody: NewCreatedEvent) {
   const player = await Players.findOne({
     playerName: eventBody.player,
   }).exec();
@@ -142,37 +195,45 @@ async function updatePlayerStateForCurrentServer(eventBody: NewCreatedEvent) {
   const metadata = await withClaimMetadata(eventBody);
   const server = metadata.get('server') || eventBody.server;
 
-  if (!player) {
-    await Players.create({
-      playerName: eventBody.player,
-      server: server,
-      state: QueueStates.IN_LOBBY,
-    });
-  } else {
+  if (player) {
     const state = getNewStateBasedOnPlayerLocation(player, server);
-    await player.updateOne({
-      server: server,
+
+    let update: any = {
+      lastSeen: new Date(),
       state: state,
-    });
-  }
+      server: server,
+    };
 
-  if (server !== 'lobby') {
-    console.log(`Player joined ${server}, not updating claim states`);
-    return;
-  }
-
-  console.log(`Player joined ${server}, invalidating any active claims`);
-  await Claim.updateMany(
-    {
-      player: eventBody.player,
-      type: ClaimTypes.DUNGEON,
-      state: ClaimStates.PENDING,
-    },
-    {
-      state: ClaimStates.INVALID,
-      stateReason: 'Player joined lobby (joined-server event)',
+    if (eventBody.x + eventBody.y + eventBody.z !== 0) {
+      update.lastLocation = {
+        x: eventBody.x,
+        y: eventBody.y,
+        z: eventBody.z,
+      };
     }
-  );
+
+    await player.updateOne(update).exec();
+  }
+}
+
+function getNewStateBasedOnPlayerLocation(player: IPlayer, server: String) {
+  let state = player.state;
+
+  if (state === QueueStates.IN_TRANSIT_TO_DUNGEON && server.match(/^d[0-9]{3}/)) {
+    state = QueueStates.IN_DUNGEON;
+  } else if (![QueueStates.IN_TRANSIT_TO_DUNGEON, QueueStates.IN_DUNGEON].includes(state) && server.match(/^d[0-9]{3}/)) {
+    state = QueueStates.SPECTATING;
+  } else if (server.startsWith('builders')) {
+    state = QueueStates.IN_BUILDERS;
+  } else if (![QueueStates.IN_QUEUE, QueueStates.IN_TRANSIT_TO_DUNGEON].includes(state) && server.startsWith('lobby')) {
+    state = QueueStates.IN_LOBBY;
+  } else if (server.startsWith('survival')) {
+    state = QueueStates.IN_SURVIVAL;
+  } else if (server.startsWith('velocity')) {
+    state = QueueStates.SOMEWHERE_ELSE;
+  }
+
+  return state;
 }
 
 async function ensureDeckIsSeeded(playerName: string, deckId: string) {
@@ -358,71 +419,6 @@ async function updateLeaderboardScore(prefix: string, playerName: string, key: s
       });
     }
   }
-}
-
-async function updatePlayerStateAndLocation(eventBody: NewCreatedEvent) {
-  const player = await Players.findOne({
-    playerName: eventBody.player,
-  }).exec();
-
-  const metadata = await withClaimMetadata(eventBody);
-  const server = metadata.get('server') || eventBody.server;
-
-  if (player) {
-    const state = getNewStateBasedOnPlayerLocation(player, server);
-
-    await player
-      .updateOne({
-        lastSeen: new Date(),
-        state: state,
-        server: server,
-        lastLocation: {
-          x: eventBody.x,
-          y: eventBody.y,
-          z: eventBody.z,
-        },
-      })
-      .exec();
-  }
-}
-
-async function updatePlayerState(eventBody: NewCreatedEvent) {
-  const player = await Players.findOne({
-    playerName: eventBody.player,
-  }).exec();
-
-  const metadata = await withClaimMetadata(eventBody);
-  const server = metadata.get('server') || eventBody.server;
-
-  if (player) {
-    const state = getNewStateBasedOnPlayerLocation(player, server);
-
-    await player
-      .updateOne({
-        lastSeen: new Date(),
-        state: state,
-        server: server,
-      })
-      .exec();
-  }
-}
-
-function getNewStateBasedOnPlayerLocation(player: IPlayer, server: String) {
-  let state = player.state;
-
-  if (state === QueueStates.IN_TRANSIT_TO_DUNGEON && server.match(/^d[0-9]{3}/)) {
-    state = QueueStates.IN_DUNGEON;
-  } else if (![QueueStates.IN_TRANSIT_TO_DUNGEON, QueueStates.IN_DUNGEON].includes(state) && server.match(/^d[0-9]{3}/)) {
-    state = QueueStates.SPECTATING;
-  } else if (server.startsWith('builders')) {
-    state = QueueStates.IN_BUILDERS;
-  } else if (![QueueStates.IN_QUEUE, QueueStates.IN_TRANSIT_TO_DUNGEON].includes(state) && server.startsWith('lobby')) {
-    state = QueueStates.IN_LOBBY;
-  } else if (server.startsWith('survival')) {
-    state = QueueStates.IN_SURVIVAL;
-  }
-
-  return state;
 }
 
 async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
