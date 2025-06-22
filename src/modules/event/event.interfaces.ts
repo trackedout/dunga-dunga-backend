@@ -58,6 +58,9 @@ export interface IEvent {
 export interface IEventDoc extends IEvent, Document<ObjectId> {
   processingFailed: boolean;
   error: Error;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface IEventModel extends Model<IEventDoc> {
