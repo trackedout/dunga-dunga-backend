@@ -492,7 +492,7 @@ export async function findClaim(event: ClaimRelatedEvent): Promise<IClaimDoc | n
   const metadata = getEventMetadata(event);
   const runId = metadata.get('run-id');
   if (!runId) {
-    logger.debug(`'metadata.run-id' not set on event, cannot find associated claim`);
+    // logger.debug(`'metadata.run-id' not set on event, cannot find associated claim`);
     return null;
   }
 
@@ -502,7 +502,7 @@ export async function findClaim(event: ClaimRelatedEvent): Promise<IClaimDoc | n
     'metadata.run-id': runId,
   }).exec();
 
-  logger.debug(`Found ${claims.length} matching claims for run ${runId}`);
+  // logger.debug(`Found ${claims.length} matching claims for run ${runId}`);
   if (claims && claims.length > 0) {
     return claims[0]!!;
   }
@@ -532,13 +532,13 @@ export async function withClaimMetadata(event: ClaimRelatedEvent): Promise<Map<s
   const claim = await findClaim(event);
   if (claim) {
     claimMetadata = getMetadata(claim.metadata);
-  } else {
-    logger.warn(`Could not find claim metadata, returning event metadata only`);
+    // } else {
+    //   logger.warn(`Could not find claim metadata, returning event metadata only`);
   }
 
   // Merge claim and event metadata
   const metadata = new Map([...claimMetadata.entries(), ...eventMetadata.entries()]);
-  logger.debug(`Merged event metadata: ${JSON.stringify(Object.fromEntries(metadata), null, 4)}`);
+  // logger.debug(`Merged event metadata: ${JSON.stringify(Object.fromEntries(metadata), null, 4)}`);
 
   return metadata;
 }
