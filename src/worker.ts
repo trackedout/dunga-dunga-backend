@@ -715,6 +715,10 @@ async function teleportPlayersInEntrance() {
       $gte: 1977,
       $lte: 1983,
     },
+    'lastLocation.y' : {
+      $gte: 112,
+      $lte: 119
+    },
     lastSeen: {
       // Seen in the last minute
       $gte: new Date(Date.now() - 1000 * 60),
