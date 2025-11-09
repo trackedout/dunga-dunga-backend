@@ -18,7 +18,8 @@ dev-sync node="burn":
 dev_docker_image := "dunga-dunga-backend:dev"
 prod_docker_image := "dunga-dunga-backend:latest"
 
-registry := "registry.trackedout.org/dunga-dunga"
+registry_dev := "registry-dev.trackedout.org/dunga-dunga"
+registry_prod := "registry.trackedout.org/dunga-dunga"
 
 # Build dev image
 build-dev-image:
@@ -30,13 +31,13 @@ build-prod-image:
 
 # Push dev image to k3s registry
 push-dev-image:
-  docker tag {{dev_docker_image}} {{registry}}:dev
-  docker push {{registry}}:dev
+  docker tag {{dev_docker_image}} {{registry_dev}}:dev
+  docker push {{registry_dev}}:dev
 
 # Push prod image to k3s registry
 push-prod-image:
-  docker tag {{prod_docker_image}} {{registry}}:latest
-  docker push {{registry}}:latest
+  docker tag {{prod_docker_image}} {{registry_prod}}:latest
+  docker push {{registry_prod}}:latest
 
 # Push both dev and prod images
 push-images: push-dev-image push-prod-image
@@ -49,11 +50,11 @@ build-and-push-prod: build-prod-image push-prod-image
 
 # Build, push, and deploy to k3s cluster - dev
 dev-deploy: build-and-push-dev
-  k3s kubectl patch deployment -n davybones dunga-dunga -p '{"spec":{"template":{"spec":{"containers":[{"name":"dunga-dunga","image": "{{registry}}:dev", "imagePullPolicy":"Always"}]}}}}'
+  k3s kubectl patch deployment -n davybones dunga-dunga -p '{"spec":{"template":{"spec":{"containers":[{"name":"dunga-dunga","image": "{{registry_dev}}:dev", "imagePullPolicy":"Always"}]}}}}'
   k3s kubectl rollout restart -n davybones deployment/dunga-dunga
 
 # Build, push, and deploy to k3s cluster - prod
 prod-deploy: build-and-push-prod
-  k3s kubectl patch deployment -n davybones dunga-dunga -p '{"spec":{"template":{"spec":{"containers":[{"name":"dunga-dunga","image": "{{registry}}:latest", "imagePullPolicy":"Always"}]}}}}'
+  k3s kubectl patch deployment -n davybones dunga-dunga -p '{"spec":{"template":{"spec":{"containers":[{"name":"dunga-dunga","image": "{{registry_prod}}:latest", "imagePullPolicy":"Always"}]}}}}'
   k3s kubectl rollout restart -n davybones deployment/dunga-dunga
 

@@ -1,5 +1,5 @@
 # development stage
-FROM node:18-alpine as base
+FROM node:18-alpine AS base
 
 WORKDIR /usr/src/app
 
@@ -13,7 +13,7 @@ RUN yarn install --pure-lockfile && yarn compile
 
 # production stage
 
-FROM base as production
+FROM base AS production
 
 WORKDIR /usr/prod/app
 
