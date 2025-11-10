@@ -528,6 +528,12 @@ async function getDiscordMessageID(event: ClaimRelatedEvent): Promise<string> {
 
 export async function withClaimMetadata(event: ClaimRelatedEvent): Promise<Map<string, any>> {
   const eventMetadata = getEventMetadata(event);
+
+  if (eventMetadata.get('run-type')) {
+    // logger.debug(`Claim metadata 'run-type' already exists on event, returning without claim lookup`);
+    return eventMetadata;
+  }
+
   let claimMetadata = getMetadata({});
   const claim = await findClaim(event);
   if (claim) {

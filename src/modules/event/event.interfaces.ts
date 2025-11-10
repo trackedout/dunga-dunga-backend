@@ -1,4 +1,4 @@
-import { Model, Document } from 'mongoose';
+import { Model, Document, ObjectId } from 'mongoose';
 import { QueryResult } from '../paginate/paginate';
 
 export enum PlayerEvents {
@@ -28,11 +28,20 @@ export enum ServerEvents {
   PROXY_PING = 'proxy-ping',
   SERVER_ONLINE = 'server-online',
   SERVER_CLOSING = 'server-closing',
+  SPAM_20_TICKS = 'spam-20-ticks',
 
   CLAIM_INVALIDATED = 'claim-invalidated',
 
   SHUTDOWN_ALL_EMPTY_DUNGEONS = 'shutdown-all-empty-dungeons',
 }
+
+export const SpammyEvents = [
+  ServerEvents.PROXY_PING,
+  ServerEvents.SPAM_20_TICKS,
+  ServerEvents.SERVER_ONLINE,
+  ServerEvents.SERVER_CLOSING,
+  PlayerEvents.SEEN,
+];
 
 export enum TradeEvents {
   TRADE_REQUESTED = 'trade-requested',
@@ -53,9 +62,12 @@ export interface IEvent {
   metadata: Map<string, string>;
 }
 
-export interface IEventDoc extends IEvent, Document {
+export interface IEventDoc extends IEvent, Document<ObjectId> {
   processingFailed: boolean;
   error: Error;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface IEventModel extends Model<IEventDoc> {

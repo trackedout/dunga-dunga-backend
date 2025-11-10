@@ -59,7 +59,7 @@ const instanceSchema = new mongoose.Schema<IInstanceDoc, IInstanceModel>(
     claimFilters: {
       type: Map<String, Array<String>>,
       required: false,
-    }
+    },
   },
   {
     timestamps: true,
@@ -67,6 +67,7 @@ const instanceSchema = new mongoose.Schema<IInstanceDoc, IInstanceModel>(
 );
 
 instanceSchema.index({ state: 1, reservedBy: 1, requiresRebuild: 1, reservedDate: 1, name: 1 });
+instanceSchema.index({ 'metadata.run-id': 1, name: 1 });
 
 // add plugin that converts mongoose to json
 instanceSchema.plugin(toJSON);

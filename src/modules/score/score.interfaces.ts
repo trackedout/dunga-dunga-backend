@@ -8,7 +8,10 @@ export interface IScore {
   metadata: Map<string, string>;
 }
 
-export interface IScoreDoc extends IScore, Document {}
+export interface IScoreDoc extends IScore, Document {
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface IScoreModel extends Model<IScoreDoc> {
   paginate(filter: Record<string, any>, options: Record<string, any>): Promise<QueryResult>;
