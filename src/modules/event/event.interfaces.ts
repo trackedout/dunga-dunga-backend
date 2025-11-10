@@ -1,4 +1,4 @@
-import { Model, Document } from 'mongoose';
+import { Model, Document, ObjectId } from 'mongoose';
 import { QueryResult } from '../paginate/paginate';
 
 export enum PlayerEvents {
@@ -34,6 +34,8 @@ export enum ServerEvents {
   SHUTDOWN_ALL_EMPTY_DUNGEONS = 'shutdown-all-empty-dungeons',
 }
 
+export const SpammyEvents = [ServerEvents.PROXY_PING, ServerEvents.SERVER_ONLINE, ServerEvents.SERVER_CLOSING, PlayerEvents.SEEN];
+
 export enum TradeEvents {
   TRADE_REQUESTED = 'trade-requested',
 }
@@ -53,7 +55,7 @@ export interface IEvent {
   metadata: Map<string, string>;
 }
 
-export interface IEventDoc extends IEvent, Document {
+export interface IEventDoc extends IEvent, Document<ObjectId> {
   processingFailed: boolean;
   error: Error;
 }

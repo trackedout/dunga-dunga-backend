@@ -10,7 +10,7 @@ import Lock from './modules/lock/lock.model';
 import { notifyOps, notifyPlayer } from './modules/task';
 import { IInstanceDoc, InstanceStates } from './modules/event/instance.interfaces';
 import config from './config/config';
-import { PlayerEvents, ServerEvents } from './modules/event/event.interfaces';
+import { ServerEvents, SpammyEvents } from './modules/event/event.interfaces';
 import { Claim } from './modules/claim';
 import { ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 import { notifyDiscord } from './modules/event/discord';
@@ -510,7 +510,7 @@ async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
 
     await takeLock('tear-down-empty-dungeon', dungeon.name, 60);
 
-    const message = `Dungeon instance ${dungeon.name} was marked as in-use without any online players over ${cutoffMinutes} minute, tearing it down`;
+    const message = `Dungeon instance ${dungeon.name} was marked as in-use without any online players for over ${cutoffMinutes} minute, tearing it down`;
     logger.info(message);
     await notifyOps(message);
 
@@ -637,12 +637,7 @@ async function cleanupStaleRecords() {
   const cutoffDate = new Date(Date.now() - 1000 * 60 * 60 * 24 * 2);
 
   await Event.deleteMany({
-    name: [
-      ServerEvents.PROXY_PING,
-      ServerEvents.SERVER_ONLINE,
-      ServerEvents.SERVER_CLOSING,
-      PlayerEvents.SEEN
-    ],
+    name: SpammyEvents,
     createdAt: { $lte: cutoffDate },
   }).exec();
 
@@ -666,10 +661,7 @@ async function openDoor() {
   if (await tryTakeLock('open-door', 'lobby', 35)) {
     await releaseLock('close-door', 'lobby');
 
-    await execCommand([
-      'setblock -546 118 1985 air',
-      'setblock -538 110 1984 minecraft:redstone_block',
-    ]);
+    await execCommand(['setblock -546 118 1985 air', 'setblock -538 110 1984 minecraft:redstone_block']);
   }
 }
 
@@ -732,9 +724,7 @@ async function teleportPlayersInEntrance() {
       } else {
         // Move them out of the entrance if they are not meant to be there
         if (await tryTakeLock('teleport-out-of-entrance', player.playerName, 10)) {
-          await execCommand([
-            `tp ${player.playerName} -512 114 1980 90 0`,
-          ]);
+          await execCommand([`tp ${player.playerName} -512 114 1980 90 0`]);
         }
       }
     }
@@ -763,6 +753,94 @@ async function teleportPlayersWithInstantQueue() {
   }
 }
 
+let mergeActive = false;
+
+export async function mergeMetadataOntoEvents() {
+  if (mergeActive) {
+    logger.info(`[Recon Main] Merge active, skipping`);
+    return [];
+  }
+  mergeActive = true;
+
+  logger.info(`[Recon Main] Searching for run-ids that need to be retrofitted with event metadata`);
+  let start = Date.now();
+
+  const runIds = await Event.aggregate([
+    {
+      $match: {
+        'metadata.run-type': { $exists: false }, // This results in a table scan, no index can improve this
+        'metadata.run-id': { $exists: true },
+        // Ignore spammy events
+        name: { $nin: SpammyEvents },
+      },
+    },
+    // { $sort: { createdAt: 1 } },
+    // { $limit: 5000 }, // limit how many events we find since we're doing a table scan
+    { $group: { _id: '$metadata.run-id' } },
+    // { $limit: 100 }, // tune based on load
+  ]).exec();
+
+  const concurrency = 10;
+  const queue = [...runIds];
+
+  logger.info(
+    `[Recon Main] Found ${runIds.length} run-ids that need to be retrofitted with event metadata (query took ${(Date.now() - start) / 1000} seconds)`
+  );
+  start = Date.now();
+
+  const workers = Array.from({ length: concurrency }).map(async (_, workerId: number) => {
+    while (queue.length) {
+      const { _id: runId } = queue.pop()!;
+      logger.info(`[Recon ${workerId}] Updating events matching run-id ${runId}`);
+
+      try {
+        const claim = await Claim.findOne({ 'metadata.run-id': runId }).lean().exec();
+        const claimMeta = claim?.metadata ?? {};
+        if (!claimMeta['run-type']) claimMeta['run-type'] = 'unknown';
+        // Just use the first character (p / c / u)
+        claimMeta['run-type'] = '' + claimMeta['run-type'][0];
+
+        const cutoffDateForClaimRecon = new Date(Date.now() - 1000 * 60 * 60);
+        if (!!claim && claim.createdAt >= cutoffDateForClaimRecon && !claimMeta['end-time']) {
+          logger.info(
+            `[Recon ${workerId}] Claim ${claim._id} was created under 1 hour ago, and does not yet have the 'end-time' metadata, skipping for now`
+          );
+          continue;
+        }
+
+        const result = await Event.updateMany(
+          {
+            'metadata.run-id': runId,
+            // Ignore spammy events
+            name: { $nin: SpammyEvents },
+          },
+          [
+            {
+              $set: {
+                metadata: { $mergeObjects: ['$metadata', claimMeta] },
+              },
+            },
+          ]
+        );
+
+        logger.info(
+          `[Recon ${workerId}] Updated ${result.modifiedCount} events for run-id ${runId} with run-type ${claimMeta['run-type']}`
+        );
+      } catch (err: any) {
+        logger.warn(`[Recon ${workerId}] Failed to process run-id ${runId}: ${err.message}`);
+      }
+    }
+  });
+
+  await Promise.allSettled(workers);
+
+  mergeActive = false;
+
+  logger.info(`[Recon Main] Finished processing ${runIds.length} run-ids in ${(Date.now() - start) / 1000} seconds`);
+
+  return runIds;
+}
+
 const runWorker = async () => {
   logger.info('Running background worker...');
 
@@ -776,6 +854,12 @@ const runWorker = async () => {
   await teleportPlayersWithInstantQueue();
 
   await cleanupStaleRecords();
+
+  mergeMetadataOntoEvents().catch((e) => {
+    logger.error(e);
+    mergeActive = false;
+    return {};
+  });
 };
 
 const worker = {

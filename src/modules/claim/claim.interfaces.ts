@@ -53,7 +53,10 @@ export enum ClaimFilters {
   DUNGEON_TYPE = 'dungeon-type',
 }
 
-export interface IClaimDoc extends IClaim, Document {}
+export interface IClaimDoc extends IClaim, Document {
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface IClaimModel extends Model<IClaimDoc> {
   paginate(filter: Record<string, any>, options: Record<string, any>): Promise<QueryResult>;
