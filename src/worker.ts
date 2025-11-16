@@ -706,7 +706,7 @@ async function updateDoorState() {
 
 async function teleportPlayersInEntrance() {
   const players = await Player.find({
-    // state: [QueueStates.IN_TRANSIT_TO_DUNGEON],
+    server: 'lobby',
     'lastLocation.x': {
       $lte: -544,
       $gte: -553,
@@ -715,9 +715,9 @@ async function teleportPlayersInEntrance() {
       $gte: 1977,
       $lte: 1983,
     },
-    'lastLocation.y' : {
+    'lastLocation.y': {
       $gte: 112,
-      $lte: 119
+      $lte: 119,
     },
     lastSeen: {
       // Seen in the last minute
