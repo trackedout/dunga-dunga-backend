@@ -136,6 +136,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
 
   await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.practice', 32);
   await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.competitive', 21);
+  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.filter-mode-id', 1); // run-mode
 }
 
 async function updatePlayerStateForCurrentServer(eventBody: NewCreatedEvent) {
