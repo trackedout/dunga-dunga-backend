@@ -19,6 +19,7 @@ import { ClaimRelatedEvent, EventWithServer, notifyDiscord, notifyLobby, withCla
 import { Score } from '../score';
 import { getSelectedDeck } from '../card/card.controller';
 import { getEventMetadata } from '../utils';
+import { sendBugReportToDiscord } from './discordBugReporter';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -104,6 +105,10 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
 
       case PlayerEvents.HARDCORE_DECK_RESET:
         await resetHardcoreDeck(eventBody);
+        break;
+
+      case PlayerEvents.BUG_REPORT:
+        await sendBugReportToDiscord(eventBody);
         break;
 
       case PlayerEvents.GAME_WON:

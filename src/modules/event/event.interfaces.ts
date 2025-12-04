@@ -22,6 +22,8 @@ export enum PlayerEvents {
   HARDCORE_DECK_RESET = 'hardcore-deck-reset',
 
   GAME_WON = 'game-won',
+
+  BUG_REPORT = 'bug-report',
 }
 
 export enum ServerEvents {

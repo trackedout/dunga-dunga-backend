@@ -291,7 +291,7 @@ async function getLobbyMessageForEvent(event: EventWithServer & ClaimRelatedEven
   return '';
 }
 
-async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEvent): Promise<Array<EmbedBuilder>> {
+export async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEvent): Promise<Array<EmbedBuilder>> {
   const metadata = await withClaimMetadata(event);
 
   const embeds: Array<EmbedBuilder> = [];
@@ -432,7 +432,7 @@ async function getPingStats(playerName: string, dungeon: string, endTime: string
   return [];
 }
 
-async function getRunDescription(runId: string, claim: IClaimDoc | null): Promise<string> {
+export async function getRunDescription(runId: string, claim: IClaimDoc | null): Promise<string> {
   const items = [`**Run ID**: ${runId}`];
 
   if (claim) {
@@ -484,7 +484,7 @@ function getDeckId(metadata: Map<string, string>) {
   return metadata.get('deck-id')?.substring(1);
 }
 
-async function getFullRunTypeWithClaim(event: ClaimRelatedEvent) {
+export async function getFullRunTypeWithClaim(event: ClaimRelatedEvent) {
   return getFullRunTypeFromMetadata(await withClaimMetadata(event));
 }
 
@@ -546,7 +546,7 @@ async function getDiscordMessageID(event: ClaimRelatedEvent): Promise<string> {
 export async function withClaimMetadata(event: ClaimRelatedEvent): Promise<Map<string, any>> {
   const eventMetadata = getEventMetadata(event);
 
-  if (eventMetadata.get('run-type')) {
+  if (eventMetadata.get('dungeon-type')) {
     // logger.debug(`Claim metadata 'run-type' already exists on event, returning without claim lookup`);
     return eventMetadata;
   }
@@ -609,7 +609,7 @@ async function getKiller(event: EventWithServer & ClaimRelatedEvent): Promise<st
   return '';
 }
 
-async function setMetadataValue(event: ClaimRelatedEvent, metadataKey: String, value: String) {
+export async function setMetadataValue(event: ClaimRelatedEvent, metadataKey: String, value: String) {
   const metadata = getEventMetadata(event);
   const runId = metadata.get('run-id');
   logger.debug(`Updating 'metadata.${metadataKey}' for run ${runId} to ${value}`);
