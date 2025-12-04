@@ -50,6 +50,7 @@ export async function notifyDiscord(event: EventWithServer & ClaimRelatedEvent &
       /difficulty-selected-*/,
       /card-bought-.*/,
       ServerEvents.CLAIM_INVALIDATED,
+      ServerEvents.PREP_COMPLETE,
       PlayerEvents.PLAYER_DIED,
     ];
 
@@ -181,9 +182,19 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
       return '';
     }
 
+    case ServerEvents.PREP_COMPLETE: {
+      const metadata = getEventMetadata(event);
+      const datapackVersion = metadata.get('datapack-version');
+      if (datapackVersion) {
+        await setMetadataValue(event, 'datapack-version', datapackVersion);
+      }
+
+      return `[${getFullRunTypeFromMetadata(metadata)}] The dungeon is ready for ${playerNameBold}!`;
+    }
+
     case PlayerEvents.JOINED_QUEUE:
       const metadata = getEventMetadata(event);
-      return `[${getFullRunTypeFromMetadata(metadata)}] ${playerNameBold} queued for a run (Deck #${getDeckId(metadata)})`;
+      return `[${getFullRunTypeFromMetadata(metadata)}] ${playerNameBold} queued for a run`;
 
     case ServerEvents.CLAIM_INVALIDATED:
       const claim = await findClaim(event);
@@ -265,7 +276,7 @@ async function getLobbyMessageForEvent(event: EventWithServer & ClaimRelatedEven
 
     case PlayerEvents.JOINED_QUEUE:
       const metadata = getEventMetadata(event);
-      return `[${getFullRunTypeFromMetadata(metadata)}] ${playerName} queued for a run (Deck #${getDeckId(metadata)})`;
+      return `[${getFullRunTypeFromMetadata(metadata)}] ${playerName} queued for a run`;
 
     case 'difficulty-selected-easy':
     case 'difficulty-selected-medium':
@@ -428,7 +439,7 @@ async function getRunDescription(runId: string, claim: IClaimDoc | null): Promis
     items.push(
       ...[
         `**Run Type**: ${getFullRunType(claim.metadata.get('run-type')) || 'unknown'}`,
-        //       `**Deck ID**: ${claim.metadata.get('deck-id') || 'unknown'}`,
+        // `**Deck ID**: ${claim.metadata.get('deck-id') || 'unknown'}`,
       ]
     );
 
@@ -458,11 +469,17 @@ async function getRunDescription(runId: string, claim: IClaimDoc | null): Promis
         items.push(`**Start Time**: <t:${startTime}:R>`);
       }
     }
+
+    const datapackVersion = claim.metadata.get('datapack-version');
+    if (datapackVersion) {
+      items.push(`**Datapack Version**: ${datapackVersion}`);
+    }
   }
 
   return items.join('\n');
 }
 
+// @ts-ignore unused
 function getDeckId(metadata: Map<string, string>) {
   return metadata.get('deck-id')?.substring(1);
 }
