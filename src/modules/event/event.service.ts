@@ -48,6 +48,7 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
       case PlayerEvents.JOINED_NETWORK:
         await notify();
         await createPlayerRecordIfMissing(eventBody);
+        await warnPlayerIfUnsupportedVersion(eventBody);
         break;
 
       case PlayerEvents.JOINED_SERVER:
@@ -137,6 +138,19 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
   await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.practice', 32);
   await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.competitive', 21);
   await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.filter-mode-id', 1); // run-mode
+}
+
+async function warnPlayerIfUnsupportedVersion(eventBody: NewCreatedEvent) {
+  const metadata = await withClaimMetadata(eventBody);
+  const protocol = metadata.get('mc-protocol');
+
+  if (protocol !== '1.20') {
+    const messages = [
+      '<gold>Warning: We officially support Minecraft version 1.20.1',
+      '<gold>Other versions should work, but if you encounter texture issues then try using version 1.20.1 to play',
+    ];
+    await notifyPlayer(eventBody.player, ...messages);
+  }
 }
 
 async function updatePlayerStateForCurrentServer(eventBody: NewCreatedEvent) {

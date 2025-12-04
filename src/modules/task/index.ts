@@ -14,13 +14,13 @@ function notifyOps(message: string, server: string = 'lobby') {
   });
 }
 
-function notifyPlayer(playerName: string, message: string, server: string = 'lobby') {
+function notifyPlayer(playerName: string, ...messages: string[]) {
   return Task.create({
-    server: server,
+    server: 'lobby', // Only Citadel listens for this task
     type: 'message-player',
     state: 'SCHEDULED',
     targetPlayer: playerName,
-    arguments: [message],
+    arguments: messages,
     sourceIP: '127.0.0.1',
   });
 }
