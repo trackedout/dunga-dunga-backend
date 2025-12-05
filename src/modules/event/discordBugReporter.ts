@@ -113,20 +113,19 @@ async function getEmbeds(event: EventWithServer & ClaimRelatedEvent): Promise<Ar
     return embeds;
   }
 
-  const runId = metadata.get('run-id');
-  if (runId) {
-    const claim = await findClaim(event);
-    embeds.push(new EmbedBuilder().setDescription(await getRunDescription(runId, claim)).setColor(0x00ffff));
-
+  const claim = await findClaim(event);
+  if (claim) {
     const metadata = await withClaimMetadata(event);
-    let bugReports = metadata
-      .get('bug-reports')
-      .split('\n')
-      .map((msg: string) => `- ${msg}`);
+    embeds.push(new EmbedBuilder().setDescription(await getRunDescription(metadata.get('run-id'), claim)).setColor(0x00ffff));
 
-    if (bugReports) {
-      let description = [`**Bug Reports:**`, ...bugReports].join('\n');
-      embeds.push(new EmbedBuilder().setDescription(description).setColor(0x00ffff));
+    const bugReportsMetadata = metadata.get('bug-reports');
+    if (bugReportsMetadata) {
+      let bugReports = bugReportsMetadata.split('\n').map((msg: string) => `- ${msg}`);
+
+      if (bugReports) {
+        let description = [`**Bug Reports:**`, ...bugReports].join('\n');
+        embeds.push(new EmbedBuilder().setDescription(description).setColor(0x00ffff));
+      }
     }
   }
 
