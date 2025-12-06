@@ -15,6 +15,7 @@ import { Claim } from './modules/claim';
 import { ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 import { notifyDiscord } from './modules/event/discord';
 import { handleHardcoreGameOver } from './modules/event/event.service';
+import { getMetadata } from './modules/utils';
 
 async function checkIfIpIsReachableWithRetry(
   ip: string,
@@ -437,17 +438,19 @@ async function invalidateClaims() {
   );
 }
 
-async function invalidateClaimAndNotify(claim: IClaimDoc, message: string) {
+export async function invalidateClaimAndNotify(claim: IClaimDoc, message: string) {
   await claim.updateOne({
     state: ClaimStates.INVALID,
     stateReason: message,
   });
 
+  const claimMetadata = getMetadata(claim.metadata);
+
   await notifyDiscord({
     name: ServerEvents.CLAIM_INVALIDATED,
     player: claim.player,
     server: '',
-    metadata: claim.metadata,
+    metadata: claimMetadata,
     invalidationReason: message,
   });
 
@@ -455,7 +458,7 @@ async function invalidateClaimAndNotify(claim: IClaimDoc, message: string) {
     name: ServerEvents.CLAIM_INVALIDATED,
     player: claim.player,
     server: '',
-    metadata: claim.metadata,
+    metadata: claimMetadata,
   });
 }
 

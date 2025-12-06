@@ -20,6 +20,7 @@ import { Score } from '../score';
 import { getSelectedDeck } from '../card/card.controller';
 import { getEventMetadata } from '../utils';
 import { sendBugReportToDiscord } from './discordBugReporter';
+import { invalidateClaimAndNotify } from '../../worker';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -177,21 +178,37 @@ async function updatePlayerStateForCurrentServer(eventBody: NewCreatedEvent) {
 
   await updatePlayerStateAndLocation(eventBody);
 
-  // Invalidate PENDING claims
+  // Invalidate PENDING or IN_USE claims
   if (server === 'lobby') {
-    await invalidatePendingClaimsForPlayer(eventBody.player, `${playerName} joined lobby, invalidating any active claims`);
+    await invalidateActiveClaimsForPlayer(eventBody.player, `${playerName} moved to the lobby`);
   } else if (eventBody.name === PlayerEvents.JOINED_NETWORK) {
-    await invalidatePendingClaimsForPlayer(eventBody.player, `${playerName} joined network, invalidating any active claims`);
+    await invalidateActiveClaimsForPlayer(eventBody.player, `${playerName} joined the network`);
   } else if (eventBody.name === PlayerEvents.LEFT_NETWORK) {
-    await invalidatePendingClaimsForPlayer(eventBody.player, `${playerName} left the network, invalidating any active claims`);
+    await invalidateActiveClaimsForPlayer(eventBody.player, `${playerName} left the network`);
   } else {
     console.log(`${playerName} joined ${server}, not updating claim states`);
   }
 }
 
-// Invalidate PENDING claims for the target player.
-// Claims that are already ACQUIRED / IN_USE will get cleaned up by the player state recon job.
-async function invalidatePendingClaimsForPlayer(playerName: String, reason: String) {
+async function invalidateActiveClaimsForPlayer(playerName: string, reason: string) {
+  await invalidateInUseClaimsForPlayer(playerName, reason);
+  await invalidatePendingClaimsForPlayer(playerName, reason);
+}
+
+// Invalidate IN_USE claims, and notify discord about it
+async function invalidateInUseClaimsForPlayer(playerName: string, reason: string) {
+  const claim = await Claim.findOne({
+    player: playerName,
+    type: ClaimTypes.DUNGEON,
+    state: ClaimStates.IN_USE,
+  });
+  if (claim) {
+    await invalidateClaimAndNotify(claim, reason);
+  }
+}
+
+// Invalidate PENDING claims for the target player
+async function invalidatePendingClaimsForPlayer(playerName: string, reason: string) {
   console.log(reason);
   await Claim.updateMany(
     {

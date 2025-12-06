@@ -326,7 +326,9 @@ export async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEv
         }))
       );
 
-      fields.push(...(await getPingStats(event.player, claim?.claimant || '', endTime)));
+      if (endTime) {
+        fields.push(...(await getPingStats(event.player, claim?.claimant || '', endTime)));
+      }
 
       if (metadata.get('run-type') !== 'c') {
         fields.push(
