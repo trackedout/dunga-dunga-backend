@@ -326,9 +326,15 @@ export async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEv
         }))
       );
 
-      if (endTime) {
-        fields.push(...(await getPingStats(event.player, claim?.claimant || '', endTime)));
-      }
+      fields.push(
+        ...(await mapAndCountEvents({
+          runId,
+          playerName: event.player,
+          title: 'Consumed Items',
+          nameFilterRegex: /item-deleted-*/,
+          prefixToRemove: 'item-deleted-',
+        }))
+      );
 
       if (metadata.get('run-type') !== 'c') {
         fields.push(
@@ -341,6 +347,20 @@ export async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEv
           }))
         );
       }
+
+      if (endTime) {
+        fields.push(...(await getPingStats(event.player, claim?.claimant || '', endTime)));
+      }
+
+      fields.push(
+        ...(await mapAndCountEvents({
+          runId,
+          playerName: event.player,
+          title: 'Refunded Items',
+          nameFilterRegex: /item-refunded-*/,
+          prefixToRemove: 'item-refunded-',
+        }))
+      );
     }
 
     const embed = new EmbedBuilder()

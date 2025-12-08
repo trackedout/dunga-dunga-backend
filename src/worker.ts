@@ -10,12 +10,15 @@ import Lock from './modules/lock/lock.model';
 import { notifyOps, notifyPlayer } from './modules/task';
 import { IInstanceDoc, InstanceStates } from './modules/event/instance.interfaces';
 import config from './config/config';
-import { ServerEvents, SpammyEvents } from './modules/event/event.interfaces';
+import { IEvent, ServerEvents, SpammyEvents } from './modules/event/event.interfaces';
 import { Claim } from './modules/claim';
 import { ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 import { notifyDiscord } from './modules/event/discord';
 import { handleHardcoreGameOver } from './modules/event/event.service';
 import { getMetadata } from './modules/utils';
+import { cardService } from './modules/card';
+import { eventService } from './modules/event';
+import { Score } from './modules/score';
 
 async function checkIfIpIsReachableWithRetry(
   ip: string,
@@ -197,7 +200,10 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
   }
 
   if (!dungeon) {
-    logger.warn(`Could not find an available dungeon for ${playerName}`);
+    const metadata = getMetadata(claim.metadata);
+    const message = `Could not find an available dungeon for ${playerName} (run-type: ${metadata.get('run-type')}, queue-type: ${metadata.get('dungeon-type')}). Will retry in 5 seconds`;
+    logger.warn(message);
+    await notifyOps(message);
     return;
   }
 
@@ -446,6 +452,9 @@ export async function invalidateClaimAndNotify(claim: IClaimDoc, message: string
 
   const claimMetadata = getMetadata(claim.metadata);
 
+  // This generates 'item-refunded-<name>' events
+  await refundClaim(claim, claimMetadata);
+
   await notifyDiscord({
     name: ServerEvents.CLAIM_INVALIDATED,
     player: claim.player,
@@ -459,6 +468,146 @@ export async function invalidateClaimAndNotify(claim: IClaimDoc, message: string
     player: claim.player,
     server: '',
     metadata: claimMetadata,
+  });
+}
+
+// Refund spent items, shards, etc for a given run, if the run hasn't started yet
+// This generates 'item-refunded-<name>' events
+async function refundClaim(claim: IClaimDoc, metadata: Map<string, any>) {
+  await refundShardForClaim(claim, metadata);
+  await refundCardsAndItemsForClaim(claim, metadata);
+}
+
+async function refundShardForClaim(claim: IClaimDoc, metadata: Map<string, any>) {
+  const playerName = claim.player;
+  const runId = metadata.get('run-id');
+  const runType = metadata.get('run-type');
+  const startTime = metadata.get('start-time');
+
+  if (startTime) {
+    logger.warn(`${playerName}'s run ${runId} was started, refusing to refund their shard`);
+    return;
+  }
+
+  const updatedClaim = await Claim.updateOne(
+    {
+      _id: claim._id,
+      'metadata.shard-refund-processed': { $exists: false },
+    },
+    {
+      'metadata.shard-refund-processed': 'true',
+    }
+  ).exec();
+
+  if (!updatedClaim || updatedClaim.modifiedCount < 1) {
+    logger.warn(
+      `Claim ${claim._id} for ${playerName}'s run ${runId} has already had its shard refund processed, refusing to refund the shard again`
+    );
+    return;
+  }
+
+  logger.info(`Refunding shard (runType: ${runType}) for ${playerName}'s run ${runId}`);
+
+  const shardScoreboardKey = getShardScoreboardForRunType(runType);
+  // Increase scoreboard by one
+  await Score.updateOne({ player: playerName, key: shardScoreboardKey }, { $inc: { value: 1 } });
+
+  await createItemRefundedEvent(playerName, 'SHARD', metadata);
+  logger.info(`Refunded shard to ${playerName} (runType: ${runType})`);
+
+  await Task.create({
+    server: 'lobby',
+    type: 'update-inventory',
+    state: 'SCHEDULED',
+    targetPlayer: playerName,
+    sourceIP: '127.0.0.1',
+  });
+}
+
+function getShardScoreboardForRunType(runType: String | undefined) {
+  switch (runType) {
+    case 'c':
+      return 'do2.inventory.shards.competitive';
+    case 'p':
+      return 'do2.inventory.shards.practice';
+    case 'h':
+      return 'do2.inventory.shards.hardcore';
+    default:
+      return null;
+  }
+}
+
+async function refundCardsAndItemsForClaim(claim: IClaimDoc, metadata: Map<string, any>) {
+  const playerName = claim.player;
+  const eventNameFilterRegex = /^(card|item)-deleted-*/;
+  const runId = metadata.get('run-id');
+  const runType = metadata.get('run-type');
+  const startTime = metadata.get('start-time');
+
+  const events = await Event.find({
+    player: {
+      $in: [playerName, '@'],
+    },
+    name: eventNameFilterRegex,
+    'metadata.run-id': runId,
+  }).exec();
+
+  if (events.length > 0) {
+    const cardsToRefund = events.map((event: IEvent) => event.name.replace('card-deleted-', '').replace('item-deleted-', ''));
+    logger.info(`Cards to restore for ${playerName}'s run ${runId}: ${cardsToRefund}`);
+
+    if (startTime) {
+      logger.warn(`${playerName}'s run ${runId} was started, refusing to refund played cards`);
+      return;
+    }
+
+    const updatedClaim = await Claim.updateOne(
+      {
+        _id: claim._id,
+        'metadata.card-refunds-processed': { $exists: false },
+      },
+      {
+        'metadata.card-refunds-processed': 'true',
+      }
+    ).exec();
+
+    if (!updatedClaim || updatedClaim.modifiedCount < 1) {
+      logger.warn(
+        `Claim ${claim._id} for ${playerName}'s run ${runId} has already had its card refunds processed, refusing to refund cards again`
+      );
+      return;
+    }
+
+    logger.info(`Refunding ${cardsToRefund.length} cards for ${playerName}'s run ${runId}: ${cardsToRefund}`);
+    for (const cardName of cardsToRefund) {
+      await cardService.createCard({
+        name: cardName,
+        player: playerName,
+        server: 'refund',
+        deckType: runType,
+        hiddenInDecks: [],
+      });
+      logger.info(`Refunded ${cardName} to ${playerName} (runType: ${runType})`);
+
+      await createItemRefundedEvent(playerName, cardName, metadata);
+    }
+  }
+}
+
+async function createItemRefundedEvent(playerName: string, itemName: string, metadata: Map<string, string>) {
+  await eventService.createEvent({
+    name: `item-refunded-${itemName}`,
+    count: 1,
+
+    player: playerName,
+    x: 0,
+    y: 0,
+    z: 0,
+
+    server: 'dunga-dunga',
+    sourceIP: '127.0.0.1',
+
+    metadata,
   });
 }
 

@@ -51,7 +51,7 @@ export enum TradeEvents {
 }
 
 export interface IEvent {
-  name: PlayerEvents | ServerEvents | TradeEvents;
+  name: PlayerEvents | ServerEvents | TradeEvents | string;
   count: number;
 
   player: string;
