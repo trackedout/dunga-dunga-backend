@@ -59,7 +59,7 @@ export const updateCardById = async (cardId: mongoose.Types.ObjectId, updateBody
  * @returns {Promise<ICardDoc | null>}
  */
 export const deleteCard = async (filter: DeleteCard): Promise<ICardDoc | null> => {
-  const card = await Card.findOne(filter).exec();
+  const card = await Card.findOne(filter).sort({ 'hiddenInDecks.0': 1 }).exec(); // Delete non-hidden items first, if possible
   if (!card) {
     const filterString = JSON.stringify(filter);
     logger.error(`Card not found for filter ${filterString}`);
