@@ -20,7 +20,8 @@ import { Score } from '../score';
 import { getSelectedDeck } from '../card/card.controller';
 import { getEventMetadata } from '../utils';
 import { sendBugReportToDiscord } from './discordBugReporter';
-import { invalidateClaimAndNotify } from '../../worker';
+import { invalidateClaimAndNotify, tryMovePlayerToDungeon } from '../../worker';
+import { Config } from '../config';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -110,6 +111,10 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
 
       case PlayerEvents.BUG_REPORT:
         await sendBugReportToDiscord(eventBody);
+        break;
+
+      case ServerEvents.PREP_COMPLETE:
+        await movePlayerToServerIfNeeded(eventBody);
         break;
 
       case PlayerEvents.GAME_WON:
@@ -719,6 +724,29 @@ async function shutdownAllEmptyDungeons() {
       })
     )
   );
+}
+
+async function movePlayerToServerIfNeeded(eventBody: NewCreatedEvent) {
+  const playerName = eventBody.player;
+  const skipDoorConfig = await Config.findOne({
+    entity: playerName,
+    key: 'skip-door',
+  }).exec();
+  if (skipDoorConfig && skipDoorConfig.value === 'true') {
+    const message =
+      '<aqua>Your dungeon is ready! Sending you straight to your instance as you have the <gold>skip-door</gold> config enabled!';
+    await notifyPlayer(playerName, message);
+
+    const player = await Players.findOne({
+      playerName: playerName,
+    }).exec();
+    if (player) {
+      await tryMovePlayerToDungeon(player);
+    }
+  } else {
+    const message = '<aqua>Your dungeon is ready! Pass through the door to get teleported to your instance';
+    await notifyPlayer(playerName, message);
+  }
 }
 
 async function performTrade(eventBody: NewCreatedEvent) {

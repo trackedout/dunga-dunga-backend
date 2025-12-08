@@ -276,8 +276,7 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
     sourceIP: '127.0.0.1',
   });
 
-  const message = '<aqua>Your dungeon is ready! Pass through the door to get teleported to your instance';
-  await notifyPlayer(playerName, message);
+  // Player will be messaged when the 'preperation-completed' event is sent back to us
 }
 
 function isClaimSupportedByDungeon(dungeon: IInstanceDoc, claim: IClaimDoc) {
@@ -689,7 +688,7 @@ async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
   return dungeon;
 }
 
-async function tryMovePlayerToDungeon(player: IPlayerDoc) {
+export async function tryMovePlayerToDungeon(player: IPlayerDoc) {
   const { playerName } = player;
 
   if (!(await tryTakeLock('move-to-dungeon', playerName, 15))) {
