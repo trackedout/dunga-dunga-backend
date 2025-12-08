@@ -190,37 +190,17 @@ async function updatePlayerStateForCurrentServer(eventBody: NewCreatedEvent) {
   }
 }
 
+// Invalidate IN_USE / PENDING claims, and notify discord about it
 async function invalidateActiveClaimsForPlayer(playerName: string, reason: string) {
-  await invalidateInUseClaimsForPlayer(playerName, reason);
-  await invalidatePendingClaimsForPlayer(playerName, reason);
-}
-
-// Invalidate IN_USE claims, and notify discord about it
-async function invalidateInUseClaimsForPlayer(playerName: string, reason: string) {
   const claim = await Claim.findOne({
     player: playerName,
     type: ClaimTypes.DUNGEON,
-    state: ClaimStates.IN_USE,
+    state: { $in: [ClaimStates.PENDING, ClaimStates.IN_USE] },
   });
   if (claim) {
+    logger.warn(`Invalidated claim ${claim._id} with reason: ${reason}`);
     await invalidateClaimAndNotify(claim, reason);
   }
-}
-
-// Invalidate PENDING claims for the target player
-async function invalidatePendingClaimsForPlayer(playerName: string, reason: string) {
-  console.log(reason);
-  await Claim.updateMany(
-    {
-      player: playerName,
-      type: ClaimTypes.DUNGEON,
-      state: ClaimStates.PENDING,
-    },
-    {
-      state: ClaimStates.INVALID,
-      stateReason: reason,
-    }
-  );
 }
 
 // Just update player state and location based on current server, but don't invalidate claims
