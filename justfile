@@ -50,11 +50,11 @@ build-and-push-prod: build-prod-image push-prod-image
 
 # Build, push, and deploy to k3s cluster - dev
 dev-deploy: build-and-push-dev
-  k3s kubectl patch deployment -n davybones dunga-dunga -p '{"spec":{"template":{"spec":{"containers":[{"name":"dunga-dunga","image": "{{registry_dev}}:dev", "imagePullPolicy":"Always"}]}}}}'
-  k3s kubectl rollout restart -n davybones deployment/dunga-dunga
+  k3s kubectl --context=burn patch deployment -n davybones dunga-dunga -p '{"spec":{"template":{"spec":{"containers":[{"name":"dunga-dunga","image": "{{registry_dev}}:dev", "imagePullPolicy":"Always"}]}}}}'
+  k3s kubectl --context=burn rollout restart -n davybones deployment/dunga-dunga
 
 # Build, push, and deploy to k3s cluster - prod
-prod-deploy: build-and-push-prod
-  k3s kubectl patch deployment -n davybones dunga-dunga -p '{"spec":{"template":{"spec":{"containers":[{"name":"dunga-dunga","image": "{{registry_prod}}:latest", "imagePullPolicy":"Always"}]}}}}'
-  k3s kubectl rollout restart -n davybones deployment/dunga-dunga
+# prod-deploy: build-and-push-prod
+#   k3s kubectl patch deployment -n davybones dunga-dunga -p '{"spec":{"template":{"spec":{"containers":[{"name":"dunga-dunga","image": "{{registry_prod}}:latest", "imagePullPolicy":"Always"}]}}}}'
+#   k3s kubectl rollout restart -n davybones deployment/dunga-dunga
 

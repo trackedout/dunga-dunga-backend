@@ -33,10 +33,10 @@ export default router;
  *     tags: [Config]
  *     parameters:
  *       - in: query
- *         name: server
+ *         name: entity
  *         schema:
  *           type: string
- *         description: Server
+ *         description: entity
  *       - in: query
  *         name: key
  *         schema:
@@ -48,24 +48,7 @@ export default router;
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 results:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Config'
- *                 page:
- *                   type: integer
- *                   example: 1
- *                 limit:
- *                   type: integer
- *                   example: 10
- *                 totalPages:
- *                   type: integer
- *                   example: 1
- *                 totalResults:
- *                   type: integer
- *                   example: 1
+ *               $ref: '#/components/schemas/Config'
  *       "404":
  *         $ref: '#/components/responses/NotFound'
  */
@@ -75,7 +58,7 @@ export default router;
  * /configs/add-config:
  *   post:
  *     summary: Add a config
- *     description: Add a config for a server
+ *     description: Add a config for an entity
  *     tags: [Config]
  *     requestBody:
  *       required: true
@@ -89,7 +72,7 @@ export default router;
  *         content:
  *           application/json:
  *             schema:
- *                $ref: '#/components/schemas/Config'
+ *               $ref: '#/components/schemas/Config'
  */
 
 /**
@@ -101,10 +84,10 @@ export default router;
  *     tags: [Config]
  *     parameters:
  *       - in: query
- *         name: server
+ *         name: entity
  *         schema:
  *           type: string
- *         description: Server
+ *         description: Entity (server, player, run-type)
  *       - in: query
  *         name: sortBy
  *         schema:
@@ -140,7 +123,24 @@ export default router;
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Config'
+ *               type: object
+ *               properties:
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Config'
+ *                 page:
+ *                   type: integer
+ *                   example: 1
+ *                 limit:
+ *                   type: integer
+ *                   example: 10
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 1
+ *                 totalResults:
+ *                   type: integer
+ *                   example: 1
  */
 
 /**

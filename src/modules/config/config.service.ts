@@ -10,11 +10,11 @@ export const createConfigs = async (configs: NewCreatedConfig[]): Promise<IConfi
   if (configs.length === 0) {
     return [];
   }
-  const serverName = configs[0]!!.server;
+  const entityName = configs[0]!!.entity;
 
   // First find existing configs, then log an event showing the config diff (config-modified)
   const existingConfigs = await Config.find({
-    server: serverName,
+    entity: entityName,
     key: configs.map((s) => s.key),
   });
 
@@ -32,7 +32,7 @@ export const createConfigs = async (configs: NewCreatedConfig[]): Promise<IConfi
   }
 
   await Config.deleteMany({
-    server: serverName,
+    entity: entityName,
     key: configs.map((s) => s.key),
   });
 
@@ -48,7 +48,7 @@ export const getConfigById = async (id: mongoose.Types.ObjectId): Promise<IConfi
 export const getConfig = async (filter: GetConfig): Promise<IConfigDoc | null> => {
   const config = await Config.findOne(filter).exec();
   if (!config) {
-    throw new ApiError(httpStatus.NOT_FOUND, `Config not found for filter ${filter}`);
+    throw new ApiError(httpStatus.NOT_FOUND, `Config not found for filter ${JSON.stringify(filter)}`);
   }
   return config;
 };

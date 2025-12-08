@@ -9,7 +9,7 @@ import * as configService from './config.service';
 
 export const createConfig = catchAsync(async (req: Request, res: Response) => {
   const config = await configService.createConfigs([req.body]);
-  res.status(httpStatus.CREATED).send(config);
+  res.status(httpStatus.CREATED).send(config[0]);
 });
 
 export const createConfigs = catchAsync(async (req: Request, res: Response) => {
@@ -18,7 +18,11 @@ export const createConfigs = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getConfigs = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.query, ['server']);
+  const filter = pick(req.query, ['entity', 'server']);
+  if (!filter.entity && filter.server) {
+    filter.entity = filter.server;
+    delete filter.server;
+  }
 
   const options: IOptions = pick(req.query, ['sortBy', 'limit', 'page', 'projectBy']);
   const result = await configService.queryConfigs(filter, options);
@@ -26,10 +30,15 @@ export const getConfigs = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getConfig = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.query, ['id', 'server', 'key']);
+  const filter = pick(req.query, ['id', 'entity', 'server', 'key']);
+  if (!filter.entity && filter.server) {
+    filter.entity = filter.server;
+    delete filter.server;
+  }
+
   const config = await configService.getConfig(filter);
   if (!config) {
-    throw new ApiError(httpStatus.NOT_FOUND, `Config not found for filter ${filter}`);
+    throw new ApiError(httpStatus.NOT_FOUND, `Config not found for filter ${JSON.stringify(filter)}`);
   }
   res.send(config);
 });

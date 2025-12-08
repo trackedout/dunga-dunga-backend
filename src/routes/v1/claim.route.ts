@@ -43,7 +43,7 @@ export default router;
  *         content:
  *           application/json:
  *             schema:
- *                $ref: '#/components/schemas/Claim'
+ *               $ref: '#/components/schemas/Claim'
  *       "403":
  *         $ref: '#/components/responses/Forbidden'
  */

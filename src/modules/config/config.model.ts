@@ -5,7 +5,7 @@ import { IConfigDoc, IConfigModel } from './config.interfaces';
 
 const configSchema = new mongoose.Schema<IConfigDoc, IConfigModel>(
   {
-    server: {
+    entity: {
       type: String,
       required: true,
       trim: true,
@@ -33,8 +33,8 @@ const configSchema = new mongoose.Schema<IConfigDoc, IConfigModel>(
   }
 );
 
-configSchema.index({ player: 1, key: 1 });
-configSchema.index({ player: 1, key: 1, value: 1 });
+configSchema.index({ entity: 1, key: 1 });
+configSchema.index({ entity: 1, key: 1, value: 1 });
 configSchema.index({ key: 1, value: 1 });
 
 // add plugin that converts mongoose to json

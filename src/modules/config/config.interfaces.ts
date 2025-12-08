@@ -2,7 +2,7 @@ import { Model, Document } from 'mongoose';
 import { QueryResult } from '../paginate/paginate';
 
 export interface IConfig {
-  server: string;
+  entity: string;
   key: string;
   value: string;
   metadata: Map<string, string>;
@@ -18,6 +18,6 @@ export type UpdateConfigBody = Partial<IConfig>;
 
 export type NewCreatedConfig = Required<IConfig>;
 
-export type GetConfig = Required<Pick<IConfig, 'server' | 'key'>>;
+export type GetConfig = Required<Pick<IConfig, 'entity' | 'key'>>;
 
-export type DeleteConfig = Pick<IConfig, 'server' | 'key' | 'value'>;
+export type DeleteConfig = Pick<IConfig, 'entity' | 'key' | 'value'>;

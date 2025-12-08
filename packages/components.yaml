@@ -128,18 +128,18 @@ components:
       properties:
         id:
           type: string
-        server:
+        entity:
           type: string
         key:
           type: string
         value:
-          type: number
+          type: string
         metadata:
           type: object
           additionalProperties:
             type: string
       example:
-        server: d800
+        entity: d800
         key: dungeon-type
         value: season-2
 
