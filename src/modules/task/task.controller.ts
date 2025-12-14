@@ -6,8 +6,10 @@ import ApiError from '../errors/ApiError';
 import pick from '../utils/pick';
 import { IOptions } from '../paginate/paginate';
 import * as taskService from './task.service';
+import { logger } from '../logger';
 
 export const createTask = catchAsync(async (req: Request, res: Response) => {
+  logger.debug(`Task: ${JSON.stringify(req.body, null, 4)}`);
   const task = await taskService.createTask({
     ...req.body,
     sourceIP: req.ip?.split(':').slice(-1)[0],

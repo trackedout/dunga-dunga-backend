@@ -25,4 +25,26 @@ function notifyPlayer(playerName: string, ...messages: string[]) {
   });
 }
 
+export function sendTitle(playerName: string, title: string, subtitle: string = '') {
+  return Task.create({
+    server: 'lobby', // Only Citadel listens for this task
+    type: 'send-title',
+    state: 'SCHEDULED',
+    targetPlayer: playerName,
+    arguments: [title, subtitle],
+    sourceIP: '127.0.0.1',
+  });
+}
+
+export function playSound(playerName: string, sound: string) {
+  return Task.create({
+    server: 'lobby', // Only Citadel listens for this task
+    type: 'play-sound',
+    state: 'SCHEDULED',
+    targetPlayer: playerName,
+    arguments: [sound],
+    sourceIP: '127.0.0.1',
+  });
+}
+
 export { taskController, taskInterfaces, Task, taskService, taskValidation, notifyOps, notifyPlayer };

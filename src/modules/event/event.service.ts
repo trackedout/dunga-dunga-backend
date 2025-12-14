@@ -9,7 +9,7 @@ import { IEventDoc, NewCreatedEvent, PlayerEvents, ServerEvents, TradeEvents, Up
 import { IPlayer, QueueStates } from './player.interfaces';
 import Task from '../task/task.model';
 import { logger } from '../logger';
-import { notifyOps, notifyPlayer } from '../task';
+import { notifyOps, notifyPlayer, sendTitle, playSound } from '../task';
 import { InstanceStates } from './instance.interfaces';
 import { Card } from '../card';
 import { Claim } from '../claim';
@@ -732,6 +732,7 @@ async function movePlayerToServerIfNeeded(eventBody: NewCreatedEvent) {
     entity: playerName,
     key: 'skip-door',
   }).exec();
+
   if (skipDoorConfig && skipDoorConfig.value === 'true') {
     const message =
       '<aqua>Your dungeon is ready! Sending you straight to your instance as you have the <gold>skip-door</gold> config enabled!';
@@ -744,8 +745,11 @@ async function movePlayerToServerIfNeeded(eventBody: NewCreatedEvent) {
       await tryMovePlayerToDungeon(player);
     }
   } else {
-    const message = '<aqua>Your dungeon is ready! Pass through the door to get teleported to your instance';
+    const message = '<aqua>Your dungeon is ready! Pass through the door to get sent to your instance';
     await notifyPlayer(playerName, message);
+
+    await sendTitle(playerName, 'Your dungeon is ready!', 'Good luck');
+    await playSound(playerName, 'do2:events.dungeon_is_ready');
   }
 }
 
