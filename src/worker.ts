@@ -829,17 +829,46 @@ async function closeDoor() {
 }
 
 async function updateDoorState() {
-  const players = await Player.find({
-    state: [QueueStates.IN_TRANSIT_TO_DUNGEON],
-    lastSeen: {
-      // Seen in the last minute
-      $gte: new Date(Date.now() - 1000 * 60),
+  const players = await Player.aggregate([
+    {
+      $match: {
+        state: QueueStates.IN_TRANSIT_TO_DUNGEON,
+        lastSeen: {
+          $gte: new Date(Date.now() - 1000 * 60), // Seen in the last minute
+        },
+      },
     },
-  });
+    {
+      $lookup: {
+        from: 'configs',
+        localField: 'playerName',
+        foreignField: 'entity',
+        as: 'config',
+      },
+    },
+    {
+      $addFields: {
+        skipDoor: {
+          $anyElementTrue: {
+            $map: {
+              input: '$config',
+              as: 'conf',
+              in: {
+                $and: [{ $eq: ['$$conf.key', 'skip-door'] }, { $eq: ['$$conf.value', 'true'] }],
+              },
+            },
+          },
+        },
+      },
+    },
+    {
+      $match: { skipDoor: { $ne: true } }, // Include players where skip-door is unset or false
+    },
+  ]);
 
   if (players.length > 0) {
     // There's at least one player in the queue. Open the door.
-    logger.info(`Found ${players.length} players in queue. Opening dungeon door`);
+    logger.info(`Found ${players.length} players in transit to their dungeon. Opening dungeon door`);
     await openDoor();
   } else {
     // Nobody is in the queue. Close the door.
