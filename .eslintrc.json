@@ -3,7 +3,7 @@
     "node": true
   },
   "extends": ["airbnb-base", "plugin:security/recommended", "plugin:prettier/recommended"],
-  "plugins": ["security", "prettier"],
+  "plugins": ["security", "prettier", "unused-imports", "simple-import-sort", "import"],
   "parserOptions": {
     "ecmaVersion": 2018
   },
@@ -14,13 +14,25 @@
     "consistent-return": "off",
     "security/detect-object-injection": "off",
     "no-use-before-define": "off",
-    "@typescript-eslint/no-use-before-define": "off"
+    "@typescript-eslint/no-use-before-define": "off",
+    "unused-imports/no-unused-imports": "error",
+    "unused-imports/no-unused-vars": [
+      "warn",
+      {
+        "vars": "all",
+        "varsIgnorePattern": "^_",
+        "args": "after-used",
+        "argsIgnorePattern": "^_"
+      }
+    ],
+    "simple-import-sort/imports": "error",
+    "simple-import-sort/exports": "error"
   },
   "overrides": [
     {
-      "files":["src/**/*.ts"],
+      "files": ["src/**/*.ts"],
       "extends": ["airbnb-base", "airbnb-typescript/base", "plugin:prettier/recommended"],
-      "plugins": ["@typescript-eslint", "prettier"],
+      "plugins": ["@typescript-eslint", "prettier", "unused-imports", "simple-import-sort", "import"],
       "parser": "@typescript-eslint/parser",
       "parserOptions": {
         "ecmaVersion": 2018,
@@ -32,7 +44,19 @@
         "no-underscore-dangle": "off",
         "consistent-return": "off",
         "no-use-before-define": "off",
-        "@typescript-eslint/no-use-before-define": "off"
+        "@typescript-eslint/no-use-before-define": "off",
+        "unused-imports/no-unused-imports": "error",
+        "unused-imports/no-unused-vars": [
+          "warn",
+          {
+            "vars": "all",
+            "varsIgnorePattern": "^_",
+            "args": "after-used",
+            "argsIgnorePattern": "^_"
+          }
+        ],
+        "simple-import-sort/imports": "error",
+        "simple-import-sort/exports": "error"
       }
     }
   ]

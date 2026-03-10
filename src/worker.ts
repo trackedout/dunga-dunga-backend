@@ -98,7 +98,7 @@ async function movePlayerToDungeon(player: IPlayerDoc, lobbyServer: string, targ
   }
 
   // Prevent automatic teleportation attempts for 15 seconds
-  await takeLock('move-to-dungeon', playerName, 15);
+  await takeLock('move-to-dungeon', `${targetServer}/${playerName}`, 15);
 
   // We can also move the player immediately, but we may disable this in the future
   await Task.create({
@@ -118,7 +118,9 @@ async function degradeDungeon(dungeon: IInstanceDoc) {
   dungeonRebuildCutoffDate.setMinutes(dungeonRebuildCutoffDate.getMinutes() - 5);
 
   if (dungeon.unhealthySince <= dungeonRebuildCutoffDate) {
-    logger.warn(`Dungeon ${dungeon.name} at ${dungeon.ip} has been unhealthy for 5 minutes. Removing it from the pool`);
+    const message = `Dungeon ${dungeon.name} at ${dungeon.ip} has been unhealthy for 5 minutes. Removing it from the pool`;
+    logger.warn(message);
+    await notifyOps(message);
     await dungeon.deleteOne();
   } else {
     // Mark the dungeon as unreachable
@@ -689,16 +691,18 @@ async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
 }
 
 export async function tryMovePlayerToDungeon(player: IPlayerDoc) {
-  const { playerName } = player;
+  const { playerName, activeClaimId } = player;
 
-  if (!(await tryTakeLock('move-to-dungeon', playerName, 15))) {
+  if (!(await tryTakeLock('move-to-dungeon', `${playerName}/${activeClaimId}`, 15))) {
     return null;
   }
 
+  // TODO: Match against the player's current claim in case multiple dungeons are still waiting for them
   const dungeonInstance = await DungeonInstance.findOne({
     state: InstanceStates.RESERVED,
     reservedBy: playerName,
     requiresRebuild: false,
+    claimId: activeClaimId,
     reservedDate: {
       // Reserved in the last 4min 45s
       $gte: new Date(Date.now() - 1000 * 60 * 4.5),

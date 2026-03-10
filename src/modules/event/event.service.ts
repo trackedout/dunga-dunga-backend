@@ -147,7 +147,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
   await ensureDeckIsSeeded(eventBody.player, 'c1');
 
   await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.practice', 32);
-  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.competitive', 21);
+  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.competitive', 10);
   await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.filter-mode-id', 1); // run-mode
 }
 
@@ -454,7 +454,7 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
   }).exec();
 
   if (existingInstance) {
-    // Delete any other copies that are not the one we found above
+    // Delete all dungeons that have either this name or this IP, except for the dungeon that matches this dungeon's document ID
     await deleteDungeons(eventBody.server, eventBody.sourceIP, existingInstance._id);
 
     // Update instance
@@ -478,9 +478,12 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       existingInstance.requiresRebuild !== update.requiresRebuild ||
       existingInstance.activePlayers !== update.activePlayers;
     if (anUpdateOccurred) {
-      await notifyOps(`Updated ${eventBody.server}: state=${update.state} activePlayers=${update.activePlayers}`);
+      const message = `Updated ${eventBody.server}: state=${update.state} activePlayers=${update.activePlayers}`;
+      logger.info(message);
+      await notifyOps(message);
     }
   } else {
+    // Delete all dungeons that have either this name or this IP
     await deleteDungeons(eventBody.server, eventBody.sourceIP);
 
     // Register the dungeon as a new instance
@@ -497,7 +500,9 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       healthySince: null,
     });
 
-    await notifyOps(`Registered new dungeon: ${eventBody.server}@${eventBody.sourceIP}`);
+    const message = `Registered new dungeon: ${eventBody.server}@${eventBody.sourceIP}`;
+    logger.info(message);
+    await notifyOps(message);
   }
 }
 

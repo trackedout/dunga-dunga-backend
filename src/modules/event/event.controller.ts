@@ -10,12 +10,16 @@ import config from '../../config/config';
 import { logger } from '../logger';
 
 export const createEvent = catchAsync(async (req: Request, res: Response) => {
-  const sourceIP = config.env === 'development' ? req.body.sourceIP : null;
+  var sourceIP = config.env === 'development' ? req.body.sourceIP : null;
+  sourceIP = sourceIP || req.ip?.split(':').slice(-1)[0];
+  if (req.body.server?.startsWith('d7')) {
+    sourceIP = `${req.body.server}-ecs`;
+  }
 
   logger.debug(`Event: ${JSON.stringify(req.body, null, 4)}`);
   const event = await eventService.createEvent({
     ...req.body,
-    sourceIP: sourceIP || req.ip?.split(':').slice(-1)[0],
+    sourceIP: sourceIP,
   });
   res.status(httpStatus.CREATED).send(event);
 });
