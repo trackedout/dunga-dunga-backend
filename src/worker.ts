@@ -193,6 +193,19 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
     },
   }).sort({ healthySince: 1 });
 
+  // Prioritize d7xx over d8xx
+  dungeons.sort((a, b) => {
+    const aType = a.name.startsWith('d7') ? 7 : 8;
+    const bType = b.name.startsWith('d7') ? 7 : 8;
+
+    if (aType !== bType) {
+      return aType - bType; // 7 comes before 8
+    }
+
+    // If they are the same type, they are already sorted by healthySince from the query
+    return 0;
+  });
+
   let dungeon: IInstanceDoc | null = null;
   for (let availableDungeon of dungeons) {
     if (isClaimSupportedByDungeon(availableDungeon, claim)) {
@@ -205,7 +218,18 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
     const metadata = getMetadata(claim.metadata);
     const message = `Could not find an available dungeon for ${playerName} (run-type: ${metadata.get('run-type')}, queue-type: ${metadata.get('dungeon-type')}). Will retry in 5 seconds`;
     logger.warn(message);
-    await notifyOps(message);
+
+    // Don't spam operators
+    if (
+      await tryTakeLock(
+        'find-dungeon',
+        `${playerName}/run-type-${metadata.get('run-type')}/dungeon-type-${metadata.get('dungeon-type')}`,
+        60
+      )
+    ) {
+      await notifyOps(message);
+    }
+
     return;
   }
 
