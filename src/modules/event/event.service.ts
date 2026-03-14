@@ -76,6 +76,11 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         await createDungeonInstanceRecordIfMissing(eventBody);
         break;
 
+      case ServerEvents.SERVER_BOOTSTRAPPING:
+        // Reset DB record, point at non-routable address until the server actually starts up
+        await createDungeonInstanceRecordIfMissing({ ...eventBody, sourceIP: `${eventBody.server}-bootstrap` });
+        break;
+
       case ServerEvents.SERVER_CLOSING:
         await markDungeonAsStale(eventBody);
         break;
@@ -466,9 +471,14 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
       claimFilters: {
         [ClaimFilters.DUNGEON_TYPE]: dungeonType,
       },
+      unhealthySince: existingInstance.unhealthySince,
     };
     if (eventBody.count > 0) {
       update.state = InstanceStates.IN_USE;
+    }
+
+    if (eventBody.name === ServerEvents.SERVER_BOOTSTRAPPING) {
+      update.unhealthySince = new Date();
     }
 
     await existingInstance.updateOne(update).exec();

@@ -29,6 +29,7 @@ export enum PlayerEvents {
 export enum ServerEvents {
   PROXY_PING = 'proxy-ping',
   SERVER_ONLINE = 'server-online',
+  SERVER_BOOTSTRAPPING = 'server-bootstrapping', // Dungeon is starting up, fires this even before pulling snapshot
   PREP_COMPLETE = 'preparation-complete', // Dungeon has prepared for claim (and reloaded datapack)
   SERVER_CLOSING = 'server-closing',
   SPAM_20_TICKS = 'spam-20-ticks',
