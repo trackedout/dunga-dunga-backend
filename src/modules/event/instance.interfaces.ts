@@ -12,8 +12,8 @@ export interface IInstance {
   reservedDate: Date;
   activePlayers: number;
   requiresRebuild: boolean;
-  healthySince: Date;
-  unhealthySince: Date;
+  healthySince: Date | null;
+  unhealthySince: Date | null;
 }
 
 export enum InstanceStates {
@@ -27,6 +27,7 @@ export enum InstanceStates {
 
 export interface IInstanceDoc extends IInstance, Document {
   _id: Types.ObjectId;
+  id: string;
 }
 
 export interface IInstanceModel extends Model<IInstanceDoc> {

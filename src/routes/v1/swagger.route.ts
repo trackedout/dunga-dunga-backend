@@ -10,12 +10,14 @@ const specs = swaggerJsdoc({
   apis: ['packages/components.yaml', 'dist/routes/v1/*.js'],
 });
 
-router.use('/', swaggerUi.serve);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+router.use('/', ...(swaggerUi.serve as any[]));
 router.get(
   '/',
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   swaggerUi.setup(specs, {
     explorer: true,
-  })
+  }) as any
 );
 router.get('/swagger.json', (_, res) => res.json(specs));
 

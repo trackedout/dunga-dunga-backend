@@ -54,6 +54,7 @@ export enum ClaimFilters {
 }
 
 export interface IClaimDoc extends IClaim, Document {
+  id: string;
   createdAt: Date;
   updatedAt: Date;
 }

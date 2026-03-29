@@ -1,6 +1,6 @@
 import express, { Express } from 'express';
 import helmet from 'helmet';
-import xss from 'xss-clean';
+import { inHTMLData } from 'xss-filters';
 import ExpressMongoSanitize from 'express-mongo-sanitize';
 import compression from 'compression';
 import cors from 'cors';
@@ -25,7 +25,7 @@ app.use(helmet());
 
 // enable cors
 app.use(cors());
-app.options('*', cors());
+app.options('/{*path}', cors());
 
 // parse json request body
 app.use(express.json());
@@ -34,11 +34,35 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // sanitize request data
-app.use(xss());
-app.use(ExpressMongoSanitize());
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// xss sanitization (replacement for xss-clean which is incompatible with Express 5)
+const xssClean = (obj: unknown): unknown => {
+  if (typeof obj === 'string') return inHTMLData(obj).trim();
+  if (Array.isArray(obj)) return obj.map(xssClean);
+  if (obj && typeof obj === 'object') {
+    return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, xssClean(v)]));
+  }
+  return obj;
+};
+app.use((req, _res, next) => {
+  if (req.body) req.body = xssClean(req.body);
+  if (req.params) req.params = xssClean(req.params) as Record<string, string>;
+  Object.assign(req.query, xssClean({ ...req.query }));
+  next();
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// express-mongo-sanitize is incompatible with Express 5 (direct req.query assignment)
+app.use((req, _res, next) => {
+  if (req.body) req.body = ExpressMongoSanitize.sanitize(req.body);
+  if (req.params) req.params = ExpressMongoSanitize.sanitize(req.params);
+  Object.assign(req.query, ExpressMongoSanitize.sanitize({ ...req.query }));
+  next();
+});
 
 // gzip compression
-app.use(compression());
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.use(compression() as any);
 
 // limit repeated failed requests to auth endpoints
 if (config.env === 'production') {

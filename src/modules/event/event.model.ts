@@ -73,12 +73,10 @@ eventSchema.index({ 'metadata.run-id': 1, 'metadata.run-type': 1, name: 1 });
 eventSchema.index({ name: 1, server: 1, createdAt: 1 });
 
 // add plugin that converts mongoose to json
-eventSchema.plugin(toJSON);
-eventSchema.plugin(paginate);
-
-eventSchema.pre('save', async function (next) {
-  next();
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+eventSchema.plugin(toJSON as any);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+eventSchema.plugin(paginate as any);
 
 const Event = mongoose.model<IEventDoc, IEventModel>('Event', eventSchema);
 

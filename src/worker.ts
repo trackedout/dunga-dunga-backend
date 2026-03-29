@@ -117,7 +117,7 @@ async function degradeDungeon(dungeon: IInstanceDoc) {
   // Dungeons have 5 minutes to rebuild before we drop them from the DB
   dungeonRebuildCutoffDate.setMinutes(dungeonRebuildCutoffDate.getMinutes() - 5);
 
-  if (dungeon.unhealthySince <= dungeonRebuildCutoffDate) {
+  if (dungeon.unhealthySince && dungeon.unhealthySince <= dungeonRebuildCutoffDate) {
     const message = `Dungeon ${dungeon.name} at ${dungeon.ip} has been unhealthy for 5 minutes. Removing it from the pool`;
     logger.warn(message);
     await notifyOps(message);
@@ -385,7 +385,7 @@ async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
       .updateOne({
         state: InstanceStates.BUILDING,
         reservedBy: null,
-        reservationDate: null,
+        reservedDate: null,
         claimId: null,
       })
       .exec();
@@ -655,7 +655,7 @@ async function releaseDungeonLeaseForPlayer(playerName: string) {
       .updateOne({
         state: InstanceStates.BUILDING,
         reservedBy: null,
-        reservationDate: null,
+        reservedDate: null,
       })
       .exec();
 
@@ -1007,7 +1007,7 @@ export async function mergeMetadataOntoEvents() {
 
       try {
         const claim = await Claim.findOne({ 'metadata.run-id': runId }).lean().exec();
-        const claimMeta = claim?.metadata ?? {};
+        const claimMeta: Record<string, string> = claim?.metadata ? Object.fromEntries(Object.entries(claim.metadata)) : {};
         if (!claimMeta['run-type']) claimMeta['run-type'] = 'unknown';
         // Just use the first character (p / c / u)
         claimMeta['run-type'] = '' + claimMeta['run-type'][0];

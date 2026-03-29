@@ -3,7 +3,7 @@
     {
       "name": "worker",
       "script": "dist/worker-runner.js",
-      "node_args": "--experimental-modules --es-module-specifier-resolution=node",
+      "node_args": "",
       "instances": 1,
       "autorestart": true,
       "watch": false,
@@ -18,7 +18,7 @@
     {
       "name": "app",
       "script": "dist/index.js",
-      "node_args": "--experimental-modules --es-module-specifier-resolution=node",
+      "node_args": "",
       "instances": 2,
       "autorestart": true,
       "watch": false,
