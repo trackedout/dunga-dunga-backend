@@ -55,10 +55,6 @@ taskSchema.index({ createdAt: 1 });
 taskSchema.plugin(toJSON);
 taskSchema.plugin(paginate);
 
-taskSchema.pre('save', async function (next) {
-  next();
-});
-
 const Task = mongoose.model<ITaskDoc, ITaskModel>('Task', taskSchema);
 
 export default Task;

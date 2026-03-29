@@ -73,10 +73,6 @@ playerSchema.index({ lastSeen: 1 });
 playerSchema.plugin(toJSON);
 playerSchema.plugin(paginate);
 
-playerSchema.pre('save', async function (next) {
-  next();
-});
-
 const Player = mongoose.model<IPlayerDoc, IPlayerModel>('Player', playerSchema);
 
 export default Player;

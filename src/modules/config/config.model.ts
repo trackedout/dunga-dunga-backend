@@ -41,10 +41,6 @@ configSchema.index({ key: 1, value: 1 });
 configSchema.plugin(toJSON);
 configSchema.plugin(paginate);
 
-configSchema.pre('save', async function (next) {
-  next();
-});
-
 const Config = mongoose.model<IConfigDoc, IConfigModel>('Config', configSchema);
 
 export default Config;

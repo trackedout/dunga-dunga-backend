@@ -32,10 +32,6 @@ const lockSchema = new mongoose.Schema<ILockDoc, ILockModel>(
 lockSchema.plugin(toJSON);
 lockSchema.plugin(paginate);
 
-lockSchema.pre('save', async function (next) {
-  next();
-});
-
 const Lock = mongoose.model<ILockDoc, ILockModel>('Lock', lockSchema);
 
 export default Lock;

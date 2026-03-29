@@ -41,10 +41,6 @@ scoreSchema.index({ key: 1, value: 1 });
 scoreSchema.plugin(toJSON);
 scoreSchema.plugin(paginate);
 
-scoreSchema.pre('save', async function (next) {
-  next();
-});
-
 const Score = mongoose.model<IScoreDoc, IScoreModel>('Score', scoreSchema);
 
 export default Score;

@@ -51,10 +51,6 @@ claimSchema.index({ "metadata.run-id": 1 });
 claimSchema.plugin(toJSON);
 claimSchema.plugin(paginate);
 
-claimSchema.pre('save', async function (next) {
-  next();
-});
-
 const Claim = mongoose.model<IClaimDoc, IClaimModel>('Claim', claimSchema);
 
 export default Claim;

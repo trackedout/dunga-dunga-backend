@@ -264,16 +264,16 @@ function getNewStateBasedOnPlayerLocation(player: IPlayer, server: String) {
 }
 
 async function ensureDeckIsSeeded(playerName: string, deckId: string) {
-  if (!(await Card.findOne({ player: playerName, deckType: deckId[0] }).exec())) {
+  if (!(await Card.findOne({ player: playerName, deckType: deckId[0]! }).exec())) {
     logger.warn(`${playerName} has no cards in ${deckId}, adding initial cards`);
     await addDefaultCards(playerName, deckId);
   }
 }
 
 async function addDefaultCards(playerName: string, deckId: string) {
-  await Card.create({ name: 'MOC', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
-  await Card.create({ name: 'SNE', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
-  await Card.create({ name: 'TRH', player: playerName, server: 'lobby', deckId: deckId, deckType: deckId[0] });
+  await Card.create({ name: 'MOC', player: playerName, server: 'lobby', deckType: deckId[0]! });
+  await Card.create({ name: 'SNE', player: playerName, server: 'lobby', deckType: deckId[0]! });
+  await Card.create({ name: 'TRH', player: playerName, server: 'lobby', deckType: deckId[0]! });
 }
 
 async function resetScoreboard(playerName: string, key: string, value: number) {

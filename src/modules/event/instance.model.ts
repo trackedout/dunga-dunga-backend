@@ -73,10 +73,6 @@ instanceSchema.index({ 'metadata.run-id': 1, name: 1 });
 instanceSchema.plugin(toJSON);
 instanceSchema.plugin(paginate);
 
-instanceSchema.pre('save', async function (next) {
-  next();
-});
-
 const DungeonInstance = mongoose.model<IInstanceDoc, IInstanceModel>('Instance', instanceSchema);
 
 export default DungeonInstance;

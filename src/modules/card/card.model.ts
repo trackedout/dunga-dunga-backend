@@ -44,10 +44,6 @@ cardSchema.index({ player: 1, deckType: 1, hiddenInDecks: 1 });
 cardSchema.plugin(toJSON);
 cardSchema.plugin(paginate);
 
-cardSchema.pre('save', async function (next) {
-  next();
-});
-
 const Card = mongoose.model<ICardDoc, ICardModel>('Card', cardSchema);
 
 export default Card;

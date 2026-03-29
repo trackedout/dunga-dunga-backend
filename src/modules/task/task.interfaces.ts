@@ -13,7 +13,7 @@ export interface ITask {
 
 export interface ITaskDoc extends ITask, Document {
   processingFailed: boolean;
-  error: Error;
+  error: string;
 }
 
 export interface ITaskModel extends Model<ITaskDoc> {
