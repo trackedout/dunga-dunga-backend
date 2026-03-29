@@ -16,7 +16,7 @@ export const createEvent = catchAsync(async (req: Request, res: Response) => {
     sourceIP = `${req.body.server}-ecs`;
   }
 
-  logger.debug(`Event: ${JSON.stringify(req.body, null, 4)}`);
+  logger.debug(`Event: ${JSON.stringify(req.body)}`);
   const event = await eventService.createEvent({
     ...req.body,
     sourceIP: sourceIP,
