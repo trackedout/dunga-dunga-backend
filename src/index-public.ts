@@ -7,8 +7,8 @@ let server: any;
 
 mongoose.connect(config.mongoose.url).then(() => {
   logger.info('Connected to MongoDB');
-  server = app.listen(config.port, () => {
-    logger.info(`ember-feed public API listening on port ${config.port}`);
+  server = app.listen(config.publicPort, () => {
+    logger.info(`ember-feed public API listening on port ${config.publicPort}`);
   });
 });
 

@@ -31,7 +31,7 @@ Import from `../utils`:
 
 | Task | Command |
 |------|---------|
-| Type check | `npx tsc --noEmit` |
+| Type check | `yarn run compile` |
 | Lint | `yarn lint` |
 | Dev (watch) | `yarn dev:watch` |
 
@@ -59,6 +59,20 @@ Key indexes on `events`: `name`, `createdAt`, `metadata.run-id`, `metadata.run-t
 Key index on `claims`: `metadata.run-id`.
 
 Collections marked ignore in the frontend AGENTS.md (cardsBackup, configs, instances, etc.) are legacy/internal — do not query them.
+
+## Public API (`app-public.ts`)
+
+`src/app-public.ts` is a separate Express app exposed to the open internet (currently serves `/v1/feed`). It has stricter security than the internal `app.ts`:
+
+- **CORS**: locked to origins in `PUBLIC_CORS_ORIGINS` env var (comma-separated). If unset, CORS is disabled. Only `GET` is allowed.
+- **Rate limit**: 30 req/min per IP (vs 60 in the internal app).
+- **Body size**: capped at `10kb`.
+- **XSS sanitization**: query params are sanitized via `xss-filters`.
+- **MongoDB operator injection**: query params are sanitized via `express-mongo-sanitize`.
+
+When adding new routes to `app-public.ts`, maintain all of the above. Do not relax the rate limit or open CORS without explicit approval.
+
+Set `PUBLIC_CORS_ORIGINS=https://trackedout.org,https://www.trackedout.org` (or equivalent) in the deployment environment.
 
 ## Key Conventions
 

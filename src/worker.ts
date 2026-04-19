@@ -1032,7 +1032,8 @@ export async function mergeMetadataOntoEvents() {
                 metadata: { $mergeObjects: ['$metadata', claimMeta] },
               },
             },
-          ]
+          ],
+          { updatePipeline: true }
         );
 
         logger.info(

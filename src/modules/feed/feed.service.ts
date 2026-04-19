@@ -1,11 +1,14 @@
 import Claim from '../claim/claim.model';
+import Config from '../config/config.model';
 
 export interface FeedOptions {
   limit?: number;
   page?: number;
   runType?: string;
   outcome?: string;
+  difficulty?: string | string[];
   player?: string;
+  phase?: number;
 }
 
 export interface FeedSubEvent {
@@ -59,13 +62,28 @@ export async function getFeed(options: FeedOptions = {}): Promise<FeedResult> {
     'metadata.run-id': { $exists: true, $ne: '' },
   };
   if (options.player) matchStage['player'] = { $regex: options.player, $options: 'i' };
-  if (options.runType) {
+
+  // Phase filter: look up start/end times from configs and force competitive run type
+  if (options.phase != null) {
+    const entity = `phase-${options.phase}`;
+    const phaseDocs = await Config.find({ entity, key: { $in: ['start-time', 'end-time'] } }).lean();
+    const startDoc = phaseDocs.find((d) => d.key === 'start-time');
+    const endDoc = phaseDocs.find((d) => d.key === 'end-time');
+    if (startDoc) matchStage['createdAt'] = { ...(matchStage['createdAt'] as object ?? {}), $gte: new Date(startDoc.value) };
+    if (endDoc) matchStage['createdAt'] = { ...(matchStage['createdAt'] as object ?? {}), $lte: new Date(endDoc.value) };
+    // Phase filter always restricts to competitive runs
+    matchStage['metadata.run-type'] = { $in: ['c', 'competitive'] };
+  } else if (options.runType) {
     // Accept both short codes and full names
     const longForm = { p: 'practice', c: 'competitive', h: 'hardcore' }[options.runType] ?? options.runType;
     matchStage['metadata.run-type'] = { $in: [options.runType, longForm] };
   }
   if (options.outcome === 'win') matchStage['metadata.game-won'] = 'true';
   if (options.outcome === 'loss') matchStage['metadata.game-won'] = { $ne: 'true' };
+  if (options.difficulty) {
+    const difficulties = Array.isArray(options.difficulty) ? options.difficulty : [options.difficulty];
+    matchStage['metadata.difficulty'] = difficulties.length === 1 ? difficulties[0] : { $in: difficulties };
+  }
 
   const [totalResults, docs] = await Promise.all([
     Claim.countDocuments(matchStage),
