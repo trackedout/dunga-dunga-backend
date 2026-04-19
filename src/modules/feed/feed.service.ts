@@ -1,5 +1,10 @@
 import Claim from '../claim/claim.model';
 import Config from '../config/config.model';
+import Event from '../event/event.model';
+
+const FEED_CACHE_TTL_MS = 10_000;
+const feedCache = new Map<string, { result: unknown; expiresAt: number }>();
+const feedInflight = new Map<string, Promise<FeedResult>>();
 
 export interface FeedOptions {
   limit?: number;
@@ -53,6 +58,20 @@ const SUB_EVENT_NAMES = ['gamestate-player-artifact-submitted', 'clank-maxclank-
 
 
 export async function getFeed(options: FeedOptions = {}): Promise<FeedResult> {
+  const cacheKey = JSON.stringify(options);
+  const cached = feedCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.result as FeedResult;
+
+  const inflight = feedInflight.get(cacheKey);
+  if (inflight) return inflight;
+
+  const promise = _fetchFeed(options, cacheKey);
+  feedInflight.set(cacheKey, promise);
+  promise.finally(() => feedInflight.delete(cacheKey));
+  return promise;
+}
+
+async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedResult> {
   const limit = Math.min(options.limit ?? 30, 100);
   const page = Math.max(options.page ?? 1, 1);
   const skip = (page - 1) * limit;
@@ -224,5 +243,111 @@ export async function getFeed(options: FeedOptions = {}): Promise<FeedResult> {
   ]);
 
   const totalPages = Math.ceil(totalResults / limit);
-  return { results: docs as FeedItem[], page, limit, totalPages, totalResults };
+  const result = { results: docs as FeedItem[], page, limit, totalPages, totalResults };
+  feedCache.set(cacheKey, { result, expiresAt: Date.now() + FEED_CACHE_TTL_MS });
+  return result;
+}
+
+export interface RunDetailEvent {
+  name: string;
+  createdAt: string;
+}
+
+export interface RunDetail {
+  runId: string;
+  player: string;
+  runType: string | null;
+  difficulty: string | null;
+  outcome: 'win' | 'loss' | 'in-progress';
+  artifactFound: string | null;
+  cardsPlayed: string[];
+  cardsBought: string[];
+  durationSeconds: number | null;
+  startTime: string | null;
+  endTime: string | null;
+  server: string;
+  killer: string | null;
+  maxClankReached: boolean;
+  events: RunDetailEvent[];
+}
+
+export async function getRunById(runId: string): Promise<RunDetail | null> {
+  const events = await Event.find({ 'metadata.run-id': runId })
+    .sort({ createdAt: 1 })
+    .lean();
+
+  if (!events.length) return null;
+
+  const first = events[0]!;
+  const player: string = first.player ?? '';
+
+  // Derive from any event's metadata (they share run metadata)
+  const allMeta = (e: typeof first) => e.metadata as unknown as Record<string, string>;
+
+  // Find the richest metadata (game-won/lost events tend to have end-time)
+  const richMeta = events.reduce((best, e) => {
+    const m = allMeta(e);
+    return m['end-time'] ? m : best;
+  }, allMeta(first));
+
+  const rawRunType = richMeta['run-type'] ?? null;
+  const runTypeMap: Record<string, string> = { practice: 'p', competitive: 'c', hardcore: 'h' };
+  const runType = rawRunType ? (runTypeMap[rawRunType] ?? rawRunType) : null;
+  const difficulty = richMeta['difficulty'] ?? null;
+  const startTimeSec = richMeta['start-time'] ? parseInt(richMeta['start-time'], 10) : null;
+  const endTimeSec = richMeta['end-time'] ? parseInt(richMeta['end-time'], 10) : null;
+  const durationSeconds = startTimeSec && endTimeSec ? endTimeSec - startTimeSec : null;
+  const killer = richMeta['killer'] ?? null;
+
+  const hasWon = events.some((e) => e.name === 'game-won');
+  const hasLost = events.some((e) => e.name === 'game-lost');
+  const outcome: RunDetail['outcome'] = hasWon ? 'win' : hasLost ? 'loss' : 'in-progress';
+
+  const artifactEvt = events.find((e) => e.name === 'gamestate-player-artifact-submitted');
+  const artifactMeta = artifactEvt ? (artifactEvt.metadata as unknown as Record<string, string>) : null;
+  const artifactFound = artifactMeta ? (artifactMeta['artifact'] ?? artifactMeta['artifact-id'] ?? null) : null;
+
+  const cardsPlayed = [...new Set(
+    events
+      .filter((e) => e.name.startsWith('card-played-'))
+      .map((e) => e.name.replace('card-played-', ''))
+  )];
+
+  const cardsBought = [...new Set(
+    events
+      .filter((e) => e.name.startsWith('card-bought-'))
+      .map((e) => e.name.replace('card-bought-', ''))
+  )];
+
+  const maxClankReached = events.some((e) => e.name === 'clank-maxclank-reached');
+
+  const startEvt = events.find((e) => e.name === 'game-started');
+  const startTime = startEvt ? startEvt.createdAt.toISOString() : null;
+  const endEvt = events.find((e) => e.name === 'game-won' || e.name === 'game-lost');
+  const endTime = endEvt ? endEvt.createdAt.toISOString() : null;
+
+  const server = first.server ?? '';
+
+  const eventList: RunDetailEvent[] = events.map((e) => ({
+    name: e.name,
+    createdAt: e.createdAt.toISOString(),
+  }));
+
+  return {
+    runId,
+    player,
+    runType,
+    difficulty,
+    outcome,
+    artifactFound,
+    cardsPlayed,
+    cardsBought,
+    durationSeconds,
+    startTime,
+    endTime,
+    server,
+    killer,
+    maxClankReached,
+    events: eventList,
+  };
 }
