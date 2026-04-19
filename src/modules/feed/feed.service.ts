@@ -251,6 +251,7 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
 export interface RunDetailEvent {
   name: string;
   createdAt: string;
+  count?: number;
   metadata?: Record<string, string>;
 }
 
@@ -334,7 +335,7 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
   const endEvt = events.find((e) => e.name === 'game-won' || e.name === 'game-lost');
   const endTime = endEvt ? endEvt.createdAt.toISOString() : null;
 
-  const server = first.server ?? '';
+  const server = (claim?.claimant as string | undefined) ?? first.server ?? '';
 
   const INTERNAL_PREFIXES = [
     'spam-', 'entity-testing-', 'entity-controller-', 'dungeon-setup-',
@@ -350,6 +351,7 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
     .map((e) => {
       const meta = e.metadata as unknown as Record<string, string>;
       const entry: RunDetailEvent = { name: e.name, createdAt: e.createdAt.toISOString() };
+      if ((e as any).count != null) entry.count = (e as any).count;
       if (meta && Object.keys(meta).length) entry.metadata = meta;
       return entry;
     });
