@@ -272,9 +272,10 @@ export interface RunDetail {
 }
 
 export async function getRunById(runId: string): Promise<RunDetail | null> {
-  const events = await Event.find({ 'metadata.run-id': runId })
-    .sort({ createdAt: 1 })
-    .lean();
+  const [events, claim] = await Promise.all([
+    Event.find({ 'metadata.run-id': runId }).sort({ createdAt: 1 }).lean(),
+    Claim.findOne({ 'metadata.run-id': runId }).lean(),
+  ]);
 
   if (!events.length) return null;
 
@@ -301,7 +302,12 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
 
   const hasWon = events.some((e) => e.name === 'game-won');
   const hasLost = events.some((e) => e.name === 'game-lost');
-  const outcome: RunDetail['outcome'] = hasWon ? 'win' : hasLost ? 'loss' : 'in-progress';
+  const claimMeta = claim ? (claim.metadata as unknown as Record<string, string>) : null;
+  const outcome: RunDetail['outcome'] = hasWon ? 'win'
+    : hasLost ? 'loss'
+    : claimMeta?.['game-won'] === 'true' ? 'win'
+    : claimMeta?.['end-time'] ? 'loss'
+    : 'in-progress';
 
   const artifactEvt = events.find((e) => e.name === 'gamestate-player-artifact-submitted');
   const artifactMeta = artifactEvt ? (artifactEvt.metadata as unknown as Record<string, string>) : null;
