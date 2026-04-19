@@ -251,6 +251,7 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
 export interface RunDetailEvent {
   name: string;
   createdAt: string;
+  metadata?: Record<string, string>;
 }
 
 export interface RunDetail {
@@ -269,6 +270,7 @@ export interface RunDetail {
   killer: string | null;
   maxClankReached: boolean;
   events: RunDetailEvent[];
+  scores: Array<{ key: string; value: number; diff: number }>;
 }
 
 export async function getRunById(runId: string): Promise<RunDetail | null> {
@@ -334,10 +336,30 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
 
   const server = first.server ?? '';
 
-  const eventList: RunDetailEvent[] = events.map((e) => ({
-    name: e.name,
-    createdAt: e.createdAt.toISOString(),
-  }));
+  const INTERNAL_PREFIXES = [
+    'spam-', 'entity-testing-', 'entity-controller-', 'dungeon-setup-',
+    'datapack-setup-', 'dev-', 'dropper-room-', 'gamestate-game-',
+    'card-count-on-join', 'card-exists-on-join', 'card-visibility-updated',
+    'player-actions-', 'proxy-ping', 'server-online', 'joined-server',
+    'joined-network', 'joined-queue', 'player-seen', 'evokers-',
+  ];
+  const isInternal = (name: string) => INTERNAL_PREFIXES.some((p) => name.startsWith(p));
+
+  const eventList: RunDetailEvent[] = events
+    .filter((e) => e.name !== 'score-modified' && !isInternal(e.name))
+    .map((e) => {
+      const meta = e.metadata as unknown as Record<string, string>;
+      const entry: RunDetailEvent = { name: e.name, createdAt: e.createdAt.toISOString() };
+      if (meta && Object.keys(meta).length) entry.metadata = meta;
+      return entry;
+    });
+
+  const scores = events
+    .filter((e) => e.name === 'score-modified')
+    .map((e) => {
+      const m = e.metadata as unknown as Record<string, string>;
+      return { key: m['score-key'] ?? '', value: parseInt(m['score-new-value'] ?? '0', 10), diff: parseInt(m['score-diff'] ?? '0', 10) };
+    });
 
   return {
     runId,
@@ -355,5 +377,6 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
     killer,
     maxClankReached,
     events: eventList,
+    scores,
   };
 }
