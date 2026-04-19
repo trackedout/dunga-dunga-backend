@@ -31,11 +31,12 @@ Import from `../utils`:
 
 | Task | Command |
 |------|---------|
-| Type check | `yarn run compile` |
-| Lint | `yarn lint` |
-| Dev (watch) | `yarn dev:watch` |
+| Type check | `bunx tsc --noEmit` |
+| Lint | `bun run lint` |
+| Dev public API (watch) | `bun run dev:public` |
+| Dev main API (watch) | `bun run dev` |
 
-No build script — TypeScript is compiled by the deployment pipeline.
+No build script — Bun runs TypeScript directly.
 
 ## Deployment
 
@@ -62,7 +63,10 @@ Collections marked ignore in the frontend AGENTS.md (cardsBackup, configs, insta
 
 ## Public API (`app-public.ts`)
 
-`src/app-public.ts` is a separate Express app exposed to the open internet (currently serves `/v1/feed`). It has stricter security than the internal `app.ts`:
+`src/app-public.ts` is a separate Express app exposed to the open internet. It serves:
+
+- `GET /v1/feed` — paginated run feed
+- `GET /v1/runs/:runId` — full detail for a single run It has stricter security than the internal `app.ts`:
 
 - **CORS**: locked to origins in `PUBLIC_CORS_ORIGINS` env var (comma-separated). If unset, CORS is disabled. Only `GET` is allowed.
 - **Rate limit**: 30 req/min per IP (vs 60 in the internal app).

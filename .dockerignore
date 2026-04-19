@@ -1,3 +1,13 @@
-node_modules
+.dockerignore
+.editorconfig
+.env
 .git
 .gitignore
+.idea
+Dockerfile*
+LICENSE
+Makefile
+README.md
+coverage*
+docker-compose*
+node_modules

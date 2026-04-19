@@ -45,6 +45,7 @@ export interface FeedItem {
     datapackVersion: string | null;
     killer: string | null;
   };
+  deathMessage?: string | null;
 }
 
 export interface FeedResult {
@@ -124,7 +125,7 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
                   $and: [
                     { $eq: ['$metadata.run-id', '$$runId'] },
                     { $or: [
-                      { $in: ['$name', ['game-started', 'game-won', 'game-lost', ...SUB_EVENT_NAMES]] },
+                      { $in: ['$name', ['game-started', 'game-won', 'game-lost', 'player-died', ...SUB_EVENT_NAMES]] },
                       { $regexMatch: { input: '$name', regex: '^pickups-' } },
                     ]},
                   ],
@@ -139,6 +140,9 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
                 name: 1,
                 createdAt: { $dateToString: { format: '%Y-%m-%dT%H:%M:%S.%LZ', date: '$createdAt' } },
                 artifactCode: { $ifNull: ['$metadata.artifact', '$metadata.artifact-id'] },
+                killer: '$metadata.killer',
+                killerType: '$metadata.killer-type',
+                deathMessage: '$metadata.death-message',
               },
             },
           ],
@@ -214,7 +218,19 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
           artifactPickup: {
             $getField: {
               field: 'name',
-              input: { $first: { $filter: { input: '$_events', as: 'e', cond: { $regexMatch: { input: '$$e.name', regex: '^pickups-' } } } } },
+              input: {
+                $first: {
+                  $filter: {
+                    input: '$_events', as: 'e',
+                    cond: {
+                      $and: [
+                        { $regexMatch: { input: '$$e.name', regex: '^pickups-' } },
+                        { $ne: ['$$e.name', 'pickups-compass'] },
+                      ],
+                    },
+                  },
+                },
+              },
             },
           },
           runInfo: {
@@ -246,6 +262,16 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
             },
             datapackVersion: '$metadata.datapack-version',
             killer: { $ifNull: ['$metadata.killer', null] },
+          },
+          deathMessage: {
+            $let: {
+              vars: {
+                deathEvt: {
+                  $first: { $filter: { input: '$_events', as: 'e', cond: { $eq: ['$$e.name', 'player-died'] } } },
+                },
+              },
+              in: '$$deathEvt.deathMessage',
+            },
           },
         },
       },

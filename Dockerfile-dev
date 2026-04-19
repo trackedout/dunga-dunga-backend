@@ -1,15 +1,12 @@
-# development stage
-FROM node:24-alpine AS base
-
+# Official Bun image - https://hub.docker.com/r/oven/bun/tags
+FROM oven/bun:1
 WORKDIR /usr/src/app
 
-COPY package.json yarn.lock tsconfig.json ecosystem.config.json ./
-
-RUN yarn install --pure-lockfile
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
 COPY ./packages ./packages
 COPY ./src ./src
 
-RUN yarn compile
-
-CMD ["yarn", "dev:watch"]
+USER bun
+CMD [ "bun", "run", "dev:watch" ]

@@ -1,0 +1,136 @@
+Name	Description	Database Query	Tracked?	dunga-dunga	sign X	sign Y	sign Z	Comment on tracking of data	Comment on implementation
+Adventuring									
+Addicted	Most Runs incl Refunds		TRUE	FALSE	−428	65	2014	max(game-started) events	
+Respiration 3	Most TNT dive successes		FALSE	FALSE	−420	65	2014	'reached top' only tracked on first success, but technically could track by checking 'reached bottom' and if died by drowning in TNT dive	
+Eggselent Eggsplorer	Most Eggs		TRUE	FALSE	−412	65	2014		
+Deep diver	Highest rate of runs deeper than artefact location		TRUE	FALSE	−404	65	2014	Would need to track movement between regions in count if we wanted to use player location rather than level unlocks	We know what level the compass is on from the artefact obtained. (requires artefact to be found?), Do we need to track what level the player has activated?
+Sneak master	Lowest rate of runs at max clank		TRUE	FALSE	−396	65	2014		
+									
+Citadel Conquerer	First to beat DO		FALSE	FALSE	−428	65	2018	Either manual or tracked when method to 'win' implemented	
+DM's Master	Most lackey runs		FALSE	FALSE	−420	65	2018	Either manual or tracked when method for lackey runs implemented	
+Rustiest ally	most rusty repairs		TRUE	FALSE	−412	65	2018		
+Clink clank Clunk	Highest rate of runs at max clank		TRUE	FALSE	−404	65	2018		
+Halloween Enthusiast	Most trick or treats		TRUE	FALSE	−396	65	2018		
+									
+									
+Surviving									
+Technically the winner	most wins		TRUE	TRUE	−428	65	2032	do2.wins	
+Momentum Master	longest win streak		TRUE	TRUE	−420	65	2032	do2.win_streak	
+The real DM	highest win rate		TRUE	FALSE	−412	65	2032	do2.wins / total runs	
+Mummy	Most L1 wins		TRUE	FALSE	−404	65	2032		compass submitted L1 AND run win?
+Twinkletoes	Most L3 wins		TRUE	FALSE	−396	65	2032		
+									
+Elite Entrance	most wins before the first loss		TRUE	TRUE	−428	65	2036	for each player, find all events, then look up the claim for that event to get the run type. filter for comp runs. Then find their first loss, then count wins before that loss. then find player with most wins before first loss!!	
+Back for seconds	most gauntlet wins		TRUE	TRUE	−420	65	2036	do2.gauntlet_survival scoreboard values are not present in the DB. Tracked values looks incorrect	
+vex the vex	highest success rate at max clank		TRUE	FALSE	−412	65	2036	what scoreboards do we use to track this?	There is a function of on_maxclank_reached . Check wins where that has been reached compared to total wins?  (Would require knowing wins where it has been reached to not count losses where it has been reached)
+Spelunker	Most L2 wins		TRUE	FALSE	−404	65	2036		
+Tryhard	Most L4 wins		TRUE	FALSE	−396	65	2036		
+									
+									
+Artifacts									
+Death loop loop	most death loops found, regardless of outcome		TRUE	FALSE	−428	65	2050		
+Omen of Success	Artefact with highest success chance		TRUE	FALSE	−420	65	2050		
+Sanctioned Forgery	Most artifaked artefact		TRUE	FALSE	−412	65	2050		
+Never forget	Artefact that was forgotten least times		TRUE	FALSE	−404	65	2050		
+Compass School Valedictorian	Most improved compass skills		TRUE	FALSE	−396	65	2050		
+									
+Key to success	First to escape with the DM key		TRUE	FALSE	−428	65	2054		
+Well, aren't you popular	Artefact found most times		TRUE	FALSE	−420	65	2054		
+Omen of Defeat	Artefact with lowest success chance		TRUE	FALSE	−412	65	2054		
+Sparse-ifake	Artifake with lowest number made		TRUE	FALSE	−404	65	2054		
+Homing pigeon	most visits to the same lodestone		TRUE	FALSE	−396	65	2054		
+									
+									
+Embers									
+Frost Ember Farmer	Most total embers in a single run		TRUE	FALSE					
+I don't like getting shards	Most lifetime embers		TRUE	FALSE					
+Hyperfocus	Highest embers without picking up any floor embers		TRUE	FALSE					
+Hunter gatherer	most floor embers in a single run		TRUE	FALSE					
+Optimised spending, >1750	Lowest % embers wasted, total escaped embers over 1750		TRUE	FALSE					
+Optimised spending, <1750	Lowest % embers wasted, total escaped embers under 1750		TRUE	FALSE					
+(optimised spending, Beef)	Lowest % embers wasted, total escaped embers Beefs total		TRUE	FALSE					Don't know if we will keep these
+(optimised spending, Mumbo)	Lowest % embers wasted, total escaped embers Mumbos total		TRUE	FALSE					Don't know if we will keep these
+									
+Dying									
+Humble beginnings	Most deaths before your first win		TRUE	FALSE					
+Glutton for the grave	Most deaths		TRUE	FALSE					
+Participation trophy	Lowest success rate		TRUE	FALSE					
+Momentum disaster	Longest losing streak		TRUE	FALSE					
+Ravager Cuddler	Most ravager deaths		TRUE	FALSE					Exclude death room ravager
+Vexing Vex	Lowest success rate at max clank		TRUE	FALSE					
+Warden hugger	Most warden deaths		TRUE	FALSE					
+Ravager almost wrangler	Become 'friends' with most unique ravagers		TRUE	FALSE					
+Selective dying	Most deaths to mobs !=Ravagers, max clank, wardens, Willie		TRUE	FALSE					
+Vex Fanatic	Most deaths to max clank mobs (evokers, vex)		TRUE	FALSE					
+Dungeon dinner	Most deaths to the dungeon itself		TRUE	FALSE				What does this mean? Like lava?	All non mob deaths? Exclude fall damage after the shop? Include coward's path?
+Unfocused Sleeping	Most deaths to mr One Eye		TRUE	FALSE					
+Dungeon delicacy	Favourite snack of most murderers		TRUE	FALSE					
+Free samples	Tasted by most Murderers		TRUE	FALSE				Same as Dungeon delicacy?	
+Mummified	Most deaths on L1		TRUE	FALSE				Easier if we track movement between regions in count of locate_player, but coordinates are stored on death	function.utility.dungeonLocation 9
+Caved in	Most deaths on L2		TRUE	FALSE				Easier if we track movement between regions in count of locate_player, but coordinates are stored on death	function.utility.dungeonLocation 10
+"Fly, You Fools!"	Most deaths on L3		TRUE	FALSE				Easier if we track movement between regions in count of locate_player, but coordinates are stored on death	function.utility.dungeonLocation 11
+Tryharder	Most deaths on L4		TRUE	FALSE				Easier if we track movement between regions in count of locate_player, but coordinates are stored on death	function.utility.dungeonLocation 12
+									
+Cards and Deck									
+Card collector	Most cards owned		TRUE	FALSE	−454	65	2018	db.cards.aggregate([   { $match: { deckType: 'c' } },                   // only comp cards   { $group: { _id: "$player", count: { $sum: 1 } } }, // count cards per player   { $sort: { count: -1 } },                           // sort descending   { $limit: 1 }                                       // top player ])	
+Collecting 'Em all	Most unique cards owned		TRUE	FALSE	−454	65	2014	db.cards.aggregate([   { $match: { deckType: 'c' } },                       // filter deck type   { $group: { _id: "$player", uniqueCards: { $addToSet: "$name" } } },    { $project: { player: "$_id", uniqueCount: { $size: "$uniqueCards" } } },   { $sort: { uniqueCount: -1 } },   { $limit: 1 } ])	
+Variety Pack	Most unique cards in active deck		FALSE	FALSE	−462	65	2018	db.cards.aggregate([   {      $match: {        deckType: 'c',       hiddenInDecks: { $nin: ["c1"] }  // excludes 'c1' and works for empty arrays too     }    },   { $group: { _id: "$player", uniqueCards: { $addToSet: "$name" } } },    { $project: { player: "$_id", uniqueCount: { $size: "$uniqueCards" } } },   { $sort: { uniqueCount: -1 } },   { $limit: 1 } ])	Limit of 27.
+Thorougly complete	Most unique cards at or above the limit		TRUE	FALSE	−462	65	2014	db.cards.aggregate([   {      $match: {        deckType: 'c',       // hiddenInDecks: { $nin: ["c1"] }     }    },   {      $group: {       _id: { player: "$player", name: "$name" },       count: { $sum: 1 }     }   },   {     $project: {       player: "$_id.player",       card: "$_id.name",       atLimit: {         $gte: [           "$count",           { $getField: { field: "$_id.name", input: limits } }         ]       }     }   },   {      $group: {       _id: "$player",       cardsAtLimit: { $sum: { $cond: ["$atLimit", 1, 0] } }     }   },   { $sort: { cardsAtLimit: -1 } },   { $limit: 1 } ])	
+Ember Extravagence	Most expensive active deck		FALSE	FALSE	−470	65	2018	const costs = {   "MOC": 6, "P2W": null, "PCP": null, "TAA": null, "SNE": 7, "STA": 8,   "TRH": 9, "EMS": 10, "EVA": 16, "TRL": 18, "LAS": 20, "FRF": 20,   "SEW": 22, "BES": 24, "BST": 26, "REC": 28, "SPT": 30, "NIL": 32,   "SAG": 34, "QUI": 36, "SUU": 38, "ADR": 40, "BRI": 66, "DEF": 64,   "FBS": 62, "SIR": 60, "COS": 58, "PIB": 56, "EOP": 52, "SPR": 50,   "CHS": 48, "SWA": 46, "DUR": 44, "EES": 42, "STU": null, "DUL": null,   "AVA": null, "BEM": null, "BOS": null, "CAC": null, "GLM": null };  db.cards.aggregate([   {      $match: { deckType: 'c', hiddenInDecks: { $nin: ["c1"] } }    },   {      $group: {       _id: { player: "$player", name: "$name" },       count: { $sum: 1 }     }   },   {      $project: {       player: "$_id.player",       card: "$_id.name",       cost: {         $cond: [           { $ifNull: [ { $getField: { field: "$_id.name", input: costs } }, false ] },           { $multiply: ["$count", { $getField: { field: "$_id.name", input: costs } }] },           0         ]       }     }   },   {      $group: {       _id: "$player",       totalCost: { $sum: "$cost" }     }   },   { $sort: { totalCost: -1 } },   { $limit: 1 } ])	
+Sumptuous Sidelines	Most expensive set of inactive cards		FALSE	FALSE	−470	65	2014	// same as above, but using $in instead of $nin for hiddenInDecks  const costs = {   "MOC": 6, "P2W": null, "PCP": null, "TAA": null, "SNE": 7, "STA": 8,   "TRH": 9, "EMS": 10, "EVA": 16, "TRL": 18, "LAS": 20, "FRF": 20,   "SEW": 22, "BES": 24, "BST": 26, "REC": 28, "SPT": 30, "NIL": 32,   "SAG": 34, "QUI": 36, "SUU": 38, "ADR": 40, "BRI": 66, "DEF": 64,   "FBS": 62, "SIR": 60, "COS": 58, "PIB": 56, "EOP": 52, "SPR": 50,   "CHS": 48, "SWA": 46, "DUR": 44, "EES": 42, "STU": null, "DUL": null,   "AVA": null, "BEM": null, "BOS": null, "CAC": null, "GLM": null };  db.cards.aggregate([   {      $match: { deckType: 'c', hiddenInDecks: { $in: ["c1"] } }    },   {      $group: {       _id: { player: "$player", name: "$name" },       count: { $sum: 1 }     }   },   {      $project: {       player: "$_id.player",       card: "$_id.name",       cost: {         $cond: [           { $ifNull: [ { $getField: { field: "$_id.name", input: costs } }, false ] },           { $multiply: ["$count", { $getField: { field: "$_id.name", input: costs } }] },           0         ]       }     }   },   {      $group: {       _id: "$player",       totalCost: { $sum: "$cost" }     }   },   { $sort: { totalCost: -1 } },   { $limit: 1 } ])	Include or exclude cards above their limit?
+Overpowered	Most expensive successful deck		FALSE	FALSE	−478	65	2018	Don't think this is possible at the moment	Too close to Ember Extravagence?
+Penny Pincher: Caves	Cheapest Deck, L2 success		FALSE	FALSE	−478	65	2014	Don't think this is possible at the moment	
+Penny Pincher: Mines	Cheapest Deck, L3 success		FALSE	FALSE	−486	65	2018	Don't think this is possible at the moment	
+Penny Pincher, Dark	Cheapest Deck, L4 success		FALSE	FALSE	−486	65	2014	Don't think this is possible at the moment	
+"It's how you use it": Caves	Smallest Deck, L2 success		FALSE	FALSE	−494	65	2018	Don't think this is possible at the moment	
+"It's how you use it": Mines	Smallest Deck, L3 success		FALSE	FALSE	−494	65	2014	Don't think this is possible at the moment	
+"It's how you use it": Dark	Smallest Deck, L4 success		FALSE	FALSE	−502	65	2018	Don't think this is possible at the moment	
+Retail Therapy	Most cards bought in a single run		TRUE	FALSE	−502	65	2014	db.events.aggregate([   {      $match: {        name: /card-bought/,       "metadata.run-id": { $exists: true },       "metadata.run-type": "c"     }    },   {      $group: {       _id: "$metadata.run-id",       totalCardsBought: { $sum: "$count" }     }   },   { $sort: { totalCardsBought: -1 } },   { $limit: 1 } ])	Exclude Pirate's Booty cards
+Bulk buyer	Most cards bought per win on average		TRUE	FALSE	−510	65	2018		Exclude Pirate's Booty cards. Exclude crown shop purchases as well?
+Window shopper	Least cards bought per win on average		TRUE	FALSE	−510	65	2014		Exclude Pirate's Booty cards. Exclude crown shop purchases as well?
+High roller	Most embers spent on cards in a single run		TRUE	FALSE	−518	65	2018		Change this to alternative listed below?
+Ethereal Extraordinaire	Most ethereal cards bought		TRUE	FALSE	−518	65	2014	db.events.aggregate([   {      $match: {        name: { $in: [         'card-bought-MOC',         'card-bought-P2W',         'card-bought-PCP',         'card-bought-TAA',         'card-bought-DUL'       ]},       "metadata.run-id": { $exists: true },       "metadata.run-type": "c"     }    },   {      $group: {       _id: "$metadata.run-id",       totalCardsBought: { $sum: "$count" }     }   },   { $sort: { totalCardsBought: -1 } },   { $limit: 1 } ])	Exclude Pirate's Booty cards
+Clear as day	Most MoC's played and consumed		TRUE	FALSE	−526	65	2018	db.events.aggregate([   {      $match: {        name: "card-played-MOC",       "metadata.run-type": "c"     }    },   {      $group: {       _id: "$player",       totalPlayed: { $sum: "$count" }     }   },   { $sort: { totalPlayed: -1 } },   { $limit: 1 } ])	
+Planned In Advance	Most TAA's played and consumed		TRUE	FALSE	−526	65	2014	// same as above, but use card-played-TAA	
+Porkchop Powered	Most PCP's played and consumed		TRUE	FALSE	−534	65	2018	// same as above, but use card-played-PCP	
+Premium member bonus	Most PtW's played and consumed		TRUE	FALSE	−534	65	2014	// same as above, but use card-played-P2W	
+The true ninja	Most CB in active deck		FALSE	FALSE	−542	65	2018	// same as Ember Extravagance, but map clank block values - https://discord.com/channels/1151243580204122264/1385369695967776889/1441330611271897170	General issue with cards that give variable amouts of treasure/embers/blocks/beacon effects
+Keeping your options open	Most HB in active deck		FALSE	FALSE	−542	65	2014	// same as above	
+"Greed is good"	Most Treasure in active deck		FALSE	FALSE	−550	65	2018	// same as above	Issue with cards that give variable treasure amounts, like Adrenaline Rush
+Frosted Tips	Most Ember drops in active deck		FALSE	FALSE	−550	65	2014	// same as above	
+Get the "Zoomies"	Most Speed boost in active deck		FALSE	FALSE	−558	65	2018	// same as above	
+Infinity Mending	Most Regen in active deck		FALSE	FALSE	−558	65	2014	// same as above	
+"Fool of a Took!"	Most clank generated by active deck		FALSE	FALSE	−566	65	2018	// same as above - using clank generated stat	Possible alternative, count what the decks gave durint the latest run (but that only works if the decks are emptied during the run)
+Harrowing Hazards	Most hazards triggered by active deck		FALSE	FALSE	−566	65	2014	// same as above - using hazard generated stat	
+tripping	Most additional stumbles made by active deck		FALSE	FALSE	−574	65	2018	does this mean stumbles played in a game?	
+Going Green	Most cards recycled by active deck		FALSE	FALSE	−574	65	2014	do we have an event for this?	
+									
+Potential Unimplemented									
+In the steps of the titan / Learned from the dungeon master	Most deaths to berry bushes		TRUE	FALSE					
+									
+Group 2									
+Crowns									
+Tunnel vision	Most wins without any crowns or floor embers		TRUE	FALSE					
+Sticky Fingers	Fewest wins without any crowns or floor embers		TRUE	FALSE					
+Crowning Achievement	Most crowns in a successful run		TRUE	FALSE					
+Reigning Monarch	Most lifetime crowns		TRUE	FALSE					
+									
+Phase End									
+Feed the Need (2)	Most store bought shards		?						
+Shard Farmer	Most given shards at phase start		?						
+The infinity Shard	Most dungeon runs per distributed shard		?						
+Maximum Efficiency	Fewest tomes submitted for most overall tomes		?						
+Minimum Efficiency	Most tomes submitted for fewest overall tomes		?						
+Rising Star	Greatest rise in points earned in a phase compared to the previous one		?						
+Falling Star	Greatest fall in points earned in a phase compared to the previous one		?						
+									
+Misc									
+First in Line	Be the first to do a run in the competition		TRUE	FALSE					
+Dungeon, You feeling old yet?	Do the 1000th run		TRUE	FALSE					Would we need 2000th, 3000th and so on as well? Difficult to make this dynamic
+Is it over?	Last person to do a competitive run		TRUE	FALSE					
+Bug magnet	Most refunded shards		?						
+Swarm of bugs	Most consecutive runs		TRUE	FALSE					I'm not sure that these make sense for a dungeon where there are multiple instances. Maybe could be reworked though
+Taking turns	Longest streak of non-consecutive runs without a 2+ run gap		TRUE	FALSE					
+Waiting room Camper	Longest streak of dungeon runs without a 100+ run gap		TRUE	FALSE					
+One at a time	Longest streak of dungeon runs, none within 10 runs of the next, without a 100+ run gap		TRUE	FALSE					
+Polarizing Pizza Master	Most controversial taste in pizza		TRUE	FALSE				Keralis winner	

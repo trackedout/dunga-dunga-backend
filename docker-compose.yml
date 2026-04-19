@@ -15,11 +15,10 @@ services:
       - ./mongo-init/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
 
   dunga-dunga:
-    container_name: ts-node-app
+    container_name: dunga-dunga
     build:
       context: .
-      dockerfile: Dockerfile
-      target: base
+      dockerfile: Dockerfile-dev
     restart: always
     env_file: .env
     expose:
