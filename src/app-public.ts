@@ -4,12 +4,12 @@ import { inHTMLData } from 'xss-filters';
 import ExpressMongoSanitize from 'express-mongo-sanitize';
 import compression from 'compression';
 import cors from 'cors';
-import rateLimit from 'express-rate-limit';
 import httpStatus from 'http-status';
 import config from './config/config';
 import { morgan } from './modules/logger';
 import { ApiError, errorConverter, errorHandler } from './modules/errors';
 import feedRoute from './routes/v1/feed.route';
+import { feedController } from './modules/feed';
 
 const ALLOWED_ORIGINS = config.publicCorsOrigins ?? [];
 
@@ -48,16 +48,8 @@ app.use((req, _res, next) => {
   next();
 });
 
-app.use(
-  rateLimit({
-    windowMs: 60 * 1000,
-    max: 30,
-    standardHeaders: true,
-    legacyHeaders: false,
-  })
-);
-
 app.use('/v1/feed', feedRoute);
+app.use('/v1/runs/:runId', feedController.getRunHandler);
 
 app.use((_req, _res, next) => {
   next(new ApiError(httpStatus.NOT_FOUND, 'Not found'));

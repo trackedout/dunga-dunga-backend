@@ -1,7 +1,9 @@
+import httpStatus from 'http-status';
 import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync';
 import pick from '../utils/pick';
-import { getFeed, FeedOptions } from './feed.service';
+import { getFeed, FeedOptions, getRunById } from './feed.service';
+import { ApiError } from '../errors';
 
 export const getFeedHandler = catchAsync(async (req: Request, res: Response) => {
   const options = pick(req.query, ['limit', 'page', 'runType', 'outcome', 'difficulty', 'player', 'phase']) as FeedOptions;
@@ -10,4 +12,11 @@ export const getFeedHandler = catchAsync(async (req: Request, res: Response) => 
   if (options.phase) options.phase = parseInt(options.phase as unknown as string, 10);
   const result = await getFeed(options);
   res.send(result);
+});
+
+export const getRunHandler = catchAsync(async (req: Request, res: Response) => {
+  const runId = req.params['runId'] as string;
+  const run = await getRunById(runId);
+  if (!run) throw new ApiError(httpStatus.NOT_FOUND, 'Run not found');
+  res.send(run);
 });

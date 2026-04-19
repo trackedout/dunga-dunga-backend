@@ -7,8 +7,8 @@ let server: any;
 
 mongoose.connect(config.mongoose.url).then(() => {
   logger.info('Connected to MongoDB');
-  server = app.listen(config.publicPort, () => {
-    logger.info(`ember-feed public API listening on port ${config.publicPort}`);
+  server = app.listen(config.port, () => {
+    logger.info(`Ember public API listening on port ${config.port}`);
   });
 });
 
@@ -33,5 +33,7 @@ process.on('unhandledRejection', unexpectedErrorHandler);
 
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received');
-  if (server) server.close();
+  if (server) {
+    server.close();
+  }
 });

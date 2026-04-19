@@ -34,6 +34,7 @@ export interface FeedItem {
   server: string;
   runStartedAt?: string;
   artifactCode?: string;
+  artifactPickup?: string;
   subEvents: FeedSubEvent[];
   runInfo?: {
     dungeon: string | null;
@@ -54,7 +55,7 @@ export interface FeedResult {
   totalResults: number;
 }
 
-const SUB_EVENT_NAMES = ['gamestate-player-artifact-submitted', 'clank-maxclank-reached'];
+const SUB_EVENT_NAMES = ['clank-maxclank-reached'];
 
 
 export async function getFeed(options: FeedOptions = {}): Promise<FeedResult> {
@@ -122,7 +123,10 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
                 $expr: {
                   $and: [
                     { $eq: ['$metadata.run-id', '$$runId'] },
-                    { $in: ['$name', ['game-started', 'game-won', 'game-lost', ...SUB_EVENT_NAMES]] },
+                    { $or: [
+                      { $in: ['$name', ['game-started', 'game-won', 'game-lost', ...SUB_EVENT_NAMES]] },
+                      { $regexMatch: { input: '$name', regex: '^pickups-' } },
+                    ]},
                   ],
                 },
               },
@@ -205,6 +209,12 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
                 artifactCode: '$$e.artifactCode',
                 createdAt: '$$e.createdAt',
               },
+            },
+          },
+          artifactPickup: {
+            $getField: {
+              field: 'name',
+              input: { $first: { $filter: { input: '$_events', as: 'e', cond: { $regexMatch: { input: '$$e.name', regex: '^pickups-' } } } } },
             },
           },
           runInfo: {

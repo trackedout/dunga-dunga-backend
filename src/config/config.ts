@@ -20,7 +20,6 @@ if (error) {
 const config = {
   env: envVars.NODE_ENV,
   port: envVars.PORT,
-  publicPort: envVars.PUBLIC_PORT,
   mongoose: {
     url: envVars.MONGODB_URL + (envVars.NODE_ENV === 'test' ? '-test' : ''),
     options: {
@@ -30,9 +29,7 @@ const config = {
       poolSize: 50,
     },
   },
-  publicCorsOrigins: envVars.PUBLIC_CORS_ORIGINS
-    ? (envVars.PUBLIC_CORS_ORIGINS as string).split(',').map((s: string) => s.trim())
-    : [],
+  publicCorsOrigins: envVars.PUBLIC_CORS_ORIGINS ? (envVars.PUBLIC_CORS_ORIGINS as string).split(',').map((s: string) => s.trim()) : [],
 };
 
 export default config;
