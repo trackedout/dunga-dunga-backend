@@ -8,6 +8,7 @@ import claimRoute from './claim.route';
 import tasksRoute from './tasks.route';
 import statusRoute from './status.route';
 import configRoute from './config.route';
+import feedRoute from './feed.route';
 import config from '../../config/config';
 
 const router = express.Router();
@@ -49,6 +50,10 @@ const defaultIRoute: IRoute[] = [
   {
     path: '/configs',
     route: configRoute,
+  },
+  {
+    path: '/feed',
+    route: feedRoute,
   },
 ];
 

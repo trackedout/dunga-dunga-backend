@@ -1,0 +1,210 @@
+import Claim from '../claim/claim.model';
+
+export interface FeedOptions {
+  limit?: number;
+  page?: number;
+  runType?: string;
+  outcome?: string;
+  player?: string;
+}
+
+export interface FeedSubEvent {
+  id: string;
+  eventName: string;
+  artifactCode?: string;
+  createdAt: string;
+}
+
+export interface FeedItem {
+  id: string;
+  eventName: string;
+  player: string;
+  runId: string | null;
+  difficulty: string | null;
+  runType: string | null;
+  createdAt: string;
+  server: string;
+  runStartedAt?: string;
+  artifactCode?: string;
+  subEvents: FeedSubEvent[];
+  runInfo?: {
+    dungeon: string | null;
+    difficulty: string | null;
+    runType: string | null;
+    startTime: number | null;
+    endTime: number | null;
+    datapackVersion: string | null;
+    killer: string | null;
+  };
+}
+
+export interface FeedResult {
+  results: FeedItem[];
+  page: number;
+  limit: number;
+  totalPages: number;
+  totalResults: number;
+}
+
+const SUB_EVENT_NAMES = ['gamestate-player-artifact-submitted', 'clank-maxclank-reached'];
+
+
+export async function getFeed(options: FeedOptions = {}): Promise<FeedResult> {
+  const limit = Math.min(options.limit ?? 30, 100);
+  const page = Math.max(options.page ?? 1, 1);
+  const skip = (page - 1) * limit;
+
+  // Build claim match filter
+  const matchStage: Record<string, unknown> = {
+    'metadata.run-id': { $exists: true, $ne: '' },
+  };
+  if (options.player) matchStage['player'] = { $regex: options.player, $options: 'i' };
+  if (options.runType) {
+    // Accept both short codes and full names
+    const longForm = { p: 'practice', c: 'competitive', h: 'hardcore' }[options.runType] ?? options.runType;
+    matchStage['metadata.run-type'] = { $in: [options.runType, longForm] };
+  }
+  if (options.outcome === 'win') matchStage['metadata.game-won'] = 'true';
+  if (options.outcome === 'loss') matchStage['metadata.game-won'] = { $ne: 'true' };
+
+  const [totalResults, docs] = await Promise.all([
+    Claim.countDocuments(matchStage),
+    Claim.aggregate([
+      { $match: matchStage },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      // Look up all relevant events for this run
+      {
+        $lookup: {
+          from: 'events',
+          let: { runId: '$metadata.run-id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$metadata.run-id', '$$runId'] },
+                    { $in: ['$name', ['game-started', 'game-won', 'game-lost', ...SUB_EVENT_NAMES]] },
+                  ],
+                },
+              },
+            },
+            { $sort: { createdAt: 1 } },
+            {
+              $project: {
+                _id: 0,
+                id: { $toString: '$_id' },
+                name: 1,
+                createdAt: { $dateToString: { format: '%Y-%m-%dT%H:%M:%S.%LZ', date: '$createdAt' } },
+                artifactCode: { $ifNull: ['$metadata.artifact', '$metadata.artifact-id'] },
+              },
+            },
+          ],
+          as: '_events',
+        },
+      },
+      { $unset: 'metadata.discord-message-id' },
+      {
+        $project: {
+          _id: 0,
+          id: { $toString: '$_id' },
+          player: 1,
+          server: '$claimant',
+          runId: '$metadata.run-id',
+          difficulty: '$metadata.difficulty',
+          runType: {
+            $let: {
+              vars: { rt: '$metadata.run-type' },
+              in: {
+                $switch: {
+                  branches: [
+                    { case: { $eq: ['$$rt', 'practice'] }, then: 'p' },
+                    { case: { $eq: ['$$rt', 'competitive'] }, then: 'c' },
+                    { case: { $eq: ['$$rt', 'hardcore'] }, then: 'h' },
+                  ],
+                  default: '$$rt',
+                },
+              },
+            },
+          },
+          createdAt: { $dateToString: { format: '%Y-%m-%dT%H:%M:%S.%LZ', date: '$createdAt' } },
+          // Derive outcome event name from game-won metadata
+          eventName: {
+            $cond: {
+              if: { $eq: ['$metadata.game-won', 'true'] },
+              then: 'game-won',
+              else: {
+                $cond: {
+                  // Has end-time but not won = lost
+                  if: { $gt: ['$metadata.end-time', null] },
+                  then: 'game-lost',
+                  else: 'game-started',
+                },
+              },
+            },
+          },
+          runStartedAt: {
+            $let: {
+              vars: {
+                startedEvt: {
+                  $first: {
+                    $filter: { input: '$_events', cond: { $eq: ['$$this.name', 'game-started'] } },
+                  },
+                },
+              },
+              in: '$$startedEvt.createdAt',
+            },
+          },
+          subEvents: {
+            $map: {
+              input: {
+                $filter: { input: '$_events', cond: { $in: ['$$this.name', SUB_EVENT_NAMES] } },
+              },
+              as: 'e',
+              in: {
+                id: '$$e.id',
+                eventName: '$$e.name',
+                artifactCode: '$$e.artifactCode',
+                createdAt: '$$e.createdAt',
+              },
+            },
+          },
+          runInfo: {
+            dungeon: '$claimant',
+            difficulty: '$metadata.difficulty',
+            runType: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ['$metadata.run-type', 'practice'] }, then: 'p' },
+                  { case: { $eq: ['$metadata.run-type', 'competitive'] }, then: 'c' },
+                  { case: { $eq: ['$metadata.run-type', 'hardcore'] }, then: 'h' },
+                ],
+                default: '$metadata.run-type',
+              },
+            },
+            startTime: {
+              $cond: {
+                if: { $gt: ['$metadata.start-time', null] },
+                then: { $toInt: '$metadata.start-time' },
+                else: null,
+              },
+            },
+            endTime: {
+              $cond: {
+                if: { $gt: ['$metadata.end-time', null] },
+                then: { $toInt: '$metadata.end-time' },
+                else: null,
+              },
+            },
+            datapackVersion: '$metadata.datapack-version',
+            killer: { $ifNull: ['$metadata.killer', null] },
+          },
+        },
+      },
+    ]),
+  ]);
+
+  const totalPages = Math.ceil(totalResults / limit);
+  return { results: docs as FeedItem[], page, limit, totalPages, totalResults };
+}
