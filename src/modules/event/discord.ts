@@ -1,4 +1,5 @@
 import { logger } from '../logger';
+import config from '../../config/config';
 import Player from './player.model';
 import Event from './event.model';
 import { IEvent, PlayerEvents, ServerEvents } from './event.interfaces';
@@ -455,7 +456,8 @@ async function getPingStats(playerName: string, dungeon: string, endTime: string
 }
 
 export async function getRunDescription(runId: string, claim: IClaimDoc | null): Promise<string> {
-  const items = [`**Run ID**: ${runId}`];
+  const baseUrl = config.env === 'development' ? 'http://localhost:5173' : 'https://ember.trackedout.org';
+  const items = [`**Run ID**: [${runId}](${baseUrl}/run/${runId})`];
 
   if (claim) {
     items.push(
