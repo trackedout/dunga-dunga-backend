@@ -100,8 +100,10 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
     matchStage['metadata.run-type'] = { $in: [options.runType, longForm] };
   }
   if (options.outcome === 'win') matchStage['metadata.game-won'] = 'true';
-  if (options.outcome === 'loss' || options.outcome === 'invalid') matchStage['metadata.game-won'] = { $ne: 'true' };
-  if (options.outcome === 'invalid') matchStage['metadata.end-time'] = { $exists: true };
+  if (options.outcome === 'loss' || options.outcome === 'invalid') {
+    matchStage['metadata.game-won'] = { $ne: 'true' };
+    matchStage['metadata.end-time'] = { $exists: true };
+  }
   if (options.difficulty) {
     const difficulties = Array.isArray(options.difficulty) ? options.difficulty : [options.difficulty];
     matchStage['metadata.difficulty'] = difficulties.length === 1 ? difficulties[0] : { $in: difficulties };
@@ -113,18 +115,14 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
 
   const [totalResults, docs] = await Promise.all([
     needsGameStartedLookup
-      ? Claim.aggregate([
-          { $match: matchStage },
-          gameStartedLookup,
-          gameStartedFilter,
-          { $count: 'n' },
-        ]).then((r) => r[0]?.n ?? 0)
+      ? Claim.countDocuments(matchStage)
       : Claim.countDocuments(matchStage),
     Claim.aggregate([
       { $match: matchStage },
-      ...(needsGameStartedLookup ? [gameStartedLookup, gameStartedFilter, { $unset: '_gs' }] : []),
       { $sort: { createdAt: -1 } },
       { $skip: skip },
+      { $limit: limit * 3 }, // oversample to account for filtered-out invalidated runs
+      ...(needsGameStartedLookup ? [gameStartedLookup, gameStartedFilter, { $unset: '_gs' }] : []),
       { $limit: limit },
       // Look up all relevant events for this run
       {
@@ -364,8 +362,9 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
   const runTypeMap: Record<string, string> = { practice: 'p', competitive: 'c', hardcore: 'h' };
   const runType = rawRunType ? (runTypeMap[rawRunType] ?? rawRunType) : null;
   const difficulty = richMeta['difficulty'] ?? null;
-  const startTimeSec = richMeta['start-time'] ? parseInt(richMeta['start-time'], 10) : null;
-  const endTimeSec = richMeta['end-time'] ? parseInt(richMeta['end-time'], 10) : null;
+  const claimMetaRaw = claim ? (claim.metadata as unknown as Record<string, string>) : null;
+  const startTimeSec = richMeta['start-time'] ? parseInt(richMeta['start-time'], 10) : (claimMetaRaw?.['start-time'] ? parseInt(claimMetaRaw['start-time'], 10) : null);
+  const endTimeSec = richMeta['end-time'] ? parseInt(richMeta['end-time'], 10) : (claimMetaRaw?.['end-time'] ? parseInt(claimMetaRaw['end-time'], 10) : null);
   const durationSeconds = startTimeSec && endTimeSec ? endTimeSec - startTimeSec : null;
   const killer = richMeta['killer'] ?? null;
 
@@ -400,9 +399,13 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
   const maxClankReached = events.some((e) => e.name === 'clank-maxclank-reached');
 
   const startEvt = events.find((e) => e.name === 'game-started');
-  const startTime = startEvt ? startEvt.createdAt.toISOString() : null;
+  const startTime = startEvt?.createdAt.toISOString()
+    ?? (claimMetaRaw?.['start-time'] ? new Date(parseInt(claimMetaRaw['start-time'], 10) * 1000).toISOString() : null)
+    ?? (events[0]?.createdAt.toISOString() ?? null);
   const endEvt = events.find((e) => e.name === 'game-won' || e.name === 'game-lost');
-  const endTime = endEvt ? endEvt.createdAt.toISOString() : null;
+  const endTime = endEvt?.createdAt.toISOString()
+    ?? (claimMetaRaw?.['end-time'] ? new Date(parseInt(claimMetaRaw['end-time'], 10) * 1000).toISOString() : null)
+    ?? (claim ? (claim.updatedAt as Date | undefined)?.toISOString() ?? null : null);
 
   const server = (claim?.claimant as string | undefined) ?? first.server ?? '';
 
