@@ -18,7 +18,7 @@ FROM base AS release
 COPY --from=install /temp/dev/node_modules node_modules
 COPY ./packages ./packages
 COPY ./src ./src
+COPY package.json . 
 
-# Run the app
 USER bun
-CMD [ "bun", "run", "dev:watch" ]
+CMD [ "bun", "run", "start" ]
