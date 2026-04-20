@@ -7,7 +7,7 @@ export const getFeed = {
     limit: Joi.number().integer().min(1).max(100),
     page: Joi.number().integer().min(1),
     runType: Joi.string().valid('p', 'c', 'h'),
-    outcome: Joi.string().valid('win', 'loss'),
+    outcome: Joi.string().valid('win', 'loss', 'invalid'),
     difficulty: Joi.alternatives().try(
       Joi.string().valid(...DIFFICULTIES),
       Joi.array().items(Joi.string().valid(...DIFFICULTIES))

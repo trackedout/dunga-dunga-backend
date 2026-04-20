@@ -100,16 +100,29 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
     matchStage['metadata.run-type'] = { $in: [options.runType, longForm] };
   }
   if (options.outcome === 'win') matchStage['metadata.game-won'] = 'true';
-  if (options.outcome === 'loss') matchStage['metadata.game-won'] = { $ne: 'true' };
+  if (options.outcome === 'loss' || options.outcome === 'invalid') matchStage['metadata.game-won'] = { $ne: 'true' };
+  if (options.outcome === 'invalid') matchStage['metadata.end-time'] = { $exists: true };
   if (options.difficulty) {
     const difficulties = Array.isArray(options.difficulty) ? options.difficulty : [options.difficulty];
     matchStage['metadata.difficulty'] = difficulties.length === 1 ? difficulties[0] : { $in: difficulties };
   }
 
+  const needsGameStartedLookup = options.outcome === 'loss' || options.outcome === 'invalid';
+  const gameStartedLookup = { $lookup: { from: 'events', let: { runId: '$metadata.run-id' }, pipeline: [{ $match: { $expr: { $and: [{ $eq: ['$metadata.run-id', '$$runId'] }, { $eq: ['$name', 'game-started'] }] } } }, { $limit: 1 }, { $project: { _id: 1 } }], as: '_gs' } };
+  const gameStartedFilter = options.outcome === 'invalid' ? { $match: { '_gs': { $size: 0 } } } : { $match: { '_gs': { $not: { $size: 0 } } } };
+
   const [totalResults, docs] = await Promise.all([
-    Claim.countDocuments(matchStage),
+    needsGameStartedLookup
+      ? Claim.aggregate([
+          { $match: matchStage },
+          gameStartedLookup,
+          gameStartedFilter,
+          { $count: 'n' },
+        ]).then((r) => r[0]?.n ?? 0)
+      : Claim.countDocuments(matchStage),
     Claim.aggregate([
       { $match: matchStage },
+      ...(needsGameStartedLookup ? [gameStartedLookup, gameStartedFilter, { $unset: '_gs' }] : []),
       { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: limit },
@@ -181,9 +194,25 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
               then: 'game-won',
               else: {
                 $cond: {
-                  // Has end-time but not won = lost
                   if: { $gt: ['$metadata.end-time', null] },
-                  then: 'game-lost',
+                  then: {
+                    $cond: {
+                      // Invalidated: claim is invalid and game never started
+                      if: {
+                        $and: [
+                          { $eq: ['$state', 'invalid'] },
+                          {
+                            $eq: [
+                              { $size: { $filter: { input: '$_events', cond: { $eq: ['$$this.name', 'game-started'] } } } },
+                              0,
+                            ],
+                          },
+                        ],
+                      },
+                      then: 'game-invalidated',
+                      else: 'game-lost',
+                    },
+                  },
                   else: 'game-started',
                 },
               },
@@ -296,7 +325,7 @@ export interface RunDetail {
   player: string;
   runType: string | null;
   difficulty: string | null;
-  outcome: 'win' | 'loss' | 'in-progress';
+  outcome: 'win' | 'loss' | 'in-progress' | 'invalidated';
   artifactFound: string | null;
   cardsPlayed: string[];
   cardsBought: string[];
@@ -341,10 +370,12 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
 
   const hasWon = events.some((e) => e.name === 'game-won');
   const hasLost = events.some((e) => e.name === 'game-lost');
+  const hasStarted = events.some((e) => e.name === 'game-started');
   const claimMeta = claim ? (claim.metadata as unknown as Record<string, string>) : null;
   const outcome: RunDetail['outcome'] = hasWon ? 'win'
     : hasLost ? 'loss'
     : claimMeta?.['game-won'] === 'true' ? 'win'
+    : !hasStarted && claim?.state === 'invalid' ? 'invalidated'
     : claimMeta?.['end-time'] ? 'loss'
     : 'in-progress';
 
