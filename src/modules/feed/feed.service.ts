@@ -326,6 +326,7 @@ export interface RunDetail {
   runType: string | null;
   difficulty: string | null;
   outcome: 'win' | 'loss' | 'in-progress' | 'invalidated';
+  invalidationReason: string | null;
   artifactFound: string | null;
   cardsPlayed: string[];
   cardsBought: string[];
@@ -378,6 +379,7 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
     : !hasStarted && claim?.state === 'invalid' ? 'invalidated'
     : claimMeta?.['end-time'] ? 'loss'
     : 'in-progress';
+  const invalidationReason = outcome === 'invalidated' ? ((claim as any)?.stateReason ?? null) : null;
 
   const artifactEvt = events.find((e) => e.name === 'gamestate-player-artifact-submitted');
   const artifactMeta = artifactEvt ? (artifactEvt.metadata as unknown as Record<string, string>) : null;
@@ -436,6 +438,7 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
     runType,
     difficulty,
     outcome,
+    invalidationReason,
     artifactFound,
     cardsPlayed,
     cardsBought,
