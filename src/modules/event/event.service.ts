@@ -400,7 +400,7 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
   ).exec();
 
   await ensureDeckIsSeeded(eventBody.player, 'h1');
-  await resetScoreboard(eventBody.player, 'do2.inventory.shards.hardcore', 10);
+  await resetScoreboard(eventBody.player, 'do2.inventory.shards.hardcore', 64);
 }
 
 export async function storeBestHardcoreStats(eventBody: ClaimRelatedEvent & EventWithServer) {
