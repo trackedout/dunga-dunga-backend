@@ -9,6 +9,10 @@ import config from './config/config';
 import { morgan } from './modules/logger';
 import { ApiError, errorConverter, errorHandler } from './modules/errors';
 import feedRoute from './routes/v1/feed.route';
+import playerRoute from './routes/v1/player.route';
+import overviewRoute from './routes/v1/overview.route';
+import killersRoute from './routes/v1/killers.route';
+import cardStatsRoute from './routes/v1/card-stats.route';
 import { feedController } from './modules/feed';
 
 const ALLOWED_ORIGINS = config.publicCorsOrigins ?? [];
@@ -50,6 +54,10 @@ app.use((req, _res, next) => {
 
 app.use('/v1/feed', feedRoute);
 app.use('/v1/runs/:runId', feedController.getRunHandler);
+app.use('/v1/players', playerRoute);
+app.use('/v1/overview', overviewRoute);
+app.use('/v1/killers', killersRoute);
+app.use('/v1/card-stats', cardStatsRoute);
 
 app.use((_req, _res, next) => {
   next(new ApiError(httpStatus.NOT_FOUND, 'Not found'));

@@ -9,6 +9,10 @@ import tasksRoute from './tasks.route';
 import statusRoute from './status.route';
 import configRoute from './config.route';
 import feedRoute from './feed.route';
+import playerRoute from './player.route';
+import overviewRoute from './overview.route';
+import killersRoute from './killers.route';
+import cardStatsRoute from './card-stats.route';
 import config from '../../config/config';
 
 const router = express.Router();
@@ -54,6 +58,22 @@ const defaultIRoute: IRoute[] = [
   {
     path: '/feed',
     route: feedRoute,
+  },
+  {
+    path: '/players',
+    route: playerRoute,
+  },
+  {
+    path: '/overview',
+    route: overviewRoute,
+  },
+  {
+    path: '/killers',
+    route: killersRoute,
+  },
+  {
+    path: '/card-stats',
+    route: cardStatsRoute,
   },
 ];
 

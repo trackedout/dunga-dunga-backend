@@ -58,7 +58,6 @@ export interface FeedResult {
 
 const SUB_EVENT_NAMES = ['clank-maxclank-reached'];
 
-
 export async function getFeed(options: FeedOptions = {}): Promise<FeedResult> {
   const cacheKey = JSON.stringify(options);
   const cached = feedCache.get(cacheKey);
@@ -90,8 +89,8 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
     const phaseDocs = await Config.find({ entity, key: { $in: ['start-time', 'end-time'] } }).lean();
     const startDoc = phaseDocs.find((d) => d.key === 'start-time');
     const endDoc = phaseDocs.find((d) => d.key === 'end-time');
-    if (startDoc) matchStage['createdAt'] = { ...(matchStage['createdAt'] as object ?? {}), $gte: new Date(startDoc.value) };
-    if (endDoc) matchStage['createdAt'] = { ...(matchStage['createdAt'] as object ?? {}), $lte: new Date(endDoc.value) };
+    if (startDoc) matchStage['createdAt'] = { ...((matchStage['createdAt'] as object) ?? {}), $gte: new Date(startDoc.value) };
+    if (endDoc) matchStage['createdAt'] = { ...((matchStage['createdAt'] as object) ?? {}), $lte: new Date(endDoc.value) };
     // Phase filter always restricts to competitive runs
     matchStage['metadata.run-type'] = { $in: ['c', 'competitive'] };
   } else if (options.runType) {
@@ -110,13 +109,22 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
   }
 
   const needsGameStartedLookup = options.outcome === 'loss' || options.outcome === 'invalid';
-  const gameStartedLookup = { $lookup: { from: 'events', let: { runId: '$metadata.run-id' }, pipeline: [{ $match: { $expr: { $and: [{ $eq: ['$metadata.run-id', '$$runId'] }, { $eq: ['$name', 'game-started'] }] } } }, { $limit: 1 }, { $project: { _id: 1 } }], as: '_gs' } };
-  const gameStartedFilter = options.outcome === 'invalid' ? { $match: { '_gs': { $size: 0 } } } : { $match: { '_gs': { $not: { $size: 0 } } } };
+  const gameStartedLookup = {
+    $lookup: {
+      from: 'events',
+      let: { runId: '$metadata.run-id' },
+      pipeline: [
+        { $match: { $expr: { $and: [{ $eq: ['$metadata.run-id', '$$runId'] }, { $eq: ['$name', 'game-started'] }] } } },
+        { $limit: 1 },
+        { $project: { _id: 1 } },
+      ],
+      as: '_gs',
+    },
+  };
+  const gameStartedFilter = options.outcome === 'invalid' ? { $match: { _gs: { $size: 0 } } } : { $match: { _gs: { $not: { $size: 0 } } } };
 
   const [totalResults, docs] = await Promise.all([
-    needsGameStartedLookup
-      ? Claim.countDocuments(matchStage)
-      : Claim.countDocuments(matchStage),
+    needsGameStartedLookup ? Claim.countDocuments(matchStage) : Claim.countDocuments(matchStage),
     Claim.aggregate([
       { $match: matchStage },
       { $sort: { createdAt: -1 } },
@@ -135,10 +143,12 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
                 $expr: {
                   $and: [
                     { $eq: ['$metadata.run-id', '$$runId'] },
-                    { $or: [
-                      { $in: ['$name', ['game-started', 'game-won', 'game-lost', 'player-died', ...SUB_EVENT_NAMES]] },
-                      { $regexMatch: { input: '$name', regex: '^pickups-' } },
-                    ]},
+                    {
+                      $or: [
+                        { $in: ['$name', ['game-started', 'game-won', 'game-lost', 'player-died', ...SUB_EVENT_NAMES]] },
+                        { $regexMatch: { input: '$name', regex: '^pickups-' } },
+                      ],
+                    },
                   ],
                 },
               },
@@ -200,10 +210,7 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
                         $and: [
                           { $eq: ['$state', 'invalid'] },
                           {
-                            $eq: [
-                              { $size: { $filter: { input: '$_events', cond: { $eq: ['$$this.name', 'game-started'] } } } },
-                              0,
-                            ],
+                            $eq: [{ $size: { $filter: { input: '$_events', cond: { $eq: ['$$this.name', 'game-started'] } } } }, 0],
                           },
                         ],
                       },
@@ -248,12 +255,10 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
               input: {
                 $first: {
                   $filter: {
-                    input: '$_events', as: 'e',
+                    input: '$_events',
+                    as: 'e',
                     cond: {
-                      $and: [
-                        { $regexMatch: { input: '$$e.name', regex: '^pickups-' } },
-                        { $ne: ['$$e.name', 'pickups-compass'] },
-                      ],
+                      $and: [{ $regexMatch: { input: '$$e.name', regex: '^pickups-' } }, { $ne: ['$$e.name', 'pickups-compass'] }],
                     },
                   },
                 },
@@ -361,10 +366,18 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
   const rawRunType = richMeta['run-type'] ?? null;
   const runTypeMap: Record<string, string> = { practice: 'p', competitive: 'c', hardcore: 'h' };
   const runType = rawRunType ? (runTypeMap[rawRunType] ?? rawRunType) : null;
-  const difficulty = richMeta['difficulty'] ?? null;
   const claimMetaRaw = claim ? (claim.metadata as unknown as Record<string, string>) : null;
-  const startTimeSec = richMeta['start-time'] ? parseInt(richMeta['start-time'], 10) : (claimMetaRaw?.['start-time'] ? parseInt(claimMetaRaw['start-time'], 10) : null);
-  const endTimeSec = richMeta['end-time'] ? parseInt(richMeta['end-time'], 10) : (claimMetaRaw?.['end-time'] ? parseInt(claimMetaRaw['end-time'], 10) : null);
+  const difficulty = richMeta['difficulty'] ?? claimMetaRaw?.['difficulty'] ?? null;
+  const startTimeSec = richMeta['start-time']
+    ? parseInt(richMeta['start-time'], 10)
+    : claimMetaRaw?.['start-time']
+      ? parseInt(claimMetaRaw['start-time'], 10)
+      : null;
+  const endTimeSec = richMeta['end-time']
+    ? parseInt(richMeta['end-time'], 10)
+    : claimMetaRaw?.['end-time']
+      ? parseInt(claimMetaRaw['end-time'], 10)
+      : null;
   const durationSeconds = startTimeSec && endTimeSec ? endTimeSec - startTimeSec : null;
   const killer = richMeta['killer'] ?? null;
 
@@ -372,49 +385,77 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
   const hasLost = events.some((e) => e.name === 'game-lost');
   const hasStarted = events.some((e) => e.name === 'game-started');
   const claimMeta = claim ? (claim.metadata as unknown as Record<string, string>) : null;
-  const outcome: RunDetail['outcome'] = hasWon ? 'win'
-    : hasLost ? 'loss'
-    : claimMeta?.['game-won'] === 'true' ? 'win'
-    : !hasStarted && claim?.state === 'invalid' ? 'invalidated'
-    : claimMeta?.['end-time'] ? 'loss'
-    : 'in-progress';
+  const outcome: RunDetail['outcome'] = hasWon
+    ? 'win'
+    : hasLost
+      ? 'loss'
+      : claimMeta?.['game-won'] === 'true'
+        ? 'win'
+        : !hasStarted && claim?.state === 'invalid'
+          ? 'invalidated'
+          : claimMeta?.['end-time']
+            ? 'loss'
+            : 'in-progress';
   const invalidationReason = outcome === 'invalidated' ? ((claim as any)?.stateReason ?? null) : null;
 
   const artifactEvt = events.find((e) => e.name === 'gamestate-player-artifact-submitted');
   const artifactMeta = artifactEvt ? (artifactEvt.metadata as unknown as Record<string, string>) : null;
   const artifactFound = artifactMeta ? (artifactMeta['artifact'] ?? artifactMeta['artifact-id'] ?? null) : null;
 
-  const cardsPlayed = [...new Set(
-    events
-      .filter((e) => e.name.startsWith('card-played-'))
-      .map((e) => e.name.replace('card-played-', ''))
-  )];
+  const cardsPlayed = [...new Set(events.filter((e) => e.name.startsWith('card-played-')).map((e) => e.name.replace('card-played-', '')))];
 
-  const cardsBought = [...new Set(
-    events
-      .filter((e) => e.name.startsWith('card-bought-'))
-      .map((e) => e.name.replace('card-bought-', ''))
-  )];
+  const cardsBought = [...new Set(events.filter((e) => e.name.startsWith('card-bought-')).map((e) => e.name.replace('card-bought-', '')))];
 
   const maxClankReached = events.some((e) => e.name === 'clank-maxclank-reached');
 
   const startEvt = events.find((e) => e.name === 'game-started');
-  const startTime = startEvt?.createdAt.toISOString()
-    ?? (claimMetaRaw?.['start-time'] ? new Date(parseInt(claimMetaRaw['start-time'], 10) * 1000).toISOString() : null)
-    ?? (events[0]?.createdAt.toISOString() ?? null);
+  const startTime =
+    startEvt?.createdAt.toISOString() ??
+    (claimMetaRaw?.['start-time'] ? new Date(parseInt(claimMetaRaw['start-time'], 10) * 1000).toISOString() : null) ??
+    events[0]?.createdAt.toISOString() ??
+    null;
   const endEvt = events.find((e) => e.name === 'game-won' || e.name === 'game-lost');
-  const endTime = endEvt?.createdAt.toISOString()
-    ?? (claimMetaRaw?.['end-time'] ? new Date(parseInt(claimMetaRaw['end-time'], 10) * 1000).toISOString() : null)
-    ?? (claim ? (claim.updatedAt as Date | undefined)?.toISOString() ?? null : null);
+  const endTime =
+    endEvt?.createdAt.toISOString() ??
+    (claimMetaRaw?.['end-time'] ? new Date(parseInt(claimMetaRaw['end-time'], 10) * 1000).toISOString() : null) ??
+    (claim ? ((claim.updatedAt as Date | undefined)?.toISOString() ?? null) : null);
 
   const server = (claim?.claimant as string | undefined) ?? first.server ?? '';
 
   const INTERNAL_PREFIXES = [
-    'spam-', 'entity-testing-', 'entity-controller-', 'dungeon-setup-',
-    'datapack-setup-', 'dev-', 'dropper-room-', 'gamestate-game-',
-    'card-count-on-join', 'card-exists-on-join', 'card-visibility-updated',
-    'player-actions-', 'proxy-ping', 'server-online', 'joined-server',
-    'joined-network', 'joined-queue', 'player-seen', 'evokers-',
+    'spam-',
+    'entity-testing-',
+    'entity-controller-',
+    'dungeon-setup-',
+    'datapack-setup-',
+    'dev-',
+    'dropper-room-',
+    'gamestate-game-',
+    'card-count-on-join',
+    'card-exists-on-join',
+    'card-visibility-updated',
+    'proxy-ping',
+    'server-online',
+    'joined-server',
+    'joined-network',
+    'joined-queue',
+    'player-seen',
+    'evokers-',
+    'player-actions-egg-hunt-',
+    'player-actions-locate-',
+    'player-actions-yeti-',
+    'player-actions-trick',
+    'player-actions-treat',
+    'player-actions-dungeon-masters',
+    'player-actions-found-',
+    'player-actions-reached-',
+    'player-actions-rusty-',
+    'player-actions-door-bomb',
+    'player-actions-key-level-',
+    'embers-dropped',
+    'embers-released',
+    'treasure-dropped',
+    'treasure-released',
   ];
   const isInternal = (name: string) => INTERNAL_PREFIXES.some((p) => name.startsWith(p));
 
