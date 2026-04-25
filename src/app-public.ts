@@ -13,6 +13,7 @@ import playerRoute from './routes/v1/player.route';
 import overviewRoute from './routes/v1/overview.route';
 import killersRoute from './routes/v1/killers.route';
 import cardStatsRoute from './routes/v1/card-stats.route';
+import statsRoute from './routes/v1/stats.route';
 import { feedController } from './modules/feed';
 import { eventController } from './modules/event';
 
@@ -59,6 +60,7 @@ app.use('/v1/players', playerRoute);
 app.use('/v1/overview', overviewRoute);
 app.use('/v1/killers', killersRoute);
 app.use('/v1/card-stats', cardStatsRoute);
+app.use('/v1/stats', statsRoute);
 app.get('/v1/events/names', eventController.getEventNames);
 
 app.use((_req, _res, next) => {

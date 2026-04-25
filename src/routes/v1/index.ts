@@ -13,6 +13,7 @@ import playerRoute from './player.route';
 import overviewRoute from './overview.route';
 import killersRoute from './killers.route';
 import cardStatsRoute from './card-stats.route';
+import statsRoute from './stats.route';
 import config from '../../config/config';
 
 const router = express.Router();
@@ -74,6 +75,10 @@ const defaultIRoute: IRoute[] = [
   {
     path: '/card-stats',
     route: cardStatsRoute,
+  },
+  {
+    path: '/stats',
+    route: statsRoute,
   },
 ];
 
