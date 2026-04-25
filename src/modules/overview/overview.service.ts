@@ -28,6 +28,22 @@ export const getOverview = async () => {
     return [c._id.toString(), { runId: meta['run-id'] ?? null, difficulty: meta['difficulty'] ?? null, runType: meta['run-type'] ?? null }];
   }));
 
+  // Pending claims: players with activeClaimId not assigned to any dungeon
+  const assignedClaimIds = new Set(claimIds);
+  const pendingPlayers = await Player.find({
+    activeClaimId: { $exists: true, $nin: ['', null, ...Array.from(assignedClaimIds)] },
+    lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
+    playerName: { $ne: 'TangoCam' },
+  }).lean();
+
+  const pendingClaimDocs = pendingPlayers.length
+    ? await Claim.find({ _id: { $in: pendingPlayers.map((p) => p.activeClaimId) } }).lean()
+    : [];
+  const pendingClaimMap = new Map(pendingClaimDocs.map((c) => {
+    const meta = c.metadata as unknown as Record<string, string>;
+    return [c._id.toString(), { difficulty: meta['difficulty'] ?? null, runType: meta['run-type'] ?? null }];
+  }));
+
   return {
     onlinePlayers: players.map((p) => ({
       name: p.playerName,
@@ -42,6 +58,10 @@ export const getOverview = async () => {
       requiresRebuild: d.requiresRebuild,
       dungeonType: dungeonType(d.name),
       claim: d.claimId ? (claimMap.get(d.claimId) ?? null) : null,
+    })),
+    pendingClaims: pendingPlayers.map((p) => ({
+      player: p.playerName,
+      ...(pendingClaimMap.get(p.activeClaimId ?? '') ?? { difficulty: null, runType: null }),
     })),
   };
 };

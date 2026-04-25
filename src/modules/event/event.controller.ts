@@ -54,3 +54,14 @@ export const deleteEvent = catchAsync(async (req: Request, res: Response) => {
     res.status(httpStatus.NO_CONTENT).send();
   }
 });
+
+let eventNamesCache: { data: string[]; ts: number } | null = null;
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
+export const getEventNames = catchAsync(async (_req: Request, res: Response) => {
+  if (!eventNamesCache || Date.now() - eventNamesCache.ts > CACHE_TTL) {
+    eventNamesCache = { data: await eventService.getEventNames(), ts: Date.now() };
+  }
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.send(eventNamesCache.data);
+});

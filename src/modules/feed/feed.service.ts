@@ -14,6 +14,7 @@ export interface FeedOptions {
   difficulty?: string | string[];
   player?: string;
   phase?: number;
+  hasEvent?: string | string[];
 }
 
 export interface FeedSubEvent {
@@ -131,6 +132,25 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
       { $skip: skip },
       { $limit: limit * 3 }, // oversample to account for filtered-out invalidated runs
       ...(needsGameStartedLookup ? [gameStartedLookup, gameStartedFilter, { $unset: '_gs' }] : []),
+      ...(options.hasEvent ? (() => {
+        const events = Array.isArray(options.hasEvent) ? options.hasEvent : [options.hasEvent];
+        return events.flatMap((ev, i) => [
+          {
+            $lookup: {
+              from: 'events',
+              let: { runId: '$metadata.run-id' },
+              pipeline: [
+                { $match: { $expr: { $and: [{ $eq: ['$metadata.run-id', '$$runId'] }, { $eq: ['$name', ev] }] } } },
+                { $limit: 1 },
+                { $project: { _id: 1 } },
+              ],
+              as: `_he${i}`,
+            },
+          },
+          { $match: { [`_he${i}`]: { $not: { $size: 0 } } } },
+          { $unset: `_he${i}` },
+        ]);
+      })() : []),
       { $limit: limit },
       // Look up all relevant events for this run
       {

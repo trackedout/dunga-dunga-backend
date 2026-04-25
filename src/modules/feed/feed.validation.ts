@@ -14,5 +14,6 @@ export const getFeed = {
     ),
     player: Joi.string().min(1),
     phase: Joi.number().integer().min(1),
+    hasEvent: Joi.alternatives().try(Joi.string().min(1), Joi.array().items(Joi.string().min(1))),
   }),
 };

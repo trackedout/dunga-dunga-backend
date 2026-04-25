@@ -1051,3 +1051,23 @@ export const deleteEventById = async (eventId: mongoose.Types.ObjectId): Promise
   await event.deleteOne();
   return event;
 };
+
+const INTERNAL_PREFIXES = [
+  'datapack-setup', 'dev-', 'dungeon-setup', 'entity-controller', 'entity-testing',
+  'dropper-room', 'evokers-', 'server-', 'shutdown-', 'restart-', 'spam-',
+  'spawnpoint-', 'proxy-', 'score-modified', 'bug-report',
+  'hazard_station_', 'clank-shrieker-',
+  'card-available-', 'card-bought-', 'card-played-', 'card-exists-on-join-', 'card-skipped-on-join-',
+  'card-deleted-', 'card-count-on-join', 'card-visibility-updated',
+  'add-item-', 'item-deleted-', 'item-refunded-',
+  'hazard-', 'pickups-', 'player-actions-egg-hunt-',
+  'add-to-queue', 'allowed-to-play', 'deck-modified-on-join',
+  'gamestate-game-load', 'joined-network', 'joined-server', 'left-network',
+  'player-seen', 'preparation-complete', 'ready-for-dungeon', 'spectating-game',
+  'difficulty-selected-', 'list',
+];
+
+export const getEventNames = async (): Promise<string[]> => {
+  const names: string[] = await Event.distinct('name', { createdAt: { $gte: new Date('2026-03-15T00:00:00Z') } });
+  return names.filter((n) => !INTERNAL_PREFIXES.some((p) => n.startsWith(p))).sort();
+};

@@ -9,6 +9,8 @@ router
   .post(validate(eventValidation.createEvent), eventController.createEvent)
   .get(validate(eventValidation.getEvents), eventController.getEvents);
 
+router.route('/names').get(eventController.getEventNames);
+
 export default router;
 
 /**

@@ -6,7 +6,7 @@ import { getFeed, FeedOptions, getRunById } from './feed.service';
 import { ApiError } from '../errors';
 
 export const getFeedHandler = catchAsync(async (req: Request, res: Response) => {
-  const options = pick(req.query, ['limit', 'page', 'runType', 'outcome', 'difficulty', 'player', 'phase']) as FeedOptions;
+  const options = pick(req.query, ['limit', 'page', 'runType', 'outcome', 'difficulty', 'player', 'phase', 'hasEvent']) as FeedOptions;
   if (options.limit) options.limit = parseInt(options.limit as unknown as string, 10);
   if (options.page) options.page = parseInt(options.page as unknown as string, 10);
   if (options.phase) options.phase = parseInt(options.phase as unknown as string, 10);
