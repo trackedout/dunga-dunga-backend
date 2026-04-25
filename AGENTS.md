@@ -46,6 +46,16 @@ Auto-builds and redeploys on commit to `main`. Check status with:
 kubectl --context=burn logs -n davybones deployments/dunga-dunga --tail 20
 ```
 
+## Environment Variables
+
+| Var | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `NODE_ENV` | yes | — | `production` / `development` / `test` |
+| `MONGODB_URL` | yes | — | MongoDB connection string |
+| `PORT` | no | 3000 | Internal API port |
+| `PUBLIC_PORT` | no | 3001 | Public API port |
+| `PUBLIC_CORS_ORIGINS` | no | — | Comma-separated allowed origins for public API |
+
 ## MongoDB Collections
 
 ```
@@ -95,12 +105,16 @@ Season 2 started `2026-03-15T00:00:00Z`. Before this date, card events used full
 ## Public API (`app-public.ts`)
 
 `src/app-public.ts` is a separate Express app exposed to the open internet. Currently serves:
-- `GET /v1/feed` — paginated run feed
+- `GET /v1/feed` — paginated run feed (supports `hasEvent` multi-filter)
 - `GET /v1/runs/:runId` — full run detail
-- `GET /v1/players/:name` — player scores + recent run stats
-- `GET /v1/overview` — online players + dungeon instances
+- `GET /v1/players/:name` — player scores + recent run stats + nemesis
+- `GET /v1/overview` — online players + dungeon instances + pending claims
 - `GET /v1/killers` — kill stats (unique per run)
 - `GET /v1/card-stats` — card played/bought counts
+
+- `GET /v1/players` — list all players with run/win counts
+- `GET /v1/killers/:killer` — killer detail (victims by count)
+- `GET /v1/events/names` — distinct event names (cached 1h)
 
 Security constraints (do not relax without explicit approval):
 - **CORS**: locked to `PUBLIC_CORS_ORIGINS` env var. Only `GET` allowed.
