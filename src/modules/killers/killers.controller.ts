@@ -5,7 +5,7 @@ import { getKillers, getKillerDetail } from './killers.service';
 
 export const getKillersHandler = catchAsync(async (req: Request, res: Response) => {
   const query = pick(req.query, ['limit', 'runType', 'since']) as { limit?: string; runType?: string; since?: string };
-  const limit = query.limit ? parseInt(query.limit, 10) : 20;
+  const limit = query.limit ? parseInt(query.limit, 10) : 100;
   const result = await getKillers(limit, query.runType, query.since);
   res.send(result);
 });
