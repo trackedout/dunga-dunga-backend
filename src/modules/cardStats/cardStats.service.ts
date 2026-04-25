@@ -36,12 +36,15 @@ const CARD_NAME_TO_SHORTHAND: Record<string, string> = {
   "treasure-hunter":"TRH","treasure_hunter":"TRH",
 };
 
-export const getCardStats = async (runType?: string, since?: string) => {
+export const getCardStats = async (runType?: string, since?: string, until?: string) => {
   const match: Record<string, unknown> = {
     name: { $regex: '^card-(played|bought)-' },
   };
   if (runType) match['metadata.run-type'] = runType;
-  if (since) match['createdAt'] = { $gte: new Date(since) };
+  const dateFilter: Record<string, Date> = {};
+  if (since) dateFilter['$gte'] = new Date(since);
+  if (until) dateFilter['$lt'] = new Date(until);
+  if (Object.keys(dateFilter).length) match['createdAt'] = dateFilter;
 
   // 'card-played-' and 'card-bought-' are both 12 chars
   const results = await Event.aggregate([

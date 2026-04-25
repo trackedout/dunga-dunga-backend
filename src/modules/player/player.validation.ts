@@ -7,12 +7,14 @@ export const getPlayer = {
   query: Joi.object().keys({
     since: Joi.string().isoDate().optional(),
     until: Joi.string().isoDate().optional(),
+    runType: Joi.string().valid('p', 'c', 'h').optional(),
   }),
 };
 
 export const getPlayers = {
   query: Joi.object().keys({
     since: Joi.string().isoDate().optional(),
+    until: Joi.string().isoDate().optional(),
     runType: Joi.string().valid('p', 'c', 'h').optional(),
   }),
 };

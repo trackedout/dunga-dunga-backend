@@ -27,12 +27,16 @@ const effectiveKiller = {
   },
 };
 
-export const listPlayers = async (since?: string, runType?: string) => {
+export const listPlayers = async (since?: string, runType?: string, until?: string) => {
   const query: Record<string, unknown> = { isAllowedToPlayDO2: true };
-  if (since) query['lastQueuedAt'] = { $gte: new Date(since) };
+  if (since) query['lastQueuedAt'] = { ...(query['lastQueuedAt'] as object ?? {}), $gte: new Date(since) };
+  if (until) query['lastQueuedAt'] = { ...(query['lastQueuedAt'] as object ?? {}), $lt: new Date(until) };
 
   const claimMatch: Record<string, unknown> = { 'metadata.end-time': { $exists: true } };
-  if (since) claimMatch['createdAt'] = { $gte: new Date(since) };
+  const claimDateFilter: Record<string, Date> = {};
+  if (since) claimDateFilter['$gte'] = new Date(since);
+  if (until) claimDateFilter['$lt'] = new Date(until);
+  if (Object.keys(claimDateFilter).length) claimMatch['createdAt'] = claimDateFilter;
   if (runType) {
     const longForm = { p: 'practice', c: 'competitive', h: 'hardcore' }[runType] ?? runType;
     claimMatch['metadata.run-type'] = { $in: [runType, longForm] };
@@ -66,10 +70,16 @@ export const listPlayers = async (since?: string, runType?: string) => {
   }) };
 };
 
-export const getPlayerData = async (name: string, since?: string, until?: string) => {
+export const getPlayerData = async (name: string, since?: string, until?: string, runType?: string) => {
   const dateFilter: Record<string, Date> = {};
   if (since) dateFilter['$gte'] = new Date(since);
   if (until) dateFilter['$lt'] = new Date(until);
+
+  const runTypeMatch: Record<string, unknown> = {};
+  if (runType) {
+    const longForm = { p: 'practice', c: 'competitive', h: 'hardcore' }[runType] ?? runType;
+    runTypeMatch['metadata.run-type'] = { $in: [runType, longForm] };
+  }
 
   const [scores, claims, nemesisResult] = await Promise.all([
     Score.find({ player: { $regex: name, $options: 'i' } })
@@ -78,6 +88,7 @@ export const getPlayerData = async (name: string, since?: string, until?: string
     Claim.find({
       player: { $regex: name, $options: 'i' },
       ...(Object.keys(dateFilter).length ? { createdAt: dateFilter } : {}),
+      ...runTypeMatch,
     }).lean(),
     Event.aggregate([
       { $match: {
@@ -88,10 +99,16 @@ export const getPlayerData = async (name: string, since?: string, until?: string
           { 'metadata.death-message': { $exists: true, $nin: ['', null] } },
         ],
         ...(Object.keys(dateFilter).length ? { createdAt: dateFilter } : {}),
+        ...runTypeMatch,
       }},
       { $sort: { createdAt: 1 } },
       { $group: { _id: '$metadata.run-id', killer: { $first: effectiveKiller } } },
       { $match: { killer: { $nin: [null, '', 'unknown', 'nothing, they survived Decked Out'] } } },
+      { $lookup: { from: 'events', let: { rid: '$_id' }, pipeline: [
+        { $match: { $expr: { $and: [{ $eq: ['$metadata.run-id', '$$rid'] }, { $eq: ['$name', 'game-won'] }] } } },
+        { $limit: 1 },
+      ], as: '_won' } },
+      { $match: { _won: { $size: 0 } } },
       { $group: { _id: '$killer', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 1 },

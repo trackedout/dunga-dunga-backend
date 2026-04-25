@@ -26,7 +26,7 @@ const effectiveKiller = {
   },
 };
 
-export const getKillers = async (limit: number, runType?: string, since?: string) => {
+export const getKillers = async (limit: number, runType?: string, since?: string, until?: string) => {
   const match: Record<string, unknown> = {
     name: 'player-died',
     $or: [
@@ -35,7 +35,10 @@ export const getKillers = async (limit: number, runType?: string, since?: string
     ],
   };
   if (runType) match['metadata.run-type'] = runType;
-  if (since) match['createdAt'] = { $gte: new Date(since) };
+  const dateFilter: Record<string, Date> = {};
+  if (since) dateFilter['$gte'] = new Date(since);
+  if (until) dateFilter['$lt'] = new Date(until);
+  if (Object.keys(dateFilter).length) match['createdAt'] = dateFilter;
 
   const results = await Event.aggregate([
     { $match: match },
@@ -49,6 +52,11 @@ export const getKillers = async (limit: number, runType?: string, since?: string
       },
     },
     { $match: { killer: { $nin: [null, '', 'unknown'] } } },
+    { $lookup: { from: 'events', let: { rid: '$_id' }, pipeline: [
+      { $match: { $expr: { $and: [{ $eq: ['$metadata.run-id', '$$rid'] }, { $eq: ['$name', 'game-won'] }] } } },
+      { $limit: 1 },
+    ], as: '_won' } },
+    { $match: { _won: { $size: 0 } } },
     {
       $group: {
         _id: { killer: '$killer', killerType: '$killerType' },
@@ -63,7 +71,7 @@ export const getKillers = async (limit: number, runType?: string, since?: string
   return { results };
 };
 
-export const getKillerDetail = async (killer: string, runType?: string, since?: string) => {
+export const getKillerDetail = async (killer: string, runType?: string, since?: string, until?: string) => {
   const match: Record<string, unknown> = {
     name: 'player-died',
     $or: [
@@ -80,7 +88,10 @@ export const getKillerDetail = async (killer: string, runType?: string, since?: 
     ],
   };
   if (runType) match['metadata.run-type'] = runType;
-  if (since) match['createdAt'] = { $gte: new Date(since) };
+  const dateFilter: Record<string, Date> = {};
+  if (since) dateFilter['$gte'] = new Date(since);
+  if (until) dateFilter['$lt'] = new Date(until);
+  if (Object.keys(dateFilter).length) match['createdAt'] = dateFilter;
 
   const results = await Event.aggregate([
     { $match: match },
@@ -95,6 +106,11 @@ export const getKillerDetail = async (killer: string, runType?: string, since?: 
         killerType: { $first: '$metadata.killer-type' },
       },
     },
+    { $lookup: { from: 'events', let: { rid: '$_id' }, pipeline: [
+      { $match: { $expr: { $and: [{ $eq: ['$metadata.run-id', '$$rid'] }, { $eq: ['$name', 'game-won'] }] } } },
+      { $limit: 1 },
+    ], as: '_won' } },
+    { $match: { _won: { $size: 0 } } },
     {
       $group: {
         _id: '$player',

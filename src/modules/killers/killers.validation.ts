@@ -5,6 +5,7 @@ export const getKillers = {
     limit: Joi.number().integer().min(1).max(100),
     runType: Joi.string().valid('p', 'c', 'h'),
     since: Joi.string().isoDate(),
+    until: Joi.string().isoDate(),
   }),
 };
 
@@ -15,5 +16,6 @@ export const getKillerDetail = {
   query: Joi.object().keys({
     runType: Joi.string().valid('p', 'c', 'h'),
     since: Joi.string().isoDate(),
+    until: Joi.string().isoDate(),
   }),
 };
