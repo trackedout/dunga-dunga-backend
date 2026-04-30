@@ -54,14 +54,14 @@ app.use((req, _res, next) => {
   next();
 });
 
-app.use('/v1/feed', feedRoute);
-app.use('/v1/runs/:runId', feedController.getRunHandler);
-app.use('/v1/players', playerRoute);
-app.use('/v1/overview', overviewRoute);
-app.use('/v1/killers', killersRoute);
-app.use('/v1/card-stats', cardStatsRoute);
-app.use('/v1/stats', statsRoute);
-app.get('/v1/events/names', eventController.getEventNames);
+app.use('/ember/feed', feedRoute);
+app.use('/ember/runs/:runId', feedController.getRunHandler);
+app.use('/ember/players', playerRoute);
+app.use('/ember/overview', overviewRoute);
+app.use('/ember/killers', killersRoute);
+app.use('/ember/card-stats', cardStatsRoute);
+app.use('/ember/stats', statsRoute);
+app.get('/ember/events/names', eventController.getEventNames);
 
 app.use((_req, _res, next) => {
   next(new ApiError(httpStatus.NOT_FOUND, 'Not found'));
