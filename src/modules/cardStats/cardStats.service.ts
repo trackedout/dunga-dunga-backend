@@ -37,14 +37,19 @@ const CARD_NAME_TO_SHORTHAND: Record<string, string> = {
 };
 
 export const getCardStats = async (runType?: string, since?: string, until?: string) => {
-  const match: Record<string, unknown> = {
-    name: { $regex: '^card-(played|bought)-' },
+  const nameFilter = {
+    $or: [
+      { name: { $gte: 'card-played-', $lt: 'card-played.' } },
+      { name: { $gte: 'card-bought-', $lt: 'card-bought.' } },
+    ],
   };
-  if (runType) match['metadata.run-type'] = runType;
+  const extra: Record<string, unknown> = {};
+  if (runType) extra['metadata.run-type'] = runType;
   const dateFilter: Record<string, Date> = {};
   if (since) dateFilter['$gte'] = new Date(since);
   if (until) dateFilter['$lt'] = new Date(until);
-  if (Object.keys(dateFilter).length) match['createdAt'] = dateFilter;
+  if (Object.keys(dateFilter).length) extra['createdAt'] = dateFilter;
+  const match = Object.keys(extra).length ? { $and: [nameFilter, extra] } : nameFilter;
 
   // 'card-played-' and 'card-bought-' are both 12 chars
   const results = await Event.aggregate([

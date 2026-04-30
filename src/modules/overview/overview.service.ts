@@ -18,31 +18,33 @@ export const getOverview = async () => {
     return t === 'default' ? 'season-1' : t;
   };
 
-  // Fetch claims for dungeons that have a claimId
-  const claimIds = dungeons.map((d) => d.claimId).filter(Boolean) as string[];
-  const claims = claimIds.length
-    ? await Claim.find({ _id: { $in: claimIds } }).lean()
+  // Fetch all relevant claims (from dungeons + online players)
+  const dungeonClaimIds = dungeons.map((d) => d.claimId).filter(Boolean) as string[];
+  const playerClaimIds = players.map((p) => p.activeClaimId).filter(Boolean) as string[];
+  const allClaimIds = [...new Set([...dungeonClaimIds, ...playerClaimIds])];
+  const allClaims = allClaimIds.length
+    ? await Claim.find({ _id: { $in: allClaimIds } }).lean()
     : [];
-  const claimMap = new Map(claims.map((c) => {
+  const claimMap = new Map(allClaims.map((c) => {
     const meta = c.metadata as unknown as Record<string, string>;
-    return [c._id.toString(), { runId: meta['run-id'] ?? null, difficulty: meta['difficulty'] ?? null, runType: meta['run-type'] ?? null }];
+    return [c._id.toString(), { runId: meta['run-id'] ?? null, difficulty: meta['difficulty'] ?? null, runType: meta['run-type'] ?? null, startTime: meta['start-time'] ? new Date(parseInt(meta['start-time'], 10) * 1000).toISOString() : null }];
   }));
 
-  // Pending claims: players with activeClaimId not assigned to any dungeon
-  const assignedClaimIds = new Set(claimIds);
+  // Pending claims: players with activeClaimId not assigned to any dungeon AND actively queuing
+  const assignedClaimIds = new Set(dungeonClaimIds);
   const pendingPlayers = await Player.find({
     activeClaimId: { $exists: true, $nin: ['', null, ...Array.from(assignedClaimIds)] },
+    state: { $in: ['in-queue', 'in-transit-to-dungeon'] },
     lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
     playerName: { $ne: 'TangoCam' },
   }).lean();
 
-  const pendingClaimDocs = pendingPlayers.length
-    ? await Claim.find({ _id: { $in: pendingPlayers.map((p) => p.activeClaimId) } }).lean()
-    : [];
-  const pendingClaimMap = new Map(pendingClaimDocs.map((c) => {
-    const meta = c.metadata as unknown as Record<string, string>;
-    return [c._id.toString(), { difficulty: meta['difficulty'] ?? null, runType: meta['run-type'] ?? null }];
-  }));
+  const pendingClaimMap = new Map(allClaims
+    .filter((c) => pendingPlayers.some((p) => p.activeClaimId === c._id.toString()))
+    .map((c) => {
+      const meta = c.metadata as unknown as Record<string, string>;
+      return [c._id.toString(), { difficulty: meta['difficulty'] ?? null, runType: meta['run-type'] ?? null }];
+    }));
 
   return {
     onlinePlayers: players.map((p) => ({
@@ -50,6 +52,7 @@ export const getOverview = async () => {
       state: p.state,
       server: p.server,
       lastSeen: p.lastSeen,
+      ...(p.activeClaimId && claimMap.has(p.activeClaimId) ? { claim: claimMap.get(p.activeClaimId) } : {}),
     })),
     dungeons: dungeons.map((d) => ({
       name: d.name,
