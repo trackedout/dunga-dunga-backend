@@ -120,17 +120,54 @@ export const getPlayerData = async (name: string, since?: string, until?: string
     return !!meta['end-time'];
   });
 
-  const wins = completedClaims.filter((c) => {
+  // Claims with game-won metadata set
+  const wonFromMeta = new Set<string>();
+  const missingWonRunIds: string[] = [];
+  for (const c of completedClaims) {
     const meta = c.metadata as unknown as Record<string, string>;
-    return meta['game-won'] === 'true';
-  }).length;
+    const runId = meta['run-id'] ?? '';
+    if (meta['game-won'] === 'true') {
+      wonFromMeta.add(runId);
+    } else if (runId) {
+      missingWonRunIds.push(runId);
+    }
+  }
+
+  // Look up game-won events for claims missing the metadata
+  const wonFromEvents = new Set<string>();
+  if (missingWonRunIds.length) {
+    const wonEvents = await Event.find({
+      name: 'game-won',
+      'metadata.run-id': { $in: missingWonRunIds },
+    }).lean();
+    for (const e of wonEvents) {
+      const rid = (e.metadata as unknown as Record<string, string>)['run-id'];
+      if (rid) wonFromEvents.add(rid);
+    }
+  }
+
+  const isWin = (c: typeof completedClaims[0]) => {
+    const rid = (c.metadata as unknown as Record<string, string>)['run-id'] ?? '';
+    return wonFromMeta.has(rid) || wonFromEvents.has(rid);
+  };
+
+  const wins = completedClaims.filter(isWin).length;
+
+  const byDifficulty: Record<string, { total: number; wins: number }> = {};
+  for (const c of completedClaims) {
+    const meta = c.metadata as unknown as Record<string, string>;
+    const diff = meta['difficulty'] ?? 'unknown';
+    if (!byDifficulty[diff]) byDifficulty[diff] = { total: 0, wins: 0 };
+    byDifficulty[diff].total++;
+    if (isWin(c)) byDifficulty[diff].wins++;
+  }
 
   const nemesis = nemesisResult[0] ? { killer: nemesisResult[0]._id as string, count: nemesisResult[0].count as number } : null;
 
   return {
     player: name,
     scores: scores.map((s) => ({ key: s.key, value: s.value })),
-    recentRuns: { total: completedClaims.length, wins, losses: completedClaims.length - wins },
+    recentRuns: { total: completedClaims.length, wins, losses: completedClaims.length - wins, byDifficulty },
     nemesis,
   };
 };
