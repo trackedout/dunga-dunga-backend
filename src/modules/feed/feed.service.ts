@@ -452,7 +452,6 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
     'dropper-room-',
     'gamestate-game-',
     'card-count-on-join',
-    'card-exists-on-join',
     'card-visibility-updated',
     'proxy-ping',
     'server-online',

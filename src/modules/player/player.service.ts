@@ -162,6 +162,28 @@ export const getPlayerData = async (name: string, since?: string, until?: string
     if (isWin(c)) byDifficulty[diff].wins++;
   }
 
+  const runIdFilter = completedClaims.map((c) => (c.metadata as unknown as Record<string, string>)['run-id']).filter(Boolean);
+
+  // Aggregate card stats from events for the filtered runs
+  const cardStatsResult = runIdFilter.length ? await Event.aggregate([
+    { $match: {
+      'metadata.run-id': { $in: runIdFilter },
+      name: { $regex: /^card-(played|bought|available)-/ },
+    }},
+    { $group: {
+      _id: '$name',
+      count: { $sum: 1 },
+    }},
+  ]) : [];
+
+  const cardStats = { played: {} as Record<string, number>, bought: {} as Record<string, number>, available: {} as Record<string, number> };
+  for (const r of cardStatsResult) {
+    const name = r._id as string;
+    if (name.startsWith('card-played-')) cardStats.played[name.slice(12)] = (cardStats.played[name.slice(12)] ?? 0) + (r.count as number);
+    else if (name.startsWith('card-bought-')) cardStats.bought[name.slice(12)] = (cardStats.bought[name.slice(12)] ?? 0) + (r.count as number);
+    else if (name.startsWith('card-available-')) cardStats.available[name.slice(15)] = (cardStats.available[name.slice(15)] ?? 0) + (r.count as number);
+  }
+
   const nemesis = nemesisResult[0] ? { killer: nemesisResult[0]._id as string, count: nemesisResult[0].count as number } : null;
 
   return {
@@ -169,5 +191,6 @@ export const getPlayerData = async (name: string, since?: string, until?: string
     scores: scores.map((s) => ({ key: s.key, value: s.value })),
     recentRuns: { total: completedClaims.length, wins, losses: completedClaims.length - wins, byDifficulty },
     nemesis,
+    cardStats,
   };
 };
