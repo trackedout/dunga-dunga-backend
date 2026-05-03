@@ -361,6 +361,8 @@ export interface RunDetail {
   maxClankReached: boolean;
   events: RunDetailEvent[];
   scores: Array<{ key: string; value: number; diff: number }>;
+  claimCreatedAt: string | null;
+  instanceJoinedAt: string | null;
 }
 
 export async function getRunById(runId: string): Promise<RunDetail | null> {
@@ -513,5 +515,7 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
     maxClankReached,
     events: eventList,
     scores,
+    claimCreatedAt: claim?.createdAt ? (claim.createdAt as Date).toISOString() : null,
+    instanceJoinedAt: events.find((e) => e.name === 'card-count-on-join')?.createdAt.toISOString() ?? null,
   };
 }
