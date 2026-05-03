@@ -5,7 +5,7 @@ import Claim from '../claim/claim.model';
 
 export const getOverview = async () => {
   const [players, dungeons, dungeonTypeConfigs] = await Promise.all([
-    Player.find({ lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) }, playerName: { $ne: 'TangoCam' } })
+    Player.find({ lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) }, playerName: { $ne: 'TangoCam' }, state: { $ne: 'somewhere-else' } })
       .sort({ lastSeen: -1 })
       .lean(),
     DungeonInstance.find({}).sort({ name: 1 }).lean(),
@@ -27,7 +27,7 @@ export const getOverview = async () => {
     : [];
   const claimMap = new Map(allClaims.map((c) => {
     const meta = c.metadata as unknown as Record<string, string>;
-    return [c._id.toString(), { runId: meta['run-id'] ?? null, difficulty: meta['difficulty'] ?? null, runType: meta['run-type'] ?? null, startTime: meta['start-time'] ? new Date(parseInt(meta['start-time'], 10) * 1000).toISOString() : null }];
+    return [c._id.toString(), { runId: meta['run-id'] ?? null, difficulty: meta['difficulty'] ?? null, runType: meta['run-type'] ?? null, startTime: meta['start-time'] ? new Date(parseInt(meta['start-time'], 10) * 1000).toISOString() : null, state: (c as any).state ?? null }];
   }));
 
   // Pending claims: players with activeClaimId not assigned to any dungeon AND actively queuing
@@ -65,6 +65,7 @@ export const getOverview = async () => {
     pendingClaims: pendingPlayers.map((p) => ({
       player: p.playerName,
       ...(pendingClaimMap.get(p.activeClaimId ?? '') ?? { difficulty: null, runType: null }),
+      queuedAt: p.lastQueuedAt ?? null,
     })),
   };
 };
