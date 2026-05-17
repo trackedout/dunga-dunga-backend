@@ -32,8 +32,11 @@ async function checkIfIpIsReachableWithRetry(
       return await checkIfIpIsReachable(ip, port, timeout);
     } catch (err: any) {
       logger.warn(`Retry ${i + 1} for ${ip}:${port} failed: ${err.message}`);
-      // Retry after 500ms
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Exponential backoff: 500ms, 1000ms, 2000ms
+      if (i < retries - 1) {
+        const delay = 500 * Math.pow(2, i);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
   }
 
@@ -798,17 +801,16 @@ async function releaseLock(type: string, target: string) {
 
 async function checkInstanceNetworkConnection() {
   const instances = await DungeonInstance.find({}).exec();
-  instances.forEach((dungeon) => {
-    checkIfIpIsReachableWithRetry(dungeon.ip)
-      .then(() => markDungeonAsHealthy(dungeon))
-      .then(() => releaseDungeonIfLeaseExpired(dungeon))
-      .then(() => tearDownDungeonIfEmpty(dungeon))
-      .catch(async () => {
-        await degradeDungeon(dungeon);
-
-        return null;
-      });
-  });
+  await Promise.all(instances.map(async (dungeon) => {
+    try {
+      await checkIfIpIsReachableWithRetry(dungeon.ip);
+      await markDungeonAsHealthy(dungeon);
+      await releaseDungeonIfLeaseExpired(dungeon);
+      await tearDownDungeonIfEmpty(dungeon);
+    } catch (e) {
+      await degradeDungeon(dungeon);
+    }
+  }));
 }
 
 async function cleanupStaleRecords() {
@@ -1059,7 +1061,6 @@ const runWorker = async () => {
 
   await invalidateClaims();
   await assignQueuedPlayersToDungeons();
-  // TODO: Run health check for inUse dungeons
   await checkInstanceNetworkConnection();
 
   await updateDoorState();
