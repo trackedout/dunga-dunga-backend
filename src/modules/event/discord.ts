@@ -132,6 +132,11 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
   switch (event.name.toString()) {
     // This is run before the event handler
     case PlayerEvents.JOINED_NETWORK: {
+      // The proxy (velocity) and lobby both fire joined-network; only process the proxy event
+      if (event.server !== 'velocity') {
+        return '';
+      }
+
       const player = await Player.findOne({
         playerName: event.player,
       }).exec();
