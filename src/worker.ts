@@ -1,7 +1,7 @@
 import { Rcon } from 'rcon-client';
 import Players from './modules/event/player.model';
 import Player from './modules/event/player.model';
-import logger from './modules/logger/logger';
+import logger, { withContext } from './modules/logger/logger';
 import { IPlayerDoc, QueueStates } from './modules/event/player.interfaces';
 import DungeonInstance from './modules/event/instance.model';
 import Event from './modules/event/event.model';
@@ -19,6 +19,7 @@ import { getMetadata } from './modules/utils';
 import { cardService } from './modules/card';
 import { eventService } from './modules/event';
 import { Score } from './modules/score';
+import Config from './modules/config/config.model';
 
 async function checkIfIpIsReachableWithRetry(
   ip: string,
@@ -178,7 +179,7 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
   logger.info(`Attempting to find an available dungeon for ${playerName} (claimID: ${activeClaimId})`);
 
   const minHealthyDateCutoff = new Date();
-  minHealthyDateCutoff.setSeconds(minHealthyDateCutoff.getSeconds() - 15);
+  minHealthyDateCutoff.setSeconds(minHealthyDateCutoff.getSeconds() - 5);
 
   const claim = await Claim.findById(activeClaimId);
   if (!claim) {
@@ -232,6 +233,11 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
     ) {
       await notifyOps(message);
     }
+
+    // Attempt to launch Fargate dungeon if k3s dungeons unavailable
+    await launchFargateDungeonIfNeeded(player, claim).catch((e) => {
+      logger.error(`Failed to launch Fargate dungeon for ${playerName}: ${e.message}`);
+    });
 
     return;
   }
@@ -398,6 +404,11 @@ async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
       type: 'shutdown-server-if-empty',
       state: 'SCHEDULED',
       sourceIP: '127.0.0.1',
+    });
+
+    // Terminate Fargate dungeon after lease expires
+    await terminateFargateDungeonIfNeeded(dungeon).catch((e) => {
+      logger.error(`Failed to terminate Fargate dungeon ${dungeon.name}: ${e.message}`);
     });
   }
 
@@ -712,9 +723,194 @@ async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
       state: 'SCHEDULED',
       sourceIP: '127.0.0.1',
     });
+
+    // Terminate Fargate dungeon after it becomes empty
+    await terminateFargateDungeonIfNeeded(dungeon).catch((e) => {
+      logger.error(`Failed to terminate Fargate dungeon ${dungeon.name}: ${e.message}`);
+    });
   }
 
   return dungeon;
+}
+
+async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc) {
+  const playerName = player.playerName;
+  const metadata = getMetadata(claim.metadata);
+
+  // Check concurrency limit (max 10 Fargate dungeons at once)
+  const activeFargateDungeons = await DungeonInstance.countDocuments({
+    name: { $regex: /^d7[0-9]{2}$/ },
+    state: { $in: [InstanceStates.AVAILABLE, InstanceStates.RESERVED, InstanceStates.AWAITING_PLAYER, InstanceStates.IN_USE, InstanceStates.UNREACHABLE] }
+  });
+
+  if (activeFargateDungeons >= 10) {
+    logger.warn(`Cannot launch Fargate dungeon for ${playerName}: already at concurrency limit (${activeFargateDungeons}/10)`);
+    return;
+  }
+
+  // Take distributed lock to prevent duplicate launches for this player
+  const lockKey = `launch-fargate/${playerName}/${claim.id}`;
+  if (!(await tryTakeLock('launch-fargate', lockKey, 120))) {
+    logger.info(`Fargate launch already in progress for ${playerName}, skipping`);
+    return;
+  }
+
+  // Check if there's already a pending launch task for this player's claim
+  const pendingLaunchTask = await Task.findOne({
+    type: 'launch-ecs-dungeon',
+    state: { $in: ['SCHEDULED', 'IN_PROGRESS'] },
+    targetPlayer: playerName,
+  });
+
+  if (pendingLaunchTask) {
+    logger.info(`Fargate launch task already exists for ${playerName} (task: ${pendingLaunchTask.id}), skipping`);
+    return;
+  }
+
+  // Allocate next available dungeon name in d700-d799 range
+  const dungeonName = await allocateFargateDungeonName();
+  if (!dungeonName) {
+    logger.error(`Cannot allocate Fargate dungeon name for ${playerName}: all d700-d799 slots in use`);
+    await notifyOps(`Failed to allocate Fargate dungeon for ${playerName}: all d700-d799 slots exhausted`);
+    return;
+  }
+
+  const env = config.env === 'production' ? 'prod' : 'dev';
+
+  logger.info(`Launching Fargate dungeon ${dungeonName} for ${playerName} in ${env} environment`);
+  await notifyOps(`Launching Fargate dungeon ${dungeonName} for ${playerName} (claim: ${claim.id})`);
+
+  // Notify the player that a dungeon is being prepared
+  await notifyPlayer(
+    playerName,
+    '<yellow>No dungeons are currently available.',
+    '<yellow>Launching a new dungeon for you...',
+    '<gray>This will take about 2 minutes. Please wait!'
+  );
+
+  // Set dungeon-type config so the dungeon knows what type it should be
+  const dungeonType = metadata.get('dungeon-type') || 'default';
+  await Config.findOneAndUpdate(
+    { entity: dungeonName, key: 'dungeon-type' },
+    { entity: dungeonName, key: 'dungeon-type', value: dungeonType },
+    { upsert: true, new: true }
+  );
+
+  logger.info(`Set dungeon-type config for ${dungeonName} to ${dungeonType}`);
+
+  // Create task for job-scheduler to pick up
+  await Task.create({
+    server: 'job-scheduler',
+    type: 'launch-ecs-dungeon',
+    state: 'SCHEDULED',
+    targetPlayer: playerName,
+    arguments: [`launch-ecs-dungeon-${env}`, dungeonName, `player=${playerName}`, `dungeon-type=${dungeonType}`],
+    sourceIP: '127.0.0.1',
+  });
+}
+
+async function allocateFargateDungeonName(): Promise<string | null> {
+  // Find next available dungeon name in d700-d799 range
+  const existingDungeons = await DungeonInstance.find({
+    name: { $regex: /^d7[0-9]{2}$/ },
+  }).select('name').lean();
+
+  const usedNumbers = new Set(
+    existingDungeons.map(d => parseInt(d.name.substring(1)))
+  );
+
+  // Also check for pending launch tasks to avoid race conditions
+  const pendingLaunches = await Task.find({
+    type: 'launch-ecs-dungeon',
+    state: { $in: ['SCHEDULED', 'IN_PROGRESS'] },
+  }).select('arguments').lean();
+
+  pendingLaunches.forEach(task => {
+    if (task.arguments && task.arguments.length >= 2) {
+      const dungeonName = task.arguments[1];
+      if (dungeonName.match(/^d7[0-9]{2}$/)) {
+        usedNumbers.add(parseInt(dungeonName.substring(1)));
+      }
+    }
+  });
+
+  // Find first available slot
+  for (let i = 700; i <= 799; i++) {
+    if (!usedNumbers.has(i)) {
+      return `d${i}`;
+    }
+  }
+
+  return null;
+}
+
+async function terminateFargateDungeonIfNeeded(dungeon: IInstanceDoc) {
+  // Only terminate Fargate dungeons (d700-d799)
+  if (!dungeon.name.match(/^d7[0-9]{2}$/)) {
+    return;
+  }
+
+  // Don't terminate if already terminating or recently terminated
+  const recentCutoff = new Date();
+  recentCutoff.setSeconds(recentCutoff.getSeconds() - 60);
+
+  const existingTerminateTask = await Task.findOne({
+    type: 'terminate-ecs-dungeon',
+    arguments: { $elemMatch: { $eq: dungeon.name } },
+    createdAt: { $gte: recentCutoff },
+  });
+
+  if (existingTerminateTask) {
+    logger.debug(`Termination task for ${dungeon.name} was already created recently, skipping`);
+    return;
+  }
+
+  const env = config.env === 'production' ? 'prod' : 'dev';
+
+  logger.info(`Terminating Fargate dungeon ${dungeon.name} in ${env} environment (state: ${dungeon.state})`);
+  await notifyOps(`Terminating Fargate dungeon ${dungeon.name} (state: ${dungeon.state})`);
+
+  await Task.create({
+    server: 'job-scheduler',
+    type: 'terminate-ecs-dungeon',
+    state: 'SCHEDULED',
+    arguments: [`terminate-ecs-dungeon-${env}`, dungeon.name],
+    sourceIP: '127.0.0.1',
+  });
+}
+
+async function terminateIdleFargateDungeons() {
+  const idleCutoffDate = new Date();
+  idleCutoffDate.setMinutes(idleCutoffDate.getMinutes() - 5);
+
+  // Find Fargate dungeons idle for >5 minutes in non-active states
+  // Note: UNREACHABLE dungeons are handled by degradeDungeon() and don't need termination
+  const idleFargateDungeons = await DungeonInstance.find({
+    name: { $regex: /^d7[0-9]{2}$/ },
+    state: {
+      $in: [InstanceStates.AVAILABLE, InstanceStates.RESERVED]
+    },
+    $or: [
+      { healthySince: { $lte: idleCutoffDate } },
+      { unhealthySince: { $lte: idleCutoffDate } },
+      { reservedDate: { $lte: idleCutoffDate } },
+    ]
+  });
+
+  if (idleFargateDungeons.length > 0) {
+    logger.info(`Found ${idleFargateDungeons.length} idle Fargate dungeons to terminate (failsafe)`);
+
+    for (const dungeon of idleFargateDungeons) {
+      const idleMinutes = Math.round(
+        (Date.now() - (dungeon.healthySince || dungeon.unhealthySince || dungeon.reservedDate).getTime()) / 60000
+      );
+      logger.warn(`Failsafe: terminating idle Fargate dungeon ${dungeon.name} (state: ${dungeon.state}, idle for ${idleMinutes} minutes)`);
+
+      await terminateFargateDungeonIfNeeded(dungeon).catch((e) => {
+        logger.error(`Failsafe termination failed for ${dungeon.name}: ${e.message}`);
+      });
+    }
+  }
 }
 
 export async function tryMovePlayerToDungeon(player: IPlayerDoc) {
@@ -1056,20 +1252,49 @@ export async function mergeMetadataOntoEvents() {
   return runIds;
 }
 
+async function monitorInUseDungeonHealth() {
+  const inUseDungeons = await DungeonInstance.find({
+    state: InstanceStates.IN_USE,
+    activePlayers: { $gt: 0 }
+  });
+
+  if (inUseDungeons.length === 0) {
+    return;
+  }
+
+  logger.debug(`Monitoring health of ${inUseDungeons.length} IN_USE dungeons`);
+
+  for (const dungeon of inUseDungeons) {
+    try {
+      await checkIfIpIsReachableWithRetry(dungeon.ip);
+      logger.debug(`IN_USE dungeon ${dungeon.name} health check passed (player: ${dungeon.reservedBy})`);
+    } catch (e: any) {
+      logger.error(`IN_USE dungeon ${dungeon.name} health check failed - player ${dungeon.reservedBy} may be affected: ${e.message}`);
+      await notifyOps(`⚠️ IN_USE dungeon ${dungeon.name} is unresponsive - player ${dungeon.reservedBy} affected`);
+    }
+  }
+}
+
 const runWorker = async () => {
   logger.info('Running background worker...');
 
-  await invalidateClaims();
-  await assignQueuedPlayersToDungeons();
-  await checkInstanceNetworkConnection();
+  await withContext('invalidate-claims', () => invalidateClaims());
+  await withContext('assign-queued-players-to-dungeons', () => assignQueuedPlayersToDungeons());
+  await withContext('check-instance-network-connection', () => checkInstanceNetworkConnection());
+  await withContext('monitor-in-use-dungeon-health', () => monitorInUseDungeonHealth());
 
-  await updateDoorState();
-  await teleportPlayersInEntrance();
-  await teleportPlayersWithInstantQueue();
+  await withContext('update-door-state', () => updateDoorState());
+  await withContext('teleport-players-in-entrance', () => teleportPlayersInEntrance());
+  await withContext('teleport-players-with-instant-queue', () => teleportPlayersWithInstantQueue());
 
-  await cleanupStaleRecords();
+  await withContext('cleanup-stale-records', () => cleanupStaleRecords());
 
-  mergeMetadataOntoEvents().catch((e) => {
+  // Terminate idle Fargate dungeons (failsafe)
+  await withContext('terminate-idle-fargate-dungeons', () => terminateIdleFargateDungeons()).catch((e) => {
+    logger.error(`Failed to terminate idle Fargate dungeons: ${e.message}`);
+  });
+
+  withContext('recon', () => mergeMetadataOntoEvents()).catch((e) => {
     logger.error(e);
     mergeActive = false;
     return {};
