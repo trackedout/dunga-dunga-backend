@@ -6,7 +6,7 @@ import compression from 'compression';
 import cors from 'cors';
 import httpStatus from 'http-status';
 import config from './config/config';
-import { morgan } from './modules/logger';
+import { morgan, withContext } from './modules/logger';
 import { authLimiter } from './modules/utils';
 import { ApiError, errorConverter, errorHandler } from './modules/errors';
 import routes from './routes/v1';
@@ -14,11 +14,6 @@ import routes from './routes/v1';
 const app: Express = express();
 
 console.log('Config:', config);
-
-if (config.env !== 'test') {
-  app.use(morgan.successHandler);
-  app.use(morgan.errorHandler);
-}
 
 // set security HTTP headers
 app.use(helmet());
@@ -32,6 +27,17 @@ app.use(express.json());
 
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));
+
+// Set async context for all request logs (after body parsing so req.body is available)
+app.use((req, _res, next) => {
+  const label = (req.query?.['server'] as string) || req.body?.server || '-';
+  withContext(label, () => next());
+});
+
+if (config.env !== 'test') {
+  app.use(morgan.successHandler);
+  app.use(morgan.errorHandler);
+}
 
 // sanitize request data
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

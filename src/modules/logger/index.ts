@@ -1,4 +1,4 @@
-import logger from './logger';
+import logger, { withContext } from './logger';
 import morgan from './morgan';
 
-export { logger, morgan };
+export { logger, morgan, withContext };
