@@ -7,7 +7,7 @@ const router = express.Router();
 
 const specs = swaggerJsdoc({
   swaggerDefinition,
-  apis: ['packages/components.yaml', 'dist/routes/v1/*.js'],
+  apis: ['packages/components.yaml', 'src/routes/v1/*.ts'],
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
