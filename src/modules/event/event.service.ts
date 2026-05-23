@@ -759,6 +759,28 @@ async function shutdownAllEmptyDungeons() {
 
 async function movePlayerToServerIfNeeded(eventBody: NewCreatedEvent) {
   const playerName = eventBody.player;
+  const dungeonServer = eventBody.server;
+
+  // If the player's claim is already invalid, release the dungeon instead of sending them
+  const activeClaim = await Claim.findOne({
+    player: playerName,
+    type: ClaimTypes.DUNGEON,
+    claimant: dungeonServer,
+    state: { $in: [ClaimStates.ACQUIRED, ClaimStates.IN_USE] },
+  }).exec();
+
+  if (!activeClaim) {
+    logger.warn(`prep-complete from ${dungeonServer} for ${playerName}, but no valid claim found. Releasing dungeon`);
+    await notifyOps(`Dungeon ${dungeonServer} ready for ${playerName}, but claim is already invalid. Shutting down dungeon`);
+    await Task.create({
+      server: dungeonServer,
+      type: 'shutdown-server-if-empty',
+      state: 'SCHEDULED',
+      sourceIP: '127.0.0.1',
+    });
+    return;
+  }
+
   const skipDoorConfig = await Config.findOne({
     entity: playerName,
     key: 'skip-door',
