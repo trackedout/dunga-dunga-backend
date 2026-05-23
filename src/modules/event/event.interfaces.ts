@@ -37,6 +37,7 @@ export enum ServerEvents {
   CLAIM_INVALIDATED = 'claim-invalidated',
 
   SHUTDOWN_ALL_EMPTY_DUNGEONS = 'shutdown-all-empty-dungeons',
+  DUNGEON_TERMINATED = 'dungeon-terminated',
 }
 
 export const SpammyEvents = [

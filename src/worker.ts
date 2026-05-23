@@ -679,6 +679,10 @@ async function releaseDungeonLeaseForPlayer(playerName: string) {
       state: 'SCHEDULED',
       sourceIP: '127.0.0.1',
     });
+
+    await terminateFargateDungeonIfNeeded(dungeonInstance).catch((e) => {
+      logger.error(`Failed to terminate Fargate dungeon ${dungeonInstance.name}: ${e.message}`);
+    });
   }
 }
 
@@ -877,6 +881,9 @@ async function terminateFargateDungeonIfNeeded(dungeon: IInstanceDoc) {
     arguments: [`terminate-ecs-dungeon-${env}`, dungeon.name],
     sourceIP: '127.0.0.1',
   });
+
+  // Remove from pool immediately - no point keeping a terminated Fargate dungeon around
+  await dungeon.deleteOne();
 }
 
 async function terminateIdleFargateDungeons() {

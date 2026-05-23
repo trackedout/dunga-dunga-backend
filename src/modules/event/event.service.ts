@@ -93,6 +93,10 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
         await removeDungeonInstance(eventBody);
         break;
 
+      case ServerEvents.DUNGEON_TERMINATED:
+        await removeDungeonInstance(eventBody);
+        break;
+
       case PlayerEvents.CLEAR_DUNGEON:
         await clearDungeon(eventBody);
         await markDungeonAvailable(eventBody);
@@ -205,7 +209,7 @@ async function invalidateActiveClaimsForPlayer(playerName: string, reason: strin
   const claim = await Claim.findOne({
     player: playerName,
     type: ClaimTypes.DUNGEON,
-    state: { $in: [ClaimStates.PENDING, ClaimStates.IN_USE] },
+    state: { $in: [ClaimStates.PENDING, ClaimStates.IN_USE, ClaimStates.ACQUIRED] },
   });
   if (claim) {
     logger.warn(`Invalidated claim ${claim._id} with reason: ${reason}`);
@@ -668,6 +672,7 @@ async function removeDungeonInstance(eventBody: NewCreatedEvent) {
   }
 
   await dungeonInstance.deleteOne();
+  await notifyOps(`Removed ${eventBody.server}@${eventBody.sourceIP} from the pool (${eventBody.name})`);
 }
 
 // clear-dungeon
