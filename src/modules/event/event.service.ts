@@ -22,6 +22,7 @@ import { getEventMetadata } from '../utils';
 import { sendBugReportToDiscord } from './discordBugReporter';
 import { invalidateClaimAndNotify, tryMovePlayerToDungeon } from '../../worker';
 import { Config } from '../config';
+import { Lock } from '../lock';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -594,6 +595,16 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     throw new ApiError(httpStatus.PRECONDITION_FAILED, `Active claim already exists for this player`);
   }
 
+  const cooldownLock = await Lock.findOne({
+    type: 'queue-cooldown',
+    target: player.playerName,
+    until: { $gte: new Date() },
+  }).exec();
+  if (cooldownLock) {
+    const secondsRemaining = Math.ceil((cooldownLock.until.getTime() - Date.now()) / 1000);
+    throw new ApiError(httpStatus.TOO_MANY_REQUESTS, `Please wait ${secondsRemaining}s before re-queueing (dungeon capacity was recently allocated)`);
+  }
+
   const metadata = new Map(Object.entries(eventBody.metadata));
   const deckId = metadata.get('deck-id') || 'p1'; // TODO: Throw error if missing
 
@@ -762,7 +773,17 @@ async function movePlayerToServerIfNeeded(eventBody: NewCreatedEvent) {
       playerName: playerName,
     }).exec();
     if (player) {
-      await tryMovePlayerToDungeon(player);
+      await tryMovePlayerToDungeon(player, 4);
+
+      // Retry up to 2 more times at 10s intervals in case of outdated_client disconnect
+      const maxRetries = 2;
+      for (let i = 0; i < maxRetries; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+        const freshPlayer = await Players.findOne({ playerName, state: QueueStates.IN_TRANSIT_TO_DUNGEON }).exec();
+        if (!freshPlayer) break; // Player connected successfully or state changed
+        logger.warn(`Skip-door retry ${i + 1}/${maxRetries} for ${playerName} (still in transit)`);
+        await tryMovePlayerToDungeon(freshPlayer, 4);
+      }
     }
   } else {
     const message = '<aqua>Your dungeon is ready! Pass through the door to get sent to your instance';

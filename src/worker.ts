@@ -741,13 +741,35 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
   const playerName = player.playerName;
   const metadata = getMetadata(claim.metadata);
 
+  // Check if Fargate launches are globally disabled
+  const fargateEnabled = await Config.findOne({ entity: 'global', key: 'enable-fargate-launches' }).exec();
+  if (fargateEnabled && fargateEnabled.value === 'false') {
+    logger.info(`Fargate launches are globally disabled, skipping launch for ${playerName}`);
+    return;
+  }
+
+  // Check if Fargate launches are disabled for this player
+  const playerFargateEnabled = await Config.findOne({ entity: playerName, key: 'enable-fargate-launches' }).exec();
+  if (playerFargateEnabled && playerFargateEnabled.value === 'false') {
+    logger.info(`Fargate launches are disabled for ${playerName}, skipping`);
+    return;
+  }
+
   // Check concurrency limit (max 10 Fargate dungeons at once)
   const activeFargateDungeons = await DungeonInstance.countDocuments({
     name: { $regex: /^d7[0-9]{2}$/ },
-    state: { $in: [InstanceStates.AVAILABLE, InstanceStates.RESERVED, InstanceStates.AWAITING_PLAYER, InstanceStates.IN_USE, InstanceStates.UNREACHABLE] }
+    state: {
+      $in: [
+        InstanceStates.AVAILABLE,
+        InstanceStates.RESERVED,
+        InstanceStates.AWAITING_PLAYER,
+        InstanceStates.IN_USE,
+        InstanceStates.UNREACHABLE,
+      ],
+    },
   });
 
-  if (activeFargateDungeons >= 10) {
+  if (activeFargateDungeons >= 20) {
     logger.warn(`Cannot launch Fargate dungeon for ${playerName}: already at concurrency limit (${activeFargateDungeons}/10)`);
     return;
   }
@@ -811,28 +833,33 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
     arguments: [`launch-ecs-dungeon-${env}`, dungeonName, `player=${playerName}`, `dungeon-type=${dungeonType}`],
     sourceIP: '127.0.0.1',
   });
+
+  // Prevent the player from re-queueing immediately if they leave (capacity already allocated)
+  await takeLock('queue-cooldown', playerName, 60);
 }
 
 async function allocateFargateDungeonName(): Promise<string | null> {
   // Find next available dungeon name in d700-d799 range
   const existingDungeons = await DungeonInstance.find({
     name: { $regex: /^d7[0-9]{2}$/ },
-  }).select('name').lean();
+  })
+    .select('name')
+    .lean();
 
-  const usedNumbers = new Set(
-    existingDungeons.map(d => parseInt(d.name.substring(1)))
-  );
+  const usedNumbers = new Set(existingDungeons.map((d) => parseInt(d.name.substring(1))));
 
   // Also check for pending launch tasks to avoid race conditions
   const pendingLaunches = await Task.find({
     type: 'launch-ecs-dungeon',
     state: { $in: ['SCHEDULED', 'IN_PROGRESS'] },
-  }).select('arguments').lean();
+  })
+    .select('arguments')
+    .lean();
 
-  pendingLaunches.forEach(task => {
+  pendingLaunches.forEach((task) => {
     if (task.arguments && task.arguments.length >= 2) {
       const dungeonName = task.arguments[1];
-      if (dungeonName.match(/^d7[0-9]{2}$/)) {
+      if (dungeonName && dungeonName.match(/^d7[0-9]{2}$/)) {
         usedNumbers.add(parseInt(dungeonName.substring(1)));
       }
     }
@@ -895,13 +922,13 @@ async function terminateIdleFargateDungeons() {
   const idleFargateDungeons = await DungeonInstance.find({
     name: { $regex: /^d7[0-9]{2}$/ },
     state: {
-      $in: [InstanceStates.AVAILABLE, InstanceStates.RESERVED]
+      $in: [InstanceStates.AVAILABLE, InstanceStates.RESERVED],
     },
     $or: [
       { healthySince: { $lte: idleCutoffDate } },
       { unhealthySince: { $lte: idleCutoffDate } },
       { reservedDate: { $lte: idleCutoffDate } },
-    ]
+    ],
   });
 
   if (idleFargateDungeons.length > 0) {
@@ -920,10 +947,10 @@ async function terminateIdleFargateDungeons() {
   }
 }
 
-export async function tryMovePlayerToDungeon(player: IPlayerDoc) {
+export async function tryMovePlayerToDungeon(player: IPlayerDoc, lockDuration = 15) {
   const { playerName, activeClaimId } = player;
 
-  if (!(await tryTakeLock('move-to-dungeon', `${playerName}/${activeClaimId}`, 15))) {
+  if (!(await tryTakeLock('move-to-dungeon', `${playerName}/${activeClaimId}`, lockDuration))) {
     return null;
   }
 
@@ -1004,16 +1031,18 @@ async function releaseLock(type: string, target: string) {
 
 async function checkInstanceNetworkConnection() {
   const instances = await DungeonInstance.find({}).exec();
-  await Promise.all(instances.map(async (dungeon) => {
-    try {
-      await checkIfIpIsReachableWithRetry(dungeon.ip);
-      await markDungeonAsHealthy(dungeon);
-      await releaseDungeonIfLeaseExpired(dungeon);
-      await tearDownDungeonIfEmpty(dungeon);
-    } catch (e) {
-      await degradeDungeon(dungeon);
-    }
-  }));
+  await Promise.all(
+    instances.map(async (dungeon) => {
+      try {
+        await checkIfIpIsReachableWithRetry(dungeon.ip);
+        await markDungeonAsHealthy(dungeon);
+        await releaseDungeonIfLeaseExpired(dungeon);
+        await tearDownDungeonIfEmpty(dungeon);
+      } catch (e) {
+        await degradeDungeon(dungeon);
+      }
+    })
+  );
 }
 
 async function cleanupStaleRecords() {
@@ -1262,7 +1291,7 @@ export async function mergeMetadataOntoEvents() {
 async function monitorInUseDungeonHealth() {
   const inUseDungeons = await DungeonInstance.find({
     state: InstanceStates.IN_USE,
-    activePlayers: { $gt: 0 }
+    activePlayers: { $gt: 0 },
   });
 
   if (inUseDungeons.length === 0) {
