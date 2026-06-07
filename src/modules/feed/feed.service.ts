@@ -357,6 +357,7 @@ export interface RunDetail {
   startTime: string | null;
   endTime: string | null;
   server: string;
+  datapackVersion: string | null;
   killer: string | null;
   maxClankReached: boolean;
   events: RunDetailEvent[];
@@ -511,6 +512,7 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
     startTime,
     endTime,
     server,
+    datapackVersion: claimMetaRaw?.['datapack-version'] ?? null,
     killer,
     maxClankReached,
     events: eventList,
