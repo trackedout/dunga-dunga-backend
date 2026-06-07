@@ -781,15 +781,15 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
     return;
   }
 
-  // Check if there's already a pending launch task for this player's claim
-  const pendingLaunchTask = await Task.findOne({
+  // Check if there's already a recent launch task for this player (any state, within 5 minutes)
+  const recentLaunchTask = await Task.findOne({
     type: 'launch-ecs-dungeon',
-    state: { $in: ['SCHEDULED', 'IN_PROGRESS'] },
     targetPlayer: playerName,
+    createdAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
   });
 
-  if (pendingLaunchTask) {
-    logger.info(`Fargate launch task already exists for ${playerName} (task: ${pendingLaunchTask.id}), skipping`);
+  if (recentLaunchTask) {
+    logger.info(`Recent Fargate launch task exists for ${playerName} (task: ${recentLaunchTask.id}, state: ${recentLaunchTask.state}), skipping`);
     return;
   }
 
@@ -1211,19 +1211,17 @@ export async function mergeMetadataOntoEvents() {
   logger.info(`[Recon Main] Searching for run-ids that need to be retrofitted with event metadata`);
   let start = Date.now();
 
+  const reconLookbackMs = 1000 * 60 * 60 * 24; // 24 hours
   const runIds = await Event.aggregate([
     {
       $match: {
-        'metadata.run-type': { $exists: false }, // This results in a table scan, no index can improve this
+        createdAt: { $gte: new Date(Date.now() - reconLookbackMs) },
+        'metadata.run-type': { $exists: false },
         'metadata.run-id': { $exists: true },
-        // Ignore spammy events
         name: { $nin: SpammyEvents },
       },
     },
-    // { $sort: { createdAt: 1 } },
-    // { $limit: 5000 }, // limit how many events we find since we're doing a table scan
     { $group: { _id: '$metadata.run-id' } },
-    // { $limit: 100 }, // tune based on load
   ]).exec();
 
   const concurrency = 10;
