@@ -272,6 +272,15 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
 
   logger.info(`Acquired an available dungeon for ${playerName}: ${dungeon}`);
 
+  // Update player state BEFORE the reachability check to prevent the next worker cycle
+  // from assigning a second dungeon while we're waiting on the network check
+  logger.info(`Setting ${playerName}'s state as ${QueueStates.IN_TRANSIT_TO_DUNGEON}`);
+  await player
+    .updateOne({
+      state: QueueStates.IN_TRANSIT_TO_DUNGEON,
+    })
+    .exec();
+
   // Validate dungeon is responding to socket requests before connecting
   // Removes unreachable instances from pool
   await checkIfIpIsReachableWithRetry(dungeon.ip).catch(async () => {
@@ -279,17 +288,17 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
     logger.error(message);
     await notifyOps(message);
 
+    // Revert player state so they can be re-assigned on next cycle
+    await player
+      .updateOne({
+        state: QueueStates.IN_QUEUE,
+      })
+      .exec();
+
     await degradeDungeon(dungeon);
     throw new Error(message);
   });
   logger.debug(`Finished checking ${dungeon.ip}'s health`);
-
-  logger.info(`Setting ${playerName}'s state as ${QueueStates.IN_TRANSIT_TO_DUNGEON}`);
-  await player
-    .updateOne({
-      state: QueueStates.IN_TRANSIT_TO_DUNGEON,
-    })
-    .exec();
 
   logger.info(`Setting Claim ${claim.id}'s state as ${ClaimStates.ACQUIRED}`);
   await claim
