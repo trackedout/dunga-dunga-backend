@@ -14,6 +14,7 @@ import overviewRoute from './routes/v1/overview.route';
 import killersRoute from './routes/v1/killers.route';
 import cardStatsRoute from './routes/v1/card-stats.route';
 import statsRoute from './routes/v1/stats.route';
+import phasesRoute from './routes/v1/phases.route';
 import { feedController } from './modules/feed';
 import { eventController } from './modules/event';
 
@@ -61,6 +62,7 @@ app.use('/ember/overview', overviewRoute);
 app.use('/ember/killers', killersRoute);
 app.use('/ember/card-stats', cardStatsRoute);
 app.use('/ember/stats', statsRoute);
+app.use('/ember/phases', phasesRoute);
 app.get('/ember/events/names', eventController.getEventNames);
 
 app.use((_req, _res, next) => {
