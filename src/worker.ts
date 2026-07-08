@@ -12,7 +12,7 @@ import { IInstanceDoc, InstanceStates } from './modules/event/instance.interface
 import config from './config/config';
 import { IEvent, ServerEvents, SpammyEvents } from './modules/event/event.interfaces';
 import { Claim } from './modules/claim';
-import { ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
+import { ClaimFilters, ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 import { notifyDiscord } from './modules/event/discord';
 import { handleHardcoreGameOver } from './modules/event/event.service';
 import { getMetadata } from './modules/utils';
@@ -764,6 +764,52 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
     return;
   }
 
+  // Check if rebuilding d8xx dungeons will cover demand (they start faster than Fargate)
+  const dungeonType = metadata.get('dungeon-type') || 'default';
+  const rebuildingD8xxDungeons = await DungeonInstance.find({
+    name: { $regex: /^d8[0-9]{2}$/ },
+    $or: [{ state: { $in: [InstanceStates.BUILDING, InstanceStates.UNREACHABLE] } }, { requiresRebuild: true }],
+  });
+
+  // Filter to those matching this claim's dungeon type
+  // Dungeons in bootstrap phase (IP ends with -bootstrap) don't have accurate claimFilters,
+  // but we count them as matching anyway
+  const matchingRebuilding = rebuildingD8xxDungeons.filter((d) => {
+    if (d.ip.endsWith('-bootstrap')) return true;
+    if (!d.claimFilters) return true;
+    const allowedTypes = d.claimFilters.get(ClaimFilters.DUNGEON_TYPE);
+    return !allowedTypes || allowedTypes.includes(dungeonType);
+  });
+
+  // Count queued players needing this dungeon type
+  const queuedPlayers = await Players.find({
+    state: QueueStates.IN_QUEUE,
+    isAllowedToPlayDO2: true,
+    lastSeen: { $gte: new Date(Date.now() - 1000 * 60 * 3) },
+  }).exec();
+
+  const queuedForType = await Promise.all(
+    queuedPlayers.map(async (p) => {
+      const playerClaim = await Claim.findById(p.activeClaimId);
+      if (!playerClaim) return false;
+      const claimMeta = getMetadata(playerClaim.metadata);
+      return (claimMeta.get('dungeon-type') || 'default') === dungeonType;
+    })
+  );
+  const playersNeedingThisType = queuedForType.filter(Boolean).length;
+
+  if (matchingRebuilding.length >= playersNeedingThisType) {
+    logger.info(
+      `Skipping Fargate launch for ${playerName}: ${matchingRebuilding.length} d8xx dungeons rebuilding for type '${dungeonType}' ` +
+        `covers ${playersNeedingThisType} queued player(s)`
+    );
+    return;
+  }
+
+  logger.info(
+    `Fargate launch proceeding for ${playerName}: ${matchingRebuilding.length} rebuilding d8xx (type '${dungeonType}') < ${playersNeedingThisType} queued player(s)`
+  );
+
   // Check concurrency limit (max 10 Fargate dungeons at once)
   const activeFargateDungeons = await DungeonInstance.countDocuments({
     name: { $regex: /^d7[0-9]{2}$/ },
@@ -798,7 +844,9 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
   });
 
   if (recentLaunchTask) {
-    logger.info(`Recent Fargate launch task exists for ${playerName} (task: ${recentLaunchTask.id}, state: ${recentLaunchTask.state}), skipping`);
+    logger.info(
+      `Recent Fargate launch task exists for ${playerName} (task: ${recentLaunchTask.id}, state: ${recentLaunchTask.state}), skipping`
+    );
     return;
   }
 
@@ -824,7 +872,6 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
   );
 
   // Set dungeon-type config so the dungeon knows what type it should be
-  const dungeonType = metadata.get('dungeon-type') || 'default';
   await Config.findOneAndUpdate(
     { entity: dungeonName, key: 'dungeon-type' },
     { entity: dungeonName, key: 'dungeon-type', value: dungeonType },
