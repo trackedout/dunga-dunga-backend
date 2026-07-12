@@ -52,6 +52,7 @@ export async function notifyDiscord(event: EventWithServer & ClaimRelatedEvent &
       /card-bought-.*/,
       ServerEvents.CLAIM_INVALIDATED,
       ServerEvents.PREP_COMPLETE,
+      ServerEvents.SERVER_CLOSING,
       PlayerEvents.PLAYER_DIED,
     ];
 
