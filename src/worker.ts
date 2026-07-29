@@ -104,14 +104,41 @@ async function movePlayerToDungeon(player: IPlayerDoc, lobbyServer: string, targ
   // Prevent automatic teleportation attempts for 15 seconds
   await takeLock('move-to-dungeon', `${targetServer}/${playerName}`, 15);
 
-  // We can also move the player immediately, but we may disable this in the future
-  await Task.create({
-    server: lobbyServer,
-    type: 'bungee-message',
-    state: 'SCHEDULED',
-    arguments: ['ConnectOther', playerName, targetServer],
-    sourceIP: '127.0.0.1',
-  });
+  // Check if this is a party claim and send all party members
+  const claim = await Claim.findById(player.activeClaimId).exec();
+  const partyPlayers = claim?.metadata?.get('party-players');
+
+  if (partyPlayers) {
+    const members = partyPlayers.split(',').filter((m: string) => m.length > 0);
+    logger.info(`Party claim detected. Sending all party members to ${targetServer}: ${members.join(', ')}`);
+
+    for (const memberName of members) {
+      const memberPlayer = await Players.findOne({ playerName: memberName }).exec();
+      const memberServer = memberPlayer?.server || lobbyServer;
+
+      await Task.create({
+        server: memberServer,
+        type: 'bungee-message',
+        state: 'SCHEDULED',
+        arguments: ['ConnectOther', memberName, targetServer],
+        sourceIP: '127.0.0.1',
+      });
+
+      await Players.updateOne(
+        { playerName: memberName },
+        { state: QueueStates.IN_TRANSIT_TO_DUNGEON }
+      ).exec();
+    }
+  } else {
+    // Single player — original behavior
+    await Task.create({
+      server: lobbyServer,
+      type: 'bungee-message',
+      state: 'SCHEDULED',
+      arguments: ['ConnectOther', playerName, targetServer],
+      sourceIP: '127.0.0.1',
+    });
+  }
 }
 
 async function degradeDungeon(dungeon: IInstanceDoc) {
@@ -866,8 +893,8 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
   // Notify the player that a dungeon is being prepared
   await notifyPlayer(
     playerName,
-    '<yellow>No dungeons are currently available.',
-    '<yellow>Launching a new dungeon for you...',
+    '<yellow>No instances are currently available.',
+    '<yellow>Launching a new instance for you...',
     '<gray>This will take about 2 minutes. Please wait!'
   );
 

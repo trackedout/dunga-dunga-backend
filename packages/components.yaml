@@ -89,6 +89,8 @@ components:
           type: string
         sourceIP:
           type: string
+        createdAt:
+          type: string
       example:
         type: bungee-message
         targetPlayer: 4Ply
@@ -209,6 +211,76 @@ components:
           type: number
         message:
           type: string
+
+    GameRegistryEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        displayName:
+          type: string
+        minPlayers:
+          type: integer
+        maxPlayers:
+          type: integer
+        permission:
+          type: string
+        tokenCost:
+          type: integer
+        tokenType:
+          type: string
+        enabled:
+          type: boolean
+        snapshotSource:
+          type: string
+        resourcePackUrl:
+          type: string
+        resourcePackSha1:
+          type: string
+        datapackVersion:
+          type: string
+      example:
+        name: metro-mayhem
+        displayName: Metro Mayhem
+        minPlayers: 1
+        maxPlayers: 8
+        permission: tracked-out.game.metro-mayhem
+        tokenCost: 0
+        enabled: true
+        snapshotSource: snapshots/games/metro-mayhem/
+        datapackVersion: latest
+
+    Party:
+      type: object
+      properties:
+        id:
+          type: string
+        leader:
+          type: string
+        game:
+          type: string
+        members:
+          type: array
+          items:
+            type: string
+        invites:
+          type: array
+          items:
+            type: string
+        state:
+          type: string
+        claimId:
+          type: string
+      example:
+        leader: 4Ply
+        game: metro-mayhem
+        members:
+          - 4Ply
+          - TangoTek
+        invites: []
+        state: forming
 
   responses:
     Unauthorized:
