@@ -37,15 +37,23 @@ export async function allocateShards(
 
   const excludedPlayers = new Set(league.phaseTransition?.excludedPlayers || []);
 
-  const prefix = league.deck.prefix;
-  const shardItem = league.items?.['shards'];
-  if (!shardItem || !('scoreboard' in shardItem)) {
+  // items is a Mongoose Map at runtime but typed as Record
+  const items = league.items as unknown as Map<string, any>;
+  const shardItem = items?.get('shards');
+  if (!shardItem || !shardItem.scoreboard) {
     logger.error(`[allocate-shards] League "${leagueSlug}" has no shards scoreboard defined`);
     return;
   }
 
-  const shardKey = shardItem.scoreboard;
-  const emberKey = `${prefix}-do2.lifetime.escaped.embers`;
+  const shardKey: string = shardItem.scoreboard;
+
+  const emberItem = items?.get('embers');
+  if (!emberItem || !emberItem.scoreboard) {
+    logger.error(`[allocate-shards] League "${leagueSlug}" has no embers scoreboard defined`);
+    return;
+  }
+
+  const emberKey: string = emberItem.scoreboard;
 
   // Get all players with shards in this league
   const shardScores = await Score.find({ key: shardKey }).exec();
@@ -147,7 +155,7 @@ export async function allocateShards(
       y: 0,
       z: 0,
       metadata: {
-        'run-type': prefix,
+        'run-type': league.display.shortId,
         'source-scoreboard': '',
         'source-inversion-scoreboard': '',
         'source-count': '0',
