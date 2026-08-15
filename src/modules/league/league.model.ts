@@ -63,6 +63,15 @@ const dungeonSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const phaseConfigSchema = new mongoose.Schema(
+  {
+    phase: { type: Number, required: true },
+    start: { type: String, required: true },
+    end: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 const phaseAllocationSchema = new mongoose.Schema(
   {
     type: { type: String, required: true, default: 'none' },
@@ -178,6 +187,10 @@ const leagueSchema = new mongoose.Schema<ILeagueDoc, ILeagueModel>(
     dungeon: {
       type: dungeonSchema,
       required: true,
+    },
+    phases: {
+      type: [phaseConfigSchema],
+      default: [],
     },
     phaseTransition: {
       type: phaseTransitionSchema,

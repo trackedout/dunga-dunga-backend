@@ -2,17 +2,16 @@ import { Model, Document } from 'mongoose';
 
 export type PhaseState = 'ACTIVE' | 'COMPLETED' | 'NOT_STARTED';
 
-export interface ILeaguePhase {
+// Only stores mutable state — the schedule (start/end) lives in the league document
+export interface ILeaguePhaseState {
   leagueSlug: string;
   phase: number;
   state: PhaseState;
-  start: string;
-  end: string;
 }
 
-export interface ILeaguePhaseDoc extends ILeaguePhase, Document {
+export interface ILeaguePhaseStateDoc extends ILeaguePhaseState, Document {
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface ILeaguePhaseModel extends Model<ILeaguePhaseDoc> {}
+export interface ILeaguePhaseStateModel extends Model<ILeaguePhaseStateDoc> {}

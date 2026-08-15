@@ -1,8 +1,7 @@
 import mongoose from 'mongoose';
-import toJSON from '../toJSON/toJSON';
-import { ILeaguePhaseDoc, ILeaguePhaseModel } from './league-phase.interfaces';
+import { ILeaguePhaseStateDoc, ILeaguePhaseStateModel } from './league-phase.interfaces';
 
-const leaguePhaseSchema = new mongoose.Schema<ILeaguePhaseDoc, ILeaguePhaseModel>(
+const leaguePhaseStateSchema = new mongoose.Schema<ILeaguePhaseStateDoc, ILeaguePhaseStateModel>(
   {
     leagueSlug: {
       type: String,
@@ -19,24 +18,18 @@ const leaguePhaseSchema = new mongoose.Schema<ILeaguePhaseDoc, ILeaguePhaseModel
       enum: ['ACTIVE', 'COMPLETED', 'NOT_STARTED'],
       default: 'NOT_STARTED',
     },
-    start: {
-      type: String,
-      required: true,
-    },
-    end: {
-      type: String,
-      required: true,
-    },
   },
   {
     timestamps: true,
-    collection: 'leaguePhases',
+    collection: 'leaguePhaseStates',
   }
 );
 
-leaguePhaseSchema.index({ leagueSlug: 1, phase: 1 }, { unique: true });
-leaguePhaseSchema.plugin(toJSON);
+leaguePhaseStateSchema.index({ leagueSlug: 1, phase: 1 }, { unique: true });
 
-const LeaguePhase = mongoose.model<ILeaguePhaseDoc, ILeaguePhaseModel>('LeaguePhase', leaguePhaseSchema);
+const LeaguePhaseState = mongoose.model<ILeaguePhaseStateDoc, ILeaguePhaseStateModel>(
+  'LeaguePhaseState',
+  leaguePhaseStateSchema
+);
 
-export default LeaguePhase;
+export default LeaguePhaseState;

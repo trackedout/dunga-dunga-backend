@@ -48,6 +48,18 @@ const competitiveLeague: ILeague = {
     claimFilters: {},
   },
 
+  phases: [
+    { phase: 1, start: '2026-03-15T00:00:00Z', end: '2026-03-28T21:00:00Z' },
+    { phase: 2, start: '2026-03-28T22:00:00Z', end: '2026-04-14T05:00:00Z' },
+    { phase: 3, start: '2026-04-14T06:00:00Z', end: '2026-04-25T21:00:00Z' },
+    { phase: 4, start: '2026-04-25T22:00:00Z', end: '2026-05-09T21:30:00Z' },
+    { phase: 5, start: '2026-05-09T22:00:00Z', end: '2026-06-06T21:00:00Z' },
+    { phase: 6, start: '2026-06-07T00:00:00Z', end: '2026-06-21T00:45:00Z' },
+    { phase: 7, start: '2026-06-21T01:30:00Z', end: '2026-07-04T22:00:00Z' },
+    { phase: 8, start: '2026-07-04T22:30:00Z', end: '2026-07-26T05:20:00Z' },
+    { phase: 9, start: '2026-07-26T05:30:00Z', end: '2026-08-15T21:00:00Z' },
+  ],
+
   phaseTransition: {
     autoTransition: true,
     allocation: { type: 'ember-potential' },

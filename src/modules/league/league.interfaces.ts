@@ -62,6 +62,14 @@ export interface ILeagueDungeon {
   claimFilters: Record<string, string[]>;
 }
 
+// --- Phase Config (schedule only, no mutable state) ---
+
+export interface IPhaseConfig {
+  phase: number;
+  start: string;
+  end: string;
+}
+
 // --- Phase Transition ---
 
 export interface IPhaseAllocation {
@@ -136,6 +144,8 @@ export interface ILeague {
   deck: ILeagueDeck;
 
   dungeon: ILeagueDungeon;
+
+  phases: IPhaseConfig[];
 
   phaseTransition: IPhaseTransition;
 

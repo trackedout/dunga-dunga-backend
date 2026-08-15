@@ -42,6 +42,8 @@ const hardcoreLeague: ILeague = {
     claimFilters: {},
   },
 
+  phases: [],
+
   phaseTransition: {
     autoTransition: false,
     allocation: { type: 'none' },
