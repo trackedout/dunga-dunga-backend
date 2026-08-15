@@ -49,6 +49,7 @@ const hardcoreLeague: ILeague = {
     autoTransition: false,
     allocation: { type: 'none' },
     actions: [],
+    excludedPlayers: [],
   },
 
   scoring: {

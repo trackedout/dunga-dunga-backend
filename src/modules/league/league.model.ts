@@ -85,6 +85,7 @@ const phaseTransitionSchema = new mongoose.Schema(
     autoTransition: { type: Boolean, default: false },
     allocation: { type: phaseAllocationSchema, default: { type: 'none' } },
     actions: { type: [String], default: [] },
+    excludedPlayers: { type: [String], default: [] },
   },
   { _id: false }
 );

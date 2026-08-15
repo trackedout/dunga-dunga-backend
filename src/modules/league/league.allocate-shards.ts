@@ -35,6 +35,8 @@ export async function allocateShards(
     return;
   }
 
+  const excludedPlayers = new Set(league.phaseTransition?.excludedPlayers || []);
+
   const prefix = league.deck.prefix;
   const shardItem = league.items?.['shards'];
   if (!shardItem || !('scoreboard' in shardItem)) {
@@ -73,8 +75,10 @@ export async function allocateShards(
     }
   }
 
-  // Build player data for all players who have shards
-  const players: PlayerAllocation[] = shardScores.map((score) => {
+  // Build player data for all players who have shards (excluding ignored players)
+  const players: PlayerAllocation[] = shardScores
+    .filter((score) => !excludedPlayers.has(score.player))
+    .map((score) => {
     const remainingShards = score.value;
     const totalCompRuns = compRunsMap.get(score.player) || 0;
     const totalEscapedEmbers = emberMap.get(score.player) || 0;

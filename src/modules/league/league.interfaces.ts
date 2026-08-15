@@ -81,6 +81,7 @@ export interface IPhaseTransition {
   autoTransition: boolean;
   allocation: IPhaseAllocation;
   actions: string[];
+  excludedPlayers: string[];
 }
 
 // --- Scoring ---

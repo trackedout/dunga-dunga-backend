@@ -65,6 +65,7 @@ const competitiveLeague: ILeague = {
     autoTransition: true,
     allocation: { type: 'ember-potential' },
     actions: ['compute-stats', 'allocate-shards', 'publish-leaderboard', 'notify-players'],
+    excludedPlayers: ['4Ply', 'jaek95', 'FrustratedCPU', 'VioletMaze', 'FinnyMarigold58', 'CrazyEyedOldMan', 'softshadows', 'Bavadn'],
   },
 
   scoring: {
