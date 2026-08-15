@@ -1,24 +1,24 @@
 import { ILeague } from '../league.interfaces';
 import { standardItems } from './items';
 
-const competitiveLeague: ILeague = {
-  slug: 'competitive',
-  displayName: 'Competitive',
-  description: 'The main competitive season',
+const season3League: ILeague = {
+  slug: 'season-3',
+  displayName: 'Season 3',
+  description: 'The third competitive season of Decked Out 2',
   owner: '4Ply',
 
   display: {
-    shortId: 'c',
-    runTypeId: 2,
-    colour: 0x55ffff,
-    material: 'CYAN_SHULKER_BOX',
+    shortId: 's3',
+    runTypeId: 4,
+    colour: 0xff55ff,
+    material: 'MAGENTA_SHULKER_BOX',
   },
 
   members: [],
   joinPolicy: 'auto',
 
   items: {
-    ...standardItems('competitive'),
+    ...standardItems('season3'),
   },
 
   trades: [
@@ -40,26 +40,16 @@ const competitiveLeague: ILeague = {
   ],
 
   deck: {
-    prefix: 'c',
+    prefix: 's3',
     defaultCards: ['MOC', 'SNE', 'TRH'],
   },
 
   dungeon: {
-    type: 'season-2',
+    type: 'season-3',
     claimFilters: {},
   },
 
-  phases: [
-    { phase: 1, start: '2026-03-15T00:00:00Z', end: '2026-03-28T21:00:00Z' },
-    { phase: 2, start: '2026-03-28T22:00:00Z', end: '2026-04-14T05:00:00Z' },
-    { phase: 3, start: '2026-04-14T06:00:00Z', end: '2026-04-25T21:00:00Z' },
-    { phase: 4, start: '2026-04-25T22:00:00Z', end: '2026-05-09T21:30:00Z' },
-    { phase: 5, start: '2026-05-09T22:00:00Z', end: '2026-06-06T21:00:00Z' },
-    { phase: 6, start: '2026-06-07T00:00:00Z', end: '2026-06-21T00:45:00Z' },
-    { phase: 7, start: '2026-06-21T01:30:00Z', end: '2026-07-04T22:00:00Z' },
-    { phase: 8, start: '2026-07-04T22:30:00Z', end: '2026-07-26T05:20:00Z' },
-    { phase: 9, start: '2026-07-26T05:30:00Z', end: '2026-08-15T21:00:00Z' },
-  ],
+  phases: [],
 
   phaseTransition: {
     autoTransition: true,
@@ -78,4 +68,4 @@ const competitiveLeague: ILeague = {
   state: 'active',
 };
 
-export default competitiveLeague;
+export default season3League;
