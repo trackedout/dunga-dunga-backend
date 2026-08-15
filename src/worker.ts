@@ -907,13 +907,22 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
 
   logger.info(`Set dungeon-type config for ${dungeonName} to ${dungeonType}`);
 
+  // Look up mc-version for this game type
+  const mcVersionConfig = await Config.findOne({ entity: dungeonType, key: 'mc-version' }).exec();
+  const mcVersion = mcVersionConfig?.value || '';
+
   // Create task for job-scheduler to pick up
+  const taskArgs = [`launch-ecs-dungeon-${env}`, dungeonName, `player=${playerName}`, `dungeon-type=${dungeonType}`];
+  if (mcVersion) {
+    taskArgs.push(`mc-version=${mcVersion}`);
+  }
+
   await Task.create({
     server: 'job-scheduler',
     type: 'launch-ecs-dungeon',
     state: 'SCHEDULED',
     targetPlayer: playerName,
-    arguments: [`launch-ecs-dungeon-${env}`, dungeonName, `player=${playerName}`, `dungeon-type=${dungeonType}`],
+    arguments: taskArgs,
     sourceIP: '127.0.0.1',
   });
 
