@@ -1,6 +1,7 @@
 import logger from '../logger/logger';
 import League from './league.model';
 import LeaguePhaseState from './league-phase.model';
+import { computePhaseStats } from './league.stats';
 
 /**
  * Checks all leagues with autoTransition enabled and transitions phases
@@ -74,12 +75,21 @@ export async function checkPhaseTransitions(): Promise<void> {
       logger.info(`[phase-automation] League "${league.slug}" has no more phases to activate`);
     }
 
-    // Log actions that would be taken
+    // Execute phase transition actions
     const actions = league.phaseTransition?.actions || [];
-    if (actions.length > 0) {
-      logger.info(
-        `[phase-automation] League "${league.slug}" phase transition actions (not yet implemented): ${actions.join(', ')}`
-      );
+    for (const action of actions) {
+      if (action === 'compute-stats') {
+        const phaseStart = new Date(activePhaseConfig.start);
+        const phaseEnd = new Date(activePhaseConfig.end);
+        logger.info(
+          `[phase-automation] Running compute-stats for league "${league.slug}" phase ${activePhaseNum}`
+        );
+        await computePhaseStats(league.slug, activePhaseNum, phaseStart, phaseEnd);
+      } else {
+        logger.info(
+          `[phase-automation] League "${league.slug}" action "${action}" not yet implemented`
+        );
+      }
     }
   }
 }

@@ -14,7 +14,6 @@ import { IEvent, ServerEvents, SpammyEvents } from './modules/event/event.interf
 import { Claim } from './modules/claim';
 import { ClaimFilters, ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 import { notifyDiscord } from './modules/event/discord';
-import { handleHardcoreGameOver } from './modules/event/event.service';
 import { getMetadata } from './modules/utils';
 import { cardService } from './modules/card';
 import { eventService } from './modules/event';
@@ -539,13 +538,6 @@ export async function invalidateClaimAndNotify(claim: IClaimDoc, message: string
     server: '',
     metadata: claimMetadata,
     invalidationReason: message,
-  });
-
-  await handleHardcoreGameOver({
-    name: ServerEvents.CLAIM_INVALIDATED,
-    player: claim.player,
-    server: '',
-    metadata: claimMetadata,
   });
 }
 

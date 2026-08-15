@@ -136,7 +136,6 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
       case PlayerEvents.PLAYER_DIED:
       case ServerEvents.CLAIM_INVALIDATED: // TODO: This event is never routed here
         await notify(); // Ensure game-won metadata is stored on claim
-        await handleHardcoreGameOver(eventBody);
         const metadata = await withClaimMetadata(eventBody);
         await executeLeagueEventHandlers(eventBody.name, eventBody.player, metadata);
         break;
@@ -443,48 +442,7 @@ async function ensureScoreboardIsSeeded(playerName: string, key: string, default
   }
 }
 
-// DEPRECATED: This function will be removed once league event handlers are verified in production
-export async function handleHardcoreGameOver(eventBody: ClaimRelatedEvent & EventWithServer) {
-  const playerName = eventBody.player;
-  const metadata = await withClaimMetadata(eventBody);
 
-  const logPrefix = '[Hardcore stats]';
-  const prefix = `Intercepted '${eventBody.name}' event for ${playerName}`;
-  const runType = metadata.get('run-type');
-
-  const league = await getLeagueByShortId(runType);
-  if (league && league.eventHandlers.length > 0) {
-    // League event handlers will handle this
-    return;
-  }
-
-  if (runType !== 'h') {
-    const msg = `${prefix} but this is not a hardcore run, skipping stats update`;
-    logger.info(`${logPrefix} ${msg}`);
-    return;
-  }
-
-  if (!metadata.get('start-time')) {
-    const msg = `${prefix} but they did not start their game, ignoring`;
-    logger.info(`${logPrefix} ${msg}`);
-
-    // TODO: Refund shard if it's a claim-invalidated event
-    return;
-  }
-
-  if (metadata.get('game-won') === 'true') {
-    const msg = `${prefix} but they won their game, storing their best stats`;
-    logger.info(`${logPrefix} ${msg}`);
-
-    await storeBestHardcoreStats(eventBody);
-    return;
-  } else {
-    const msg = `${prefix} but they lost their game, resetting their hardcore deck`;
-    logger.info(`${logPrefix} ${msg}`);
-
-    await resetHardcoreDeck(eventBody);
-  }
-}
 
 export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWithServer) {
   const playerName = eventBody.player;
@@ -555,51 +513,6 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
 
   await ensureDeckIsSeeded(eventBody.player, 'h1');
   await resetScoreboard(eventBody.player, 'do2.inventory.shards.hardcore', 64);
-}
-
-export async function storeBestHardcoreStats(eventBody: ClaimRelatedEvent & EventWithServer) {
-  const playerName = eventBody.player;
-  const prefix = `Intercepted '${eventBody.name}' event for ${playerName}`;
-
-  // Update leaderboard score, storing the highest values for each score
-  await updateLeaderboardScore(prefix, playerName, 'hardcore-do2.lifetime.escaped.tomes');
-  await updateLeaderboardScore(prefix, playerName, 'hardcore-do2.lifetime.escaped.crowns');
-  await updateLeaderboardScore(prefix, playerName, 'hardcore-do2.lifetime.escaped.tomes');
-  await updateLeaderboardScore(prefix, playerName, 'hardcore-do2.rustyrepairs');
-  await updateLeaderboardScore(prefix, playerName, 'hardcore-do2.wins');
-}
-
-async function updateLeaderboardScore(prefix: string, playerName: string, key: string) {
-  const currentScore = await Score.findOne({
-    player: playerName,
-    key: key,
-  }).exec();
-
-  const leaderboardScore = await Score.findOne({
-    player: playerName,
-    key: 'leaderboard-' + key,
-  }).exec();
-
-  if (!currentScore) {
-    logger.warn(`${prefix} but the player does not have a score for ${key}, skipping`);
-    return;
-  }
-
-  if (!leaderboardScore || leaderboardScore.value < currentScore.value) {
-    if (leaderboardScore) {
-      await leaderboardScore
-        .updateOne({
-          value: currentScore.value,
-        })
-        .exec();
-    } else {
-      await Score.create({
-        player: playerName,
-        key: 'leaderboard-' + key,
-        value: currentScore.value,
-      });
-    }
-  }
 }
 
 async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
