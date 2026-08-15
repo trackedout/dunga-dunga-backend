@@ -62,17 +62,6 @@ export interface ILeagueDungeon {
   claimFilters: Record<string, string[]>;
 }
 
-// --- Phases ---
-
-export type PhaseState = 'ACTIVE' | 'COMPLETED' | 'NOT_STARTED';
-
-export interface ILeaguePhase {
-  phase: number;
-  state: PhaseState;
-  start: string;
-  end: string;
-}
-
 // --- Phase Transition ---
 
 export interface IPhaseAllocation {
@@ -147,8 +136,6 @@ export interface ILeague {
   deck: ILeagueDeck;
 
   dungeon: ILeagueDungeon;
-
-  phases: ILeaguePhase[];
 
   phaseTransition: IPhaseTransition;
 

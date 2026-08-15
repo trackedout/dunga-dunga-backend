@@ -9,6 +9,7 @@ let server: any;
 mongoose.connect(config.mongoose.url).then(async () => {
   logger.info('Connected to MongoDB');
   await leagueService.seedDefaultLeagues();
+  await leagueService.seedDefaultPhases();
   server = app.listen(config.port, () => {
     logger.info(`Listening to port ${config.port}`);
   });

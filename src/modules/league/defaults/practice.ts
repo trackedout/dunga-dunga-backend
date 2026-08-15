@@ -1,4 +1,5 @@
 import { ILeague } from '../league.interfaces';
+import { standardItems } from './items';
 
 const practiceLeague: ILeague = {
   slug: 'practice',
@@ -16,25 +17,8 @@ const practiceLeague: ILeague = {
   joinPolicy: 'auto',
 
   items: {
-    shards: {
-      scoreboard: 'do2.inventory.shards.practice',
-      startingAmount: 32,
-    },
-    crowns: {
-      earned: 'practice-do2.lifetime.escaped.crowns',
-      spent: 'practice-do2.lifetime.spent.crowns',
-    },
-    tomes: {
-      earned: 'practice-do2.lifetime.escaped.tomes',
-      spent: 'practice-do2.lifetime.spent.tomes',
-    },
-    shardFragments: {
-      earned: 'practice-do2.lifetime.escaped.shard_fragments',
-      spent: 'practice-do2.lifetime.spent.shard_fragments',
-    },
-    embers: {
-      scoreboard: 'practice-do2.lifetime.escaped.embers',
-    },
+    ...standardItems('practice'),
+    shards: { scoreboard: 'do2.inventory.shards.practice', startingAmount: 32 },
   },
 
   trades: [
@@ -54,8 +38,6 @@ const practiceLeague: ILeague = {
     type: 'season-2',
     claimFilters: {},
   },
-
-  phases: [],
 
   phaseTransition: {
     autoTransition: false,

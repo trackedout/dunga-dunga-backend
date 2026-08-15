@@ -19,7 +19,6 @@ export const upsertLeague = {
     trades: Joi.array(),
     deck: Joi.object().required(),
     dungeon: Joi.object().required(),
-    phases: Joi.array(),
     phaseTransition: Joi.object(),
     scoring: Joi.object().allow(null),
     eventHandlers: Joi.array(),

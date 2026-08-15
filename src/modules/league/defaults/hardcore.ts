@@ -1,4 +1,5 @@
 import { ILeague } from '../league.interfaces';
+import { standardItems } from './items';
 
 const hardcoreLeague: ILeague = {
   slug: 'hardcore',
@@ -16,34 +17,11 @@ const hardcoreLeague: ILeague = {
   joinPolicy: 'auto',
 
   items: {
-    shards: {
-      scoreboard: 'do2.inventory.shards.hardcore',
-      startingAmount: 64,
-    },
-    crowns: {
-      earned: 'hardcore-do2.lifetime.escaped.crowns',
-      spent: 'hardcore-do2.lifetime.spent.crowns',
-    },
-    tomes: {
-      earned: 'hardcore-do2.lifetime.escaped.tomes',
-      spent: 'hardcore-do2.lifetime.spent.tomes',
-    },
-    shardFragments: {
-      earned: 'hardcore-do2.lifetime.escaped.shard_fragments',
-      spent: 'hardcore-do2.lifetime.spent.shard_fragments',
-    },
-    embers: {
-      scoreboard: 'hardcore-do2.lifetime.escaped.embers',
-    },
-    runs: {
-      scoreboard: 'hardcore-do2.runs',
-    },
-    wins: {
-      scoreboard: 'hardcore-do2.wins',
-    },
-    rustyRepairs: {
-      scoreboard: 'hardcore-do2.rustyrepairs',
-    },
+    ...standardItems('hardcore'),
+    shards: { scoreboard: 'do2.inventory.shards.hardcore', startingAmount: 64 },
+    runs: { scoreboard: 'hardcore-do2.runs' },
+    wins: { scoreboard: 'hardcore-do2.wins' },
+    rustyRepairs: { scoreboard: 'hardcore-do2.rustyrepairs' },
   },
 
   trades: [
@@ -63,8 +41,6 @@ const hardcoreLeague: ILeague = {
     type: 'season-2',
     claimFilters: {},
   },
-
-  phases: [],
 
   phaseTransition: {
     autoTransition: false,

@@ -1,5 +1,6 @@
 import logger from '../logger/logger';
 import League from './league.model';
+import LeaguePhase from './league-phase.model';
 import { ILeagueDoc } from './league.interfaces';
 
 /**
@@ -9,11 +10,10 @@ import { ILeagueDoc } from './league.interfaces';
 export async function checkPhaseTransitions(): Promise<void> {
   const leagues = await League.find({
     'phaseTransition.autoTransition': true,
-    'phases.state': 'ACTIVE',
   }).exec();
 
   if (leagues.length === 0) {
-    logger.debug('No leagues with autoTransition enabled and an active phase');
+    logger.debug('No leagues with autoTransition enabled');
     return;
   }
 
@@ -25,7 +25,11 @@ export async function checkPhaseTransitions(): Promise<void> {
 }
 
 async function processLeaguePhaseTransition(league: ILeagueDoc, now: Date): Promise<void> {
-  const activePhase = league.phases.find((p) => p.state === 'ACTIVE');
+  const activePhase = await LeaguePhase.findOne({
+    leagueSlug: league.slug,
+    state: 'ACTIVE',
+  }).exec();
+
   if (!activePhase) {
     return;
   }
@@ -38,23 +42,23 @@ async function processLeaguePhaseTransition(league: ILeagueDoc, now: Date): Prom
   logger.info(`[phase-automation] League "${league.slug}" phase ${activePhase.phase} has ended (end: ${activePhase.end}). Transitioning...`);
 
   // Mark current phase as COMPLETED
-  await League.updateOne(
-    { _id: league._id, 'phases.phase': activePhase.phase },
-    { $set: { 'phases.$.state': 'COMPLETED' } }
-  ).exec();
+  activePhase.state = 'COMPLETED';
+  await activePhase.save();
 
   logger.info(`[phase-automation] League "${league.slug}" phase ${activePhase.phase} marked as COMPLETED`);
 
   // Find next phase (next sequential NOT_STARTED phase)
-  const nextPhase = league.phases
-    .filter((p) => p.state === 'NOT_STARTED' && p.phase > activePhase.phase)
-    .sort((a, b) => a.phase - b.phase)[0];
+  const nextPhase = await LeaguePhase.findOne({
+    leagueSlug: league.slug,
+    state: 'NOT_STARTED',
+    phase: { $gt: activePhase.phase },
+  })
+    .sort({ phase: 1 })
+    .exec();
 
   if (nextPhase) {
-    await League.updateOne(
-      { _id: league._id, 'phases.phase': nextPhase.phase },
-      { $set: { 'phases.$.state': 'ACTIVE' } }
-    ).exec();
+    nextPhase.state = 'ACTIVE';
+    await nextPhase.save();
 
     logger.info(`[phase-automation] League "${league.slug}" phase ${nextPhase.phase} marked as ACTIVE`);
   } else {
