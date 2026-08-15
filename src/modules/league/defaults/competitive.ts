@@ -9,6 +9,7 @@ const competitiveLeague: ILeague = {
 
   display: {
     shortId: 'c',
+    runTypeId: 2,
     colour: 0x55ffff,
     material: 'CYAN_SHULKER_BOX',
   },

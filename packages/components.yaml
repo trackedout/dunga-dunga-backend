@@ -300,6 +300,8 @@ components:
           properties:
             shortId:
               type: string
+            runTypeId:
+              type: integer
             colour:
               type: integer
             material:

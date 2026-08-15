@@ -44,6 +44,7 @@ export interface ITrade {
 
 export interface ILeagueDisplay {
   shortId: string;
+  runTypeId: number;
   colour: number;
   material: string;
 }

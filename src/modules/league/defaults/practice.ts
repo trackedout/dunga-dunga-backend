@@ -9,6 +9,7 @@ const practiceLeague: ILeague = {
 
   display: {
     shortId: 'p',
+    runTypeId: 1,
     colour: 0x55ff55,
     material: 'LIME_SHULKER_BOX',
   },

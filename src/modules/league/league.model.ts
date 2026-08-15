@@ -41,6 +41,7 @@ const tradeSchema = new mongoose.Schema(
 const displaySchema = new mongoose.Schema(
   {
     shortId: { type: String, required: true },
+    runTypeId: { type: Number, required: true },
     colour: { type: Number, required: true },
     material: { type: String, required: true },
   },

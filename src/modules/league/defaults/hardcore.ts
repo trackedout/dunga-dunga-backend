@@ -9,6 +9,7 @@ const hardcoreLeague: ILeague = {
 
   display: {
     shortId: 'h',
+    runTypeId: 3,
     colour: 0xff5555,
     material: 'RED_SHULKER_BOX',
   },
