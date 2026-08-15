@@ -11,6 +11,7 @@ import configRoute from './config.route';
 import instanceRoute from './instance.route';
 import gameRegistryRoute from './gameRegistry.route';
 import partyRoute from './party.route';
+import leagueRoute from './league.route';
 import config from '../../config/config';
 
 const router = express.Router();
@@ -64,6 +65,10 @@ const defaultIRoute: IRoute[] = [
   {
     path: '/parties',
     route: partyRoute,
+  },
+  {
+    path: '/leagues',
+    route: leagueRoute,
   },
 ];
 
