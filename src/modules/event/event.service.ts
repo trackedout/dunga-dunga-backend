@@ -17,10 +17,11 @@ import { ClaimFilters, ClaimStates, ClaimTypes, DungeonTypes, RunTypes } from '.
 import { v4 as uuidv4 } from 'uuid';
 import { ClaimRelatedEvent, EventWithServer, notifyDiscord, notifyLobby, withClaimMetadata } from './discord';
 import { Score } from '../score';
-import { getLeagueBySlug, getActiveLeagues } from '../league/league.service';
+import { getLeagueByShortId, getActiveLeagues } from '../league/league.service';
 import { ISingleScoreboardItem } from '../league/league.interfaces';
 import { getEventMetadata } from '../utils';
 import { sendBugReportToDiscord } from './discordBugReporter';
+import { executeLeagueEventHandlers } from '../league/league.event-handler';
 import { invalidateClaimAndNotify, tryMovePlayerToDungeon } from '../../worker';
 import { Config } from '../config';
 import { Lock } from '../lock';
@@ -136,6 +137,8 @@ export const createEvent = async (eventBody: NewCreatedEvent): Promise<IEventDoc
       case ServerEvents.CLAIM_INVALIDATED: // TODO: This event is never routed here
         await notify(); // Ensure game-won metadata is stored on claim
         await handleHardcoreGameOver(eventBody);
+        const metadata = await withClaimMetadata(eventBody);
+        await executeLeagueEventHandlers(eventBody.name, eventBody.player, metadata);
         break;
 
       default:
@@ -157,10 +160,11 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
     // Ignored
   });
 
-  await ensureDeckIsSeeded(eventBody.player, 'p1');
-  await ensureDeckIsSeeded(eventBody.player, 'c1');
-
   const activeLeagues = await getActiveLeagues();
+  for (const league of activeLeagues) {
+    await ensureDeckIsSeeded(eventBody.player, league.deck.prefix + '1');
+  }
+
   for (const league of activeLeagues) {
     const shardsItem = league.items['shards'] as ISingleScoreboardItem | undefined;
     if (shardsItem?.scoreboard && shardsItem?.startingAmount) {
@@ -997,7 +1001,7 @@ async function performTrade(eventBody: NewCreatedEvent) {
 
   const runType = metadata.get('run-type')[0].toLowerCase();
 
-  const league = await getLeagueBySlug(runType);
+  const league = await getLeagueByShortId(runType);
   if (!league) {
     throw new ApiError(httpStatus.BAD_REQUEST, `League not found for run-type '${runType}'`);
   }
