@@ -443,6 +443,7 @@ async function ensureScoreboardIsSeeded(playerName: string, key: string, default
   }
 }
 
+// DEPRECATED: This function will be removed once league event handlers are verified in production
 export async function handleHardcoreGameOver(eventBody: ClaimRelatedEvent & EventWithServer) {
   const playerName = eventBody.player;
   const metadata = await withClaimMetadata(eventBody);
@@ -450,6 +451,13 @@ export async function handleHardcoreGameOver(eventBody: ClaimRelatedEvent & Even
   const logPrefix = '[Hardcore stats]';
   const prefix = `Intercepted '${eventBody.name}' event for ${playerName}`;
   const runType = metadata.get('run-type');
+
+  const league = await getLeagueByShortId(runType);
+  if (league && league.eventHandlers.length > 0) {
+    // League event handlers will handle this
+    return;
+  }
+
   if (runType !== 'h') {
     const msg = `${prefix} but this is not a hardcore run, skipping stats update`;
     logger.info(`${logPrefix} ${msg}`);
