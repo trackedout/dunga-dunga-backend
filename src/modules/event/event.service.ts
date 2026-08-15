@@ -589,7 +589,7 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
   const dungeonType = metadata.get(ClaimFilters.DUNGEON_TYPE) || DungeonTypes.DEFAULT;
 
   // remove old records with the same hostname or IP address
-  const existingInstance = await DungeonInstance.findOne({
+  let existingInstance = await DungeonInstance.findOne({
     name: eventBody.server,
     ip: eventBody.sourceIP,
   }).exec();
@@ -598,17 +598,28 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
     // Delete all dungeons that have either this name or this IP, except for the dungeon that matches this dungeon's document ID
     await deleteDungeons(eventBody.server, eventBody.sourceIP, existingInstance._id);
 
+    // Re-read the instance to get the current state (avoids race with worker reservation)
+    const refreshedInstance = await DungeonInstance.findById(existingInstance._id).exec();
+    if (!refreshedInstance) return;
+    existingInstance = refreshedInstance;
+
     // Update instance
-    const update = {
-      state: existingInstance.state,
+    const update: any = {
       inUseDate: existingInstance.inUseDate || new Date(),
-      requiresRebuild: existingInstance.requiresRebuild, // || (existingInstance.activePlayers > 0 && eventBody.count === 0),
+      requiresRebuild: existingInstance.requiresRebuild,
       activePlayers: eventBody.count,
       claimFilters: {
         [ClaimFilters.DUNGEON_TYPE]: dungeonType,
       },
       unhealthySince: existingInstance.unhealthySince,
     };
+
+    // Only update state if the instance is not currently reserved/active
+    // This prevents a server-online heartbeat from reverting a worker's reservation
+    const protectedStates = [InstanceStates.RESERVED, InstanceStates.AWAITING_PLAYER, InstanceStates.IN_USE];
+    if (!protectedStates.includes(existingInstance.state as any)) {
+      update.state = existingInstance.state;
+    }
     if (eventBody.count > 0) {
       update.state = InstanceStates.IN_USE;
     }
