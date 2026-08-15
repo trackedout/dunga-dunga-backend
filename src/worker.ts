@@ -20,6 +20,9 @@ import { cardService } from './modules/card';
 import { eventService } from './modules/event';
 import { Score } from './modules/score';
 import Config from './modules/config/config.model';
+import { getLeagueByShortId } from './modules/league/league.service';
+import { ISingleScoreboardItem } from './modules/league/league.interfaces';
+import { checkPhaseTransitions } from './modules/league/league.phase-automation';
 
 async function checkIfIpIsReachableWithRetry(
   ip: string,
@@ -583,7 +586,7 @@ async function refundShardForClaim(claim: IClaimDoc, metadata: Map<string, any>)
 
   logger.info(`Refunding shard (runType: ${runType}) for ${playerName}'s run ${runId}`);
 
-  const shardScoreboardKey = getShardScoreboardForRunType(runType);
+  const shardScoreboardKey = await getShardScoreboardForRunType(runType);
   // Increase scoreboard by one
   await Score.updateOne({ player: playerName, key: shardScoreboardKey }, { $inc: { value: 1 } });
 
@@ -599,17 +602,23 @@ async function refundShardForClaim(claim: IClaimDoc, metadata: Map<string, any>)
   });
 }
 
-function getShardScoreboardForRunType(runType: String | undefined) {
-  switch (runType) {
-    case 'c':
-      return 'do2.inventory.shards.competitive';
-    case 'p':
-      return 'do2.inventory.shards.practice';
-    case 'h':
-      return 'do2.inventory.shards.hardcore';
-    default:
-      return null;
+const shardScoreboardCache = new Map<string, { value: string | null; expiry: number }>();
+const SHARD_SCOREBOARD_CACHE_TTL_MS = 60_000;
+
+async function getShardScoreboardForRunType(runType: string | undefined): Promise<string | null> {
+  if (!runType) return null;
+
+  const cached = shardScoreboardCache.get(runType);
+  if (cached && cached.expiry > Date.now()) {
+    return cached.value;
   }
+
+  const league = await getLeagueByShortId(runType);
+  const shards = league?.items?.['shards'] as ISingleScoreboardItem | undefined;
+  const scoreboard = shards?.scoreboard ?? null;
+
+  shardScoreboardCache.set(runType, { value: scoreboard, expiry: Date.now() + SHARD_SCOREBOARD_CACHE_TTL_MS });
+  return scoreboard;
 }
 
 async function refundCardsAndItemsForClaim(claim: IClaimDoc, metadata: Map<string, any>) {
@@ -1425,6 +1434,12 @@ const runWorker = async () => {
     mergeActive = false;
     return {};
   });
+
+  try {
+    await withContext('check-phase-transitions', () => checkPhaseTransitions());
+  } catch (e: any) {
+    logger.error(`Failed to check phase transitions: ${e.message}`);
+  }
 };
 
 const worker = {

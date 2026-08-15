@@ -17,7 +17,8 @@ import { ClaimFilters, ClaimStates, ClaimTypes, DungeonTypes, RunTypes } from '.
 import { v4 as uuidv4 } from 'uuid';
 import { ClaimRelatedEvent, EventWithServer, notifyDiscord, notifyLobby, withClaimMetadata } from './discord';
 import { Score } from '../score';
-import { getSelectedDeck } from '../card/card.controller';
+import { getLeagueBySlug, getActiveLeagues } from '../league/league.service';
+import { ISingleScoreboardItem } from '../league/league.interfaces';
 import { getEventMetadata } from '../utils';
 import { sendBugReportToDiscord } from './discordBugReporter';
 import { invalidateClaimAndNotify, tryMovePlayerToDungeon } from '../../worker';
@@ -159,9 +160,14 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
   await ensureDeckIsSeeded(eventBody.player, 'p1');
   await ensureDeckIsSeeded(eventBody.player, 'c1');
 
-  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.practice', 32);
-  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.shards.competitive', 22);
-  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.filter-mode-id', 1); // run-mode
+  const activeLeagues = await getActiveLeagues();
+  for (const league of activeLeagues) {
+    const shardsItem = league.items['shards'] as ISingleScoreboardItem | undefined;
+    if (shardsItem?.scoreboard && shardsItem?.startingAmount) {
+      await ensureScoreboardIsSeeded(eventBody.player, shardsItem.scoreboard, shardsItem.startingAmount);
+    }
+  }
+  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.filter-mode-id', 2); // run-mode
 }
 
 async function warnPlayerIfUnsupportedVersion(eventBody: NewCreatedEvent) {
@@ -990,6 +996,12 @@ async function performTrade(eventBody: NewCreatedEvent) {
    */
 
   const runType = metadata.get('run-type')[0].toLowerCase();
+
+  const league = await getLeagueBySlug(runType);
+  if (!league) {
+    throw new ApiError(httpStatus.BAD_REQUEST, `League not found for run-type '${runType}'`);
+  }
+
   const sourceScoreboard = metadata.get('source-scoreboard');
   const sourceInversionScoreboard = metadata.get('source-inversion-scoreboard');
   const sourceCount = parseInt(metadata.get('source-count'));
@@ -1021,10 +1033,10 @@ async function performTrade(eventBody: NewCreatedEvent) {
       throw new ApiError(httpStatus.PRECONDITION_FAILED, `Active claim already exists for this player`);
     }
 
-    const activeDeckId = await getSelectedDeck(player.playerName, runType);
+    const activeDeckId = league.deck.prefix + '1';
     const cardCount = await Card.countDocuments({
       player: playerName,
-      deckType: runType,
+      deckType: league.deck.prefix,
       hiddenInDecks: { $ne: activeDeckId },
     }).exec();
 
