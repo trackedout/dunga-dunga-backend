@@ -25,3 +25,15 @@ export const upsertLeague = {
     state: Joi.string().valid('draft', 'active', 'completed', 'archived'),
   }),
 };
+
+export const createLeague = {
+  body: Joi.object().keys({
+    slug: Joi.string().required().pattern(/^[a-z0-9-]+$/),
+    displayName: Joi.string().required(),
+    owner: Joi.string().required(),
+    builders: Joi.object().keys({
+      players: Joi.array().items(Joi.string()),
+      idleTimeoutMinutes: Joi.number().integer().min(5).max(120),
+    }),
+  }),
+};

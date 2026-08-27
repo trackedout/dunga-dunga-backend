@@ -5,13 +5,14 @@ _default:
 
 _sync-now node:
   rsync -rav --delete --mkpath --rsync-path="sudo rsync" ./src/ {{node}}:/tracked-out/dunga-dunga/src/
+  rsync -rav --delete --mkpath --rsync-path="sudo rsync" ./packages/ {{node}}:/tracked-out/dunga-dunga/packages/
 
 dev-sync node="burn":
   #!/bin/bash
   just _sync-now {{node}}
 
   # ins inotify-tools
-  while inotifywait -r -e modify,create,delete src; do
+  while inotifywait -r -e modify,create,delete src packages; do
     just _sync-now {{node}}
   done
 

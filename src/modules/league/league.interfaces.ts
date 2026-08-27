@@ -118,6 +118,14 @@ export interface IEventHandler {
   actions: IEventAction[];
 }
 
+// --- Builders (sandbox build servers) ---
+
+export interface ILeagueBuilders {
+  players: string[];
+  idleTimeoutMinutes: number;
+  snapshotSource?: string; // S3 path set during creation, e.g. "snapshots/leagues/my-league/"
+}
+
 // --- Join Policy ---
 
 export type JoinPolicy = 'auto' | 'open' | 'invite-only' | 'approval';
@@ -137,6 +145,7 @@ export interface ILeague {
   display: ILeagueDisplay;
 
   members: string[];
+  builders?: ILeagueBuilders;
   joinPolicy: JoinPolicy;
 
   items: Record<string, ILeagueItem>;

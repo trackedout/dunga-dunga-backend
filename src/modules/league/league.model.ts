@@ -135,6 +135,15 @@ const eventHandlerSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const buildersSchema = new mongoose.Schema(
+  {
+    players: { type: [String], default: [] },
+    idleTimeoutMinutes: { type: Number, default: 30 },
+    snapshotSource: { type: String },
+  },
+  { _id: false }
+);
+
 const leagueSchema = new mongoose.Schema<ILeagueDoc, ILeagueModel>(
   {
     slug: {
@@ -172,6 +181,10 @@ const leagueSchema = new mongoose.Schema<ILeagueDoc, ILeagueModel>(
       required: true,
       enum: ['auto', 'open', 'invite-only', 'approval'],
       default: 'auto',
+    },
+    builders: {
+      type: buildersSchema,
+      default: undefined,
     },
     items: {
       type: Map,

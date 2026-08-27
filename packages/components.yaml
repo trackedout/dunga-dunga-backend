@@ -312,6 +312,17 @@ components:
             type: string
         joinPolicy:
           type: string
+        builders:
+          type: object
+          properties:
+            players:
+              type: array
+              items:
+                type: string
+            idleTimeoutMinutes:
+              type: integer
+            snapshotSource:
+              type: string
         items:
           type: object
           additionalProperties:
@@ -440,6 +451,68 @@ components:
         members: []
         joinPolicy: auto
         state: active
+
+    LeagueSandboxInstance:
+      type: object
+      properties:
+        id:
+          type: string
+        leagueSlug:
+          type: string
+        slot:
+          type: string
+        taskArn:
+          type: string
+        privateIp:
+          type: string
+        state:
+          type: string
+          enum:
+            - LAUNCHING
+            - RUNNING
+            - STOPPING
+            - STOPPED
+        lastPlayerActivity:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    LeagueBuilderAllowlistEntry:
+      type: object
+      properties:
+        name:
+          type: string
+
+    LeagueCreateRequest:
+      type: object
+      required:
+        - slug
+        - displayName
+        - owner
+      properties:
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+        displayName:
+          type: string
+        owner:
+          type: string
+        builders:
+          type: object
+          properties:
+            players:
+              type: array
+              items:
+                type: string
+            idleTimeoutMinutes:
+              type: integer
+              minimum: 5
+              maximum: 120
 
   responses:
     Unauthorized:
