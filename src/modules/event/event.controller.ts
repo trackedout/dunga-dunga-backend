@@ -8,15 +8,16 @@ import { IOptions } from '../paginate/paginate';
 import * as eventService from './event.service';
 import config from '../../config/config';
 import { logger } from '../logger';
+import { isEcsBacked, ecsEndpointName } from '../server';
 
 export const createEvent = catchAsync(async (req: Request, res: Response) => {
   var sourceIP = config.env === 'development' ? req.body.sourceIP : null;
   sourceIP = sourceIP || req.ip?.split(':').slice(-1)[0];
-  // ECS-backed servers (dungeons d7xx, league sandboxes s4xx) are reached via a
+  // ECS-backed servers (Fargate dungeons, league sandboxes) are reached via a
   // Kubernetes Endpoint named "{server}-ecs" whose IP the job-scheduler patches.
   // Their real request IP is the pod-network gateway, so we must use the endpoint name.
-  if (req.body.server?.startsWith('d7') || req.body.server?.startsWith('s4')) {
-    sourceIP = `${req.body.server}-ecs`;
+  if (isEcsBacked(req.body.server)) {
+    sourceIP = ecsEndpointName(req.body.server);
   }
 
   logger.debug(`Event:${req.body.metadata?.['run-id'] ? ` run=${req.body.metadata['run-id']}` : ''} ${JSON.stringify(req.body)}`);

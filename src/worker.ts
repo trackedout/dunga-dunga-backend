@@ -22,6 +22,13 @@ import Config from './modules/config/config.model';
 import { getLeagueByShortId } from './modules/league/league.service';
 import { ISingleScoreboardItem } from './modules/league/league.interfaces';
 import { checkPhaseTransitions } from './modules/league/league.phase-automation';
+import {
+  isBuilders,
+  isFargateDungeon,
+  FARGATE_DUNGEON_NAME_REGEX,
+  K3S_DUNGEON_NAME_REGEX,
+  FARGATE_DUNGEON_RANGE,
+} from './modules/server';
 
 async function checkIfIpIsReachableWithRetry(
   ip: string,
@@ -228,8 +235,8 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
 
   // Prioritize d7xx over d8xx
   dungeons.sort((a, b) => {
-    const aType = a.name.startsWith('d7') ? 7 : 8;
-    const bType = b.name.startsWith('d7') ? 7 : 8;
+    const aType = isFargateDungeon(a.name) ? 7 : 8;
+    const bType = isFargateDungeon(b.name) ? 7 : 8;
 
     if (aType !== bType) {
       return aType - bType; // 7 comes before 8
@@ -385,7 +392,7 @@ async function markDungeonAsHealthy(dungeon: IInstanceDoc) {
 }
 
 async function releaseDungeonIfLeaseExpired(dungeon: IInstanceDoc) {
-  if (dungeon.name.startsWith('builders')) {
+  if (isBuilders(dungeon.name)) {
     return dungeon;
   }
 
@@ -724,7 +731,7 @@ async function releaseDungeonLeaseForPlayer(playerName: string) {
 }
 
 async function tearDownDungeonIfEmpty(dungeon: IInstanceDoc) {
-  if (dungeon.name.startsWith('builders')) {
+  if (isBuilders(dungeon.name)) {
     return dungeon;
   }
 
@@ -795,7 +802,7 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
   // Check if rebuilding d8xx dungeons will cover demand (they start faster than Fargate)
   const dungeonType = metadata.get('dungeon-type') || 'default';
   const rebuildingD8xxDungeons = await DungeonInstance.find({
-    name: { $regex: /^d8[0-9]{2}$/ },
+    name: { $regex: K3S_DUNGEON_NAME_REGEX },
     $or: [{ state: { $in: [InstanceStates.BUILDING, InstanceStates.UNREACHABLE] } }, { requiresRebuild: true }],
   });
 
@@ -840,7 +847,7 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
 
   // Check concurrency limit (max 10 Fargate dungeons at once)
   const activeFargateDungeons = await DungeonInstance.countDocuments({
-    name: { $regex: /^d7[0-9]{2}$/ },
+    name: { $regex: FARGATE_DUNGEON_NAME_REGEX },
     state: {
       $in: [
         InstanceStates.AVAILABLE,
@@ -934,7 +941,7 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
 async function allocateFargateDungeonName(): Promise<string | null> {
   // Find next available dungeon name in d700-d799 range
   const existingDungeons = await DungeonInstance.find({
-    name: { $regex: /^d7[0-9]{2}$/ },
+    name: { $regex: FARGATE_DUNGEON_NAME_REGEX },
   })
     .select('name')
     .lean();
@@ -952,16 +959,17 @@ async function allocateFargateDungeonName(): Promise<string | null> {
   pendingLaunches.forEach((task) => {
     if (task.arguments && task.arguments.length >= 2) {
       const dungeonName = task.arguments[1];
-      if (dungeonName && dungeonName.match(/^d7[0-9]{2}$/)) {
+      if (dungeonName && isFargateDungeon(dungeonName)) {
         usedNumbers.add(parseInt(dungeonName.substring(1)));
       }
     }
   });
 
   // Find first available slot
-  for (let i = 700; i <= 799; i++) {
+  const { prefix, start, count } = FARGATE_DUNGEON_RANGE;
+  for (let i = start; i < start + count; i++) {
     if (!usedNumbers.has(i)) {
-      return `d${i}`;
+      return `${prefix}${i}`;
     }
   }
 
@@ -970,7 +978,7 @@ async function allocateFargateDungeonName(): Promise<string | null> {
 
 async function terminateFargateDungeonIfNeeded(dungeon: IInstanceDoc) {
   // Only terminate Fargate dungeons (d700-d799)
-  if (!dungeon.name.match(/^d7[0-9]{2}$/)) {
+  if (!isFargateDungeon(dungeon.name)) {
     return;
   }
 
@@ -1013,7 +1021,7 @@ async function terminateIdleFargateDungeons() {
   // Find Fargate dungeons idle for >5 minutes in non-active states
   // Note: UNREACHABLE dungeons are handled by degradeDungeon() and don't need termination
   const idleFargateDungeons = await DungeonInstance.find({
-    name: { $regex: /^d7[0-9]{2}$/ },
+    name: { $regex: FARGATE_DUNGEON_NAME_REGEX },
     state: {
       $in: [InstanceStates.AVAILABLE, InstanceStates.RESERVED],
     },

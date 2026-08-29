@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ClaimRelatedEvent, EventWithServer, notifyDiscord, notifyLobby, withClaimMetadata } from './discord';
 import { Score } from '../score';
 import { getLeagueByShortId, getActiveLeagues } from '../league/league.service';
+import { isBuilders, isDungeon, isSandbox } from '../server';
 import { ISingleScoreboardItem } from '../league/league.interfaces';
 import { getEventMetadata } from '../utils';
 import { sendBugReportToDiscord } from './discordBugReporter';
@@ -388,14 +389,14 @@ async function updatePlayerStateAndLocation(eventBody: NewCreatedEvent) {
   }
 }
 
-function getNewStateBasedOnPlayerLocation(player: IPlayer, server: String) {
+function getNewStateBasedOnPlayerLocation(player: IPlayer, server: string) {
   let state = player.state;
 
-  if (state === QueueStates.IN_TRANSIT_TO_DUNGEON && server.match(/^d[0-9]{3}/)) {
+  if (state === QueueStates.IN_TRANSIT_TO_DUNGEON && isDungeon(server)) {
     state = QueueStates.IN_DUNGEON;
-  } else if (![QueueStates.IN_TRANSIT_TO_DUNGEON, QueueStates.IN_DUNGEON].includes(state) && server.match(/^d[0-9]{3}/)) {
+  } else if (![QueueStates.IN_TRANSIT_TO_DUNGEON, QueueStates.IN_DUNGEON].includes(state) && isDungeon(server)) {
     state = QueueStates.SPECTATING;
-  } else if (server.startsWith('builders')) {
+  } else if (isBuilders(server)) {
     state = QueueStates.IN_BUILDERS;
   } else if (![QueueStates.IN_QUEUE, QueueStates.IN_TRANSIT_TO_DUNGEON].includes(state) && server.startsWith('lobby')) {
     state = QueueStates.IN_LOBBY;
@@ -521,7 +522,7 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
   // be registered as DungeonInstances, otherwise the dungeon lifecycle
   // (in-use teardown, unhealthy reaping, player assignment) would fight the
   // sandbox lifecycle.
-  if (eventBody.server?.startsWith('s4')) {
+  if (isSandbox(eventBody.server)) {
     return;
   }
 
