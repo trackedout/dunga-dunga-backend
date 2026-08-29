@@ -34,6 +34,10 @@ export const createLeague = {
     builders: Joi.object().keys({
       players: Joi.array().items(Joi.string()),
       idleTimeoutMinutes: Joi.number().integer().min(5).max(120),
+      forkSource: Joi.object().keys({
+        repo: Joi.string().required(),
+        snapshotId: Joi.string(),
+      }),
     }),
   }),
 };

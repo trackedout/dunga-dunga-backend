@@ -139,7 +139,15 @@ const buildersSchema = new mongoose.Schema(
   {
     players: { type: [String], default: [] },
     idleTimeoutMinutes: { type: Number, default: 30 },
-    snapshotSource: { type: String },
+    forkSource: {
+      type: new mongoose.Schema(
+        {
+          repo: { type: String, required: true },
+          snapshotId: { type: String },
+        },
+        { _id: false }
+      ),
+    },
   },
   { _id: false }
 );

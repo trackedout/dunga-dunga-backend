@@ -123,7 +123,14 @@ export interface IEventHandler {
 export interface ILeagueBuilders {
   players: string[];
   idleTimeoutMinutes: number;
-  snapshotSource?: string; // S3 path set during creation, e.g. "snapshots/leagues/my-league/"
+  // Restic fork source: which repo (within the sandbox bucket) and snapshot the
+  // league bootstraps its world from on first launch. `repo` is a repo name in
+  // the sandbox bucket — "_base" for a fresh league, or another league's slug
+  // when forking. `snapshotId` defaults to "latest".
+  forkSource?: {
+    repo: string;
+    snapshotId?: string;
+  };
 }
 
 // --- Join Policy ---

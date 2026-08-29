@@ -4,7 +4,6 @@ import catchAsync from '../utils/catchAsync';
 import { Task } from '../task';
 import * as leagueService from './league.service';
 import * as sandboxService from './league-sandbox.service';
-import * as s3Service from './league-sandbox.s3';
 import LeagueSandbox from './league-sandbox.model';
 import logger from '../logger/logger';
 
@@ -95,7 +94,15 @@ export const createLeagueWithSeed = catchAsync(async (req: Request, res: Respons
     return;
   }
 
-  const snapshotSource = await s3Service.seedLeagueWorld(slug);
+  // The league bootstraps its restic world repo from a fork source on first
+  // launch (handled by the sandbox entrypoint). Default to the "_base" repo; a
+  // fork request may point at another league's repo + snapshot instead.
+  const forkSource = {
+    repo: req.body.builders?.forkSource?.repo || '_base',
+    ...(req.body.builders?.forkSource?.snapshotId
+      ? { snapshotId: req.body.builders.forkSource.snapshotId }
+      : {}),
+  };
 
   const leagueData = {
     slug,
@@ -128,12 +135,12 @@ export const createLeagueWithSeed = catchAsync(async (req: Request, res: Respons
     builders: {
       players: req.body.builders?.players || [],
       idleTimeoutMinutes: req.body.builders?.idleTimeoutMinutes || 30,
-      snapshotSource,
+      forkSource,
     },
   };
 
   const league = await leagueService.upsertLeague(leagueData);
-  logger.info(`League '${slug}' created with world seeded from builders2`);
+  logger.info(`League '${slug}' created; world forks from restic repo '${forkSource.repo}' on first launch`);
   res.status(httpStatus.CREATED).send(league);
 });
 
