@@ -488,6 +488,14 @@ components:
         name:
           type: string
 
+    LeagueMemberRequest:
+      type: object
+      required:
+        - player
+      properties:
+        player:
+          type: string
+
     LeagueCreateRequest:
       type: object
       required:

@@ -41,3 +41,18 @@ export const createLeague = {
     }),
   }),
 };
+
+export const publishLeague = {
+  params: Joi.object().keys({
+    slug: Joi.string().required(),
+  }),
+};
+
+export const leagueMember = {
+  params: Joi.object().keys({
+    slug: Joi.string().required(),
+  }),
+  body: Joi.object().keys({
+    player: Joi.string().required(),
+  }),
+};

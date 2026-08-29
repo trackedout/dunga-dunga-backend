@@ -26,6 +26,20 @@ router
   .get(validate(leagueValidation.getLeagueBySlug), leagueController.getLeagueBySlug);
 
 router
+  .route('/:slug/publish')
+  .post(validate(leagueValidation.publishLeague), leagueController.publishLeague);
+
+router
+  .route('/:slug/editors')
+  .post(validate(leagueValidation.leagueMember), leagueController.addEditor)
+  .delete(validate(leagueValidation.leagueMember), leagueController.removeEditor);
+
+router
+  .route('/:slug/members')
+  .post(validate(leagueValidation.leagueMember), leagueController.addMember)
+  .delete(validate(leagueValidation.leagueMember), leagueController.removeMember);
+
+router
   .route('/:slug/sandbox')
   .get(validate(leagueValidation.getLeagueBySlug), sandboxController.getSandboxInstance);
 
@@ -194,6 +208,144 @@ export default router;
  *               $ref: '#/components/schemas/League'
  *       "404":
  *         description: Not found
+ */
+
+/**
+ * @swagger
+ * /leagues/{slug}/publish:
+ *   post:
+ *     summary: Publish a league so it becomes a playable mode
+ *     description: >
+ *       Transitions a draft league to active, filling in playable defaults
+ *       (display id, standard items, a shard→queue trade, deck) and pointing its
+ *       dungeon type at the league's own latest restic snapshot.
+ *     operationId: leaguePublish
+ *     tags: [Leagues]
+ *     parameters:
+ *       - in: path
+ *         name: slug
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/League'
+ *       "404":
+ *         description: League not found
+ */
+
+/**
+ * @swagger
+ * /leagues/{slug}/editors:
+ *   post:
+ *     summary: Add an editor (builder) to a league
+ *     operationId: leagueAddEditor
+ *     tags: [Leagues]
+ *     parameters:
+ *       - in: path
+ *         name: slug
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LeagueMemberRequest'
+ *     responses:
+ *       "200":
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/League'
+ *       "404":
+ *         description: League not found
+ *   delete:
+ *     summary: Remove an editor (builder) from a league
+ *     operationId: leagueRemoveEditor
+ *     tags: [Leagues]
+ *     parameters:
+ *       - in: path
+ *         name: slug
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LeagueMemberRequest'
+ *     responses:
+ *       "200":
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/League'
+ *       "404":
+ *         description: League not found
+ */
+
+/**
+ * @swagger
+ * /leagues/{slug}/members:
+ *   post:
+ *     summary: Add a member to a league
+ *     operationId: leagueAddMember
+ *     tags: [Leagues]
+ *     parameters:
+ *       - in: path
+ *         name: slug
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LeagueMemberRequest'
+ *     responses:
+ *       "200":
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/League'
+ *       "404":
+ *         description: League not found
+ *   delete:
+ *     summary: Remove a member from a league
+ *     operationId: leagueRemoveMember
+ *     tags: [Leagues]
+ *     parameters:
+ *       - in: path
+ *         name: slug
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LeagueMemberRequest'
+ *     responses:
+ *       "200":
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/League'
+ *       "404":
+ *         description: League not found
  */
 
 /**
