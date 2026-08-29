@@ -516,6 +516,15 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
 }
 
 async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
+  // League sandbox slots (s4xx) are not dungeons. They are managed entirely by
+  // the LeagueSandbox model + job-scheduler (launch/idle/terminate) and must not
+  // be registered as DungeonInstances, otherwise the dungeon lifecycle
+  // (in-use teardown, unhealthy reaping, player assignment) would fight the
+  // sandbox lifecycle.
+  if (eventBody.server?.startsWith('s4')) {
+    return;
+  }
+
   const metadata = getEventMetadata(eventBody);
   const dungeonType = metadata.get(ClaimFilters.DUNGEON_TYPE) || DungeonTypes.DEFAULT;
 

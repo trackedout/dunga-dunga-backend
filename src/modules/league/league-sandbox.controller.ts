@@ -137,7 +137,7 @@ export const createLeagueWithSeed = catchAsync(async (req: Request, res: Respons
   res.status(httpStatus.CREATED).send(league);
 });
 
-export const getActiveSandboxes = catchAsync(async (req: Request, res: Response) => {
+export const getActiveSandboxes = catchAsync(async (_req: Request, res: Response) => {
   const instances = await sandboxService.getActiveInstances();
   res.send(instances);
 });
