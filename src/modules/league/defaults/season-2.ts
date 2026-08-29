@@ -8,7 +8,6 @@ const season2League: ILeague = {
   owner: '4Ply',
 
   display: {
-    shortId: 'c',
     runTypeId: 2,
     colour: 0x55ffff,
     material: 'CYAN_SHULKER_BOX',
@@ -17,6 +16,10 @@ const season2League: ILeague = {
   members: [],
   joinPolicy: 'auto',
 
+  // Season 2 predates the per-season scoreboard convention, so its items point at
+  // the legacy `competitive-*` scoreboards rather than `season-2-*`. The slug is
+  // `season-2`; the `items` map is the indirection layer that decouples the slug
+  // from the physical scoreboard names. (Season 3 onward uses per-season names.)
   items: {
     ...standardItems('competitive'),
   },
@@ -40,7 +43,7 @@ const season2League: ILeague = {
   ],
 
   deck: {
-    prefix: 'c',
+    // deckType is the league slug (one deck per league).
     defaultCards: ['MOC', 'SNE', 'TRH'],
   },
 

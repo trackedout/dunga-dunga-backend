@@ -27,7 +27,7 @@ export const getOverview = async () => {
     : [];
   const claimMap = new Map(allClaims.map((c) => {
     const meta = c.metadata as unknown as Record<string, string>;
-    return [c._id.toString(), { runId: meta['run-id'] ?? null, difficulty: meta['difficulty'] ?? null, runType: meta['run-type'] ?? null, startTime: meta['start-time'] ? new Date(parseInt(meta['start-time'], 10) * 1000).toISOString() : null, state: (c as any).state ?? null }];
+    return [c._id.toString(), { runId: meta['run-id'] ?? null, difficulty: meta['difficulty'] ?? null, runType: meta['slug'] ?? null, startTime: meta['start-time'] ? new Date(parseInt(meta['start-time'], 10) * 1000).toISOString() : null, state: (c as any).state ?? null }];
   }));
 
   // Pending claims: players with activeClaimId not assigned to any dungeon AND actively queuing
@@ -43,7 +43,7 @@ export const getOverview = async () => {
     .filter((c) => pendingPlayers.some((p) => p.activeClaimId === c._id.toString()))
     .map((c) => {
       const meta = c.metadata as unknown as Record<string, string>;
-      return [c._id.toString(), { difficulty: meta['difficulty'] ?? null, runType: meta['run-type'] ?? null }];
+      return [c._id.toString(), { difficulty: meta['difficulty'] ?? null, runType: meta['slug'] ?? null }];
     }));
 
   return {

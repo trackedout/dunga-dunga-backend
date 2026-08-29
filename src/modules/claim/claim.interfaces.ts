@@ -19,17 +19,12 @@ export interface IClaim {
     metadata:
       deck-id=1
       run-id=123123-123-123-123-123
-      run-type=practice
+      slug=practice
       tome-count=1
  */
 
 export enum ClaimTypes {
   DUNGEON = 'dungeon',
-}
-
-export enum RunTypes {
-  PRACTICE = 'practice',
-  COMPETITIVE = 'competitive',
 }
 
 export enum DungeonTypes {

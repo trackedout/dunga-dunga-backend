@@ -37,7 +37,7 @@ components:
         metadata:
           deck-id: 1
           run-id: 123123-123-123-123-123
-          run-type: practice
+          slug: practice
           world-age: 123123123
 
     Card:
@@ -122,7 +122,7 @@ components:
         metadata:
           deck-id: 1
           run-id: 123123-123-123-123-123
-          run-type: practice
+          slug: practice
           world-age: 123123123
 
     Config:
@@ -171,7 +171,7 @@ components:
         metadata:
           deck-id: 1
           run-id: 123123-123-123-123-123
-          run-type: practice
+          slug: practice
           tome-count: 1
 
     StatusSection:
@@ -298,8 +298,6 @@ components:
         display:
           type: object
           properties:
-            shortId:
-              type: string
             runTypeId:
               type: integer
             colour:
@@ -353,8 +351,6 @@ components:
         deck:
           type: object
           properties:
-            prefix:
-              type: string
             defaultCards:
               type: array
               items:
@@ -445,7 +441,6 @@ components:
         description: The main competitive season
         owner: 4Ply
         display:
-          shortId: c
           colour: 5636095
           material: CYAN_SHULKER_BOX
         members: []

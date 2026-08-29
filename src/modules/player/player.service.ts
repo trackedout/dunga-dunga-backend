@@ -2,6 +2,7 @@ import Event from '../event/event.model';
 import Score from '../score/score.model';
 import Claim from '../claim/claim.model';
 import Player from '../event/player.model';
+import { resolveRunTypeSlug } from '../league/league.service';
 
 const effectiveKiller = {
   $cond: {
@@ -38,8 +39,7 @@ export const listPlayers = async (since?: string, runType?: string, until?: stri
   if (until) claimDateFilter['$lt'] = new Date(until);
   if (Object.keys(claimDateFilter).length) claimMatch['createdAt'] = claimDateFilter;
   if (runType) {
-    const longForm = { p: 'practice', c: 'competitive', h: 'hardcore' }[runType] ?? runType;
-    claimMatch['metadata.run-type'] = { $in: [runType, longForm] };
+    claimMatch['metadata.slug'] = await resolveRunTypeSlug(runType);
   }
 
   const [players, claimStats] = await Promise.all([
@@ -77,8 +77,7 @@ export const getPlayerData = async (name: string, since?: string, until?: string
 
   const runTypeMatch: Record<string, unknown> = {};
   if (runType) {
-    const longForm = { p: 'practice', c: 'competitive', h: 'hardcore' }[runType] ?? runType;
-    runTypeMatch['metadata.run-type'] = { $in: [runType, longForm] };
+    runTypeMatch['metadata.slug'] = await resolveRunTypeSlug(runType);
   }
 
   const [scores, claims, nemesisResult] = await Promise.all([

@@ -110,7 +110,8 @@ export const createLeagueWithSeed = catchAsync(async (req: Request, res: Respons
     owner,
     description: req.body.description || '',
     display: {
-      shortId: slug.substring(0, 4),
+      // runTypeId 0 marks an unpublished draft; publishLeague assigns the real
+      // datapack mode (competitive = 2) on publish.
       runTypeId: 0,
       colour: 0xaaaaaa,
       material: 'WHITE_SHULKER_BOX',
@@ -120,7 +121,6 @@ export const createLeagueWithSeed = catchAsync(async (req: Request, res: Respons
     items: {},
     trades: [],
     deck: {
-      prefix: slug.substring(0, 3),
       defaultCards: [],
     },
     dungeon: {

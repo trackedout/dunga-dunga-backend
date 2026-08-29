@@ -155,7 +155,7 @@ export async function allocateShards(
       y: 0,
       z: 0,
       metadata: {
-        'run-type': league.display.shortId,
+        slug: league.slug,
         'source-scoreboard': '',
         'source-inversion-scoreboard': '',
         'source-count': '0',

@@ -8,7 +8,6 @@ const hardcoreLeague: ILeague = {
   owner: '4Ply',
 
   display: {
-    shortId: 'h',
     runTypeId: 3,
     colour: 0xff5555,
     material: 'RED_SHULKER_BOX',
@@ -34,12 +33,11 @@ const hardcoreLeague: ILeague = {
   ],
 
   deck: {
-    prefix: 'h',
     defaultCards: ['MOC', 'SNE', 'TRH'],
   },
 
   dungeon: {
-    type: 'season-2',
+    type: 'hardcore',
     claimFilters: {},
   },
 
@@ -52,10 +50,7 @@ const hardcoreLeague: ILeague = {
     excludedPlayers: [],
   },
 
-  scoring: {
-    metric: 'tomes',
-    pointsForPosition: [],
-  },
+  scoring: null,
 
   eventHandlers: [
     {

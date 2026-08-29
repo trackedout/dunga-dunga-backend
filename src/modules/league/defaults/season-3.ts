@@ -8,8 +8,7 @@ const season3League: ILeague = {
   owner: '4Ply',
 
   display: {
-    shortId: 's3',
-    runTypeId: 4,
+    runTypeId: 2,
     colour: 0xff55ff,
     material: 'MAGENTA_SHULKER_BOX',
   },
@@ -40,7 +39,6 @@ const season3League: ILeague = {
   ],
 
   deck: {
-    prefix: 's3',
     defaultCards: ['MOC', 'SNE', 'TRH'],
   },
 

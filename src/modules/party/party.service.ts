@@ -182,7 +182,7 @@ export const queueParty = async (partyId: string, requester: string): Promise<IP
       'dungeon-type': party.game,
       'party-id': party._id.toString(),
       'party-players': party.members.join(','),
-      'run-type': 'party',
+      slug: 'party',
     },
   });
 

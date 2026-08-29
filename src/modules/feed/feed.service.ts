@@ -1,6 +1,7 @@
 import Claim from '../claim/claim.model';
 import Config from '../config/config.model';
 import Event from '../event/event.model';
+import { resolveRunTypeSlug } from '../league/league.service';
 
 const FEED_CACHE_TTL_MS = 10_000;
 const feedCache = new Map<string, { result: unknown; expiresAt: number }>();
@@ -92,12 +93,11 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
     const endDoc = phaseDocs.find((d) => d.key === 'end-time');
     if (startDoc) matchStage['createdAt'] = { ...((matchStage['createdAt'] as object) ?? {}), $gte: new Date(startDoc.value) };
     if (endDoc) matchStage['createdAt'] = { ...((matchStage['createdAt'] as object) ?? {}), $lte: new Date(endDoc.value) };
-    // Phase filter always restricts to competitive runs
-    matchStage['metadata.run-type'] = { $in: ['c', 'competitive'] };
+    // Phase filter always restricts to competitive (season-2) runs
+    matchStage['metadata.slug'] = 'season-2';
   } else if (options.runType) {
-    // Accept both short codes and full names
-    const longForm = { p: 'practice', c: 'competitive', h: 'hardcore' }[options.runType] ?? options.runType;
-    matchStage['metadata.run-type'] = { $in: [options.runType, longForm] };
+    // Accept both short codes and full names; normalise to the canonical slug.
+    matchStage['metadata.slug'] = await resolveRunTypeSlug(options.runType);
   }
   if (options.outcome === 'win') matchStage['metadata.game-won'] = 'true';
   if (options.outcome === 'loss' || options.outcome === 'invalid') {
@@ -201,12 +201,12 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
           difficulty: '$metadata.difficulty',
           runType: {
             $let: {
-              vars: { rt: '$metadata.run-type' },
+              vars: { rt: '$metadata.slug' },
               in: {
                 $switch: {
                   branches: [
                     { case: { $eq: ['$$rt', 'practice'] }, then: 'p' },
-                    { case: { $eq: ['$$rt', 'competitive'] }, then: 'c' },
+                    { case: { $in: ['$$rt', ['season-1', 'season-2']] }, then: 'c' },
                     { case: { $eq: ['$$rt', 'hardcore'] }, then: 'h' },
                   ],
                   default: '$$rt',
@@ -291,11 +291,11 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
             runType: {
               $switch: {
                 branches: [
-                  { case: { $eq: ['$metadata.run-type', 'practice'] }, then: 'p' },
-                  { case: { $eq: ['$metadata.run-type', 'competitive'] }, then: 'c' },
-                  { case: { $eq: ['$metadata.run-type', 'hardcore'] }, then: 'h' },
+                  { case: { $eq: ['$metadata.slug', 'practice'] }, then: 'p' },
+                  { case: { $in: ['$metadata.slug', ['season-1', 'season-2']] }, then: 'c' },
+                  { case: { $eq: ['$metadata.slug', 'hardcore'] }, then: 'h' },
                 ],
-                default: '$metadata.run-type',
+                default: '$metadata.slug',
               },
             },
             startTime: {
@@ -386,8 +386,8 @@ export async function getRunById(runId: string): Promise<RunDetail | null> {
     return m['end-time'] ? m : best;
   }, allMeta(first));
 
-  const rawRunType = richMeta['run-type'] ?? null;
-  const runTypeMap: Record<string, string> = { practice: 'p', competitive: 'c', hardcore: 'h' };
+  const rawRunType = richMeta['slug'] ?? null;
+  const runTypeMap: Record<string, string> = { practice: 'p', 'season-1': 'c', 'season-2': 'c', hardcore: 'h' };
   const runType = rawRunType ? (runTypeMap[rawRunType] ?? rawRunType) : null;
   const claimMetaRaw = claim ? (claim.metadata as unknown as Record<string, string>) : null;
   const difficulty = richMeta['difficulty'] ?? claimMetaRaw?.['difficulty'] ?? null;

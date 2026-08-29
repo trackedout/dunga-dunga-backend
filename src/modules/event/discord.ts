@@ -7,6 +7,7 @@ import DungeonInstance from './instance.model';
 import { EmbedBuilder, EmbedField, WebhookClient } from 'discord.js';
 import { Claim } from '../claim';
 import { ClaimTypes, IClaimDoc } from '../claim/claim.interfaces';
+import { getLeagueByRunType } from '../league/league.service';
 import { EventMetadataContainer, getEventMetadata, getMetadata } from '../utils';
 import Task from '../task/task.model';
 import moment from 'moment';
@@ -196,12 +197,12 @@ async function getDiscordMessageForEvent(event: EventWithServer & ClaimRelatedEv
         await setMetadataValue(event, 'datapack-version', datapackVersion);
       }
 
-      return `[${getFullRunTypeFromMetadata(metadata)}] The dungeon is ready for ${playerNameBold}!`;
+      return `[${await getFullRunTypeFromMetadata(metadata)}] The dungeon is ready for ${playerNameBold}!`;
     }
 
     case PlayerEvents.JOINED_QUEUE:
       const metadata = getEventMetadata(event);
-      return `[${getFullRunTypeFromMetadata(metadata)}] ${playerNameBold} queued for a run`;
+      return `[${await getFullRunTypeFromMetadata(metadata)}] ${playerNameBold} queued for a run`;
 
     case ServerEvents.CLAIM_INVALIDATED:
       const claim = await findClaim(event);
@@ -283,7 +284,7 @@ async function getLobbyMessageForEvent(event: EventWithServer & ClaimRelatedEven
 
     case PlayerEvents.JOINED_QUEUE:
       const metadata = getEventMetadata(event);
-      return `[${getFullRunTypeFromMetadata(metadata)}] ${playerName} queued for a run`;
+      return `[${await getFullRunTypeFromMetadata(metadata)}] ${playerName} queued for a run`;
 
     case 'difficulty-selected-easy':
     case 'difficulty-selected-medium':
@@ -343,7 +344,8 @@ export async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEv
         }))
       );
 
-      if (metadata.get('run-type') !== 'c') {
+      const runLeague = await getLeagueByRunType(metadata.get('slug') ?? '');
+      if (runLeague?.slug !== 'season-2') {
         fields.push(
           ...(await mapAndCountEvents({
             runId,
@@ -468,7 +470,7 @@ export async function getRunDescription(runId: string, claim: IClaimDoc | null):
   if (claim) {
     items.push(
       ...[
-        `**Run Type**: ${getFullRunType(claim.metadata.get('run-type')) || 'unknown'}`,
+        `**Run Type**: ${(await getFullRunType(claim.metadata.get('slug'))) || 'unknown'}`,
         // `**Deck ID**: ${claim.metadata.get('deck-id') || 'unknown'}`,
       ]
     );
@@ -519,20 +521,15 @@ export async function getFullRunTypeWithClaim(event: ClaimRelatedEvent) {
 }
 
 function getFullRunTypeFromMetadata(metadata: Map<string, any>) {
-  return getFullRunType(metadata.get('run-type'));
+  return getFullRunType(metadata.get('slug'));
 }
 
-function getFullRunType(runType: String | undefined) {
-  switch (runType) {
-    case 'c':
-      return 'Competitive';
-    case 'p':
-      return 'Practice';
-    case 'h':
-      return 'Hardcore';
-    default:
-      return 'Unknown';
-  }
+// Resolve a run-type's display name from the league itself (slug or legacy short
+// id both resolve). No hardcoded run-type table.
+async function getFullRunType(runType: String | undefined): Promise<string> {
+  if (!runType) return 'Unknown';
+  const league = await getLeagueByRunType(runType.toString());
+  return league?.displayName ?? 'Unknown';
 }
 
 export async function findClaim(event: ClaimRelatedEvent): Promise<IClaimDoc | null> {
@@ -577,7 +574,7 @@ export async function withClaimMetadata(event: ClaimRelatedEvent): Promise<Map<s
   const eventMetadata = getEventMetadata(event);
 
   if (eventMetadata.get('dungeon-type')) {
-    // logger.debug(`Claim metadata 'run-type' already exists on event, returning without claim lookup`);
+    // logger.debug(`Claim metadata 'slug' already exists on event, returning without claim lookup`);
     return eventMetadata;
   }
 

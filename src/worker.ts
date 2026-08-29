@@ -19,7 +19,7 @@ import { cardService } from './modules/card';
 import { eventService } from './modules/event';
 import { Score } from './modules/score';
 import Config from './modules/config/config.model';
-import { getLeagueByShortId } from './modules/league/league.service';
+import { getLeagueByRunType } from './modules/league/league.service';
 import { ISingleScoreboardItem } from './modules/league/league.interfaces';
 import { checkPhaseTransitions } from './modules/league/league.phase-automation';
 import {
@@ -256,14 +256,14 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
 
   if (!dungeon) {
     const metadata = getMetadata(claim.metadata);
-    const message = `Could not find an available dungeon for ${playerName} (run-type: ${metadata.get('run-type')}, queue-type: ${metadata.get('dungeon-type')}). Will retry in 5 seconds`;
+    const message = `Could not find an available dungeon for ${playerName} (slug: ${metadata.get('slug')}, queue-type: ${metadata.get('dungeon-type')}). Will retry in 5 seconds`;
     logger.warn(message);
 
     // Don't spam operators
     if (
       await tryTakeLock(
         'find-dungeon',
-        `${playerName}/run-type-${metadata.get('run-type')}/dungeon-type-${metadata.get('dungeon-type')}`,
+        `${playerName}/slug-${metadata.get('slug')}/dungeon-type-${metadata.get('dungeon-type')}`,
         60
       )
     ) {
@@ -558,7 +558,7 @@ async function refundClaim(claim: IClaimDoc, metadata: Map<string, any>) {
 async function refundShardForClaim(claim: IClaimDoc, metadata: Map<string, any>) {
   const playerName = claim.player;
   const runId = metadata.get('run-id');
-  const runType = metadata.get('run-type');
+  const runType = metadata.get('slug');
   const startTime = metadata.get('start-time');
 
   if (startTime) {
@@ -612,7 +612,7 @@ async function getShardScoreboardForRunType(runType: string | undefined): Promis
     return cached.value;
   }
 
-  const league = await getLeagueByShortId(runType);
+  const league = await getLeagueByRunType(runType);
   const shards = league?.items?.['shards'] as ISingleScoreboardItem | undefined;
   const scoreboard = shards?.scoreboard ?? null;
 
@@ -624,7 +624,7 @@ async function refundCardsAndItemsForClaim(claim: IClaimDoc, metadata: Map<strin
   const playerName = claim.player;
   const eventNameFilterRegex = /^(card|item)-deleted-*/;
   const runId = metadata.get('run-id');
-  const runType = metadata.get('run-type');
+  const runType = metadata.get('slug');
   const startTime = metadata.get('start-time');
 
   const events = await Event.find({
@@ -1317,7 +1317,7 @@ export async function mergeMetadataOntoEvents() {
     {
       $match: {
         createdAt: { $gte: new Date(Date.now() - reconLookbackMs) },
-        'metadata.run-type': { $exists: false },
+        'metadata.slug': { $exists: false },
         'metadata.run-id': { $exists: true },
         name: { $nin: SpammyEvents },
       },
@@ -1341,9 +1341,9 @@ export async function mergeMetadataOntoEvents() {
       try {
         const claim = await Claim.findOne({ 'metadata.run-id': runId }).lean().exec();
         const claimMeta: Record<string, string> = claim?.metadata ? Object.fromEntries(Object.entries(claim.metadata)) : {};
-        if (!claimMeta['run-type']) claimMeta['run-type'] = 'unknown';
-        // Just use the first character (p / c / u)
-        claimMeta['run-type'] = '' + claimMeta['run-type'][0];
+        if (!claimMeta['slug']) claimMeta['slug'] = 'unknown';
+        // Carry the claim's metadata (including its `slug` league identifier)
+        // onto the run's events via $mergeObjects below.
 
         const cutoffDateForClaimRecon = new Date(Date.now() - 1000 * 60 * 60);
         if (!!claim && claim.createdAt >= cutoffDateForClaimRecon && !claimMeta['end-time']) {
@@ -1370,7 +1370,7 @@ export async function mergeMetadataOntoEvents() {
         );
 
         logger.info(
-          `[Recon ${workerId}] Updated ${result.modifiedCount} events for run-id ${runId} with run-type ${claimMeta['run-type']}`
+          `[Recon ${workerId}] Updated ${result.modifiedCount} events for run-id ${runId} with slug ${claimMeta['slug']}`
         );
       } catch (err: any) {
         logger.warn(`[Recon ${workerId}] Failed to process run-id ${runId}: ${err.message}`);

@@ -4,7 +4,7 @@ import { getLeagueBySlug } from './league.service';
 
 /**
  * Computes player stats for a league phase by running an aggregation pipeline
- * on the events collection, filtering by the league's shortId (run-type).
+ * on the events collection, filtering by the league's canonical run-type slug.
  *
  * Outputs to a collection named `playerStatsPhase${phaseNumber}`.
  */
@@ -20,7 +20,12 @@ export async function computePhaseStats(
     return;
   }
 
-  const runType = league.display.shortId;
+  // Run-type is slug-native after the backfill; scope this computation to the
+  // league's slug and split practice/competitive by their slugs. No hardcoded
+  // short codes.
+  const runTypeSlug = league.slug;
+  const practiceSlug = (await getLeagueBySlug('practice'))?.slug ?? 'practice';
+  const competitiveSlug = (await getLeagueBySlug('season-2'))?.slug ?? 'season-2';
   const outputCollection = `playerStatsPhase${phaseNumber}`;
   const db = mongoose.connection.db;
 
@@ -38,7 +43,7 @@ export async function computePhaseStats(
 
   logger.info(
     `[compute-stats] Computing stats for league "${leagueSlug}" phase ${phaseNumber} ` +
-      `(run-type: "${runType}", ${startDate.toISOString()} to ${endDate.toISOString()})`
+      `(run-type: "${runTypeSlug}", ${startDate.toISOString()} to ${endDate.toISOString()})`
   );
 
   const pipeline = [
@@ -70,25 +75,25 @@ export async function computePhaseStats(
         preserveNullAndEmptyArrays: true,
       },
     },
-    // Filter to only include events matching the league's run-type
+    // Filter to only include events matching the league's run-type slug
     {
       $match: {
-        'claimDetails.metadata.run-type': runType,
+        'claimDetails.metadata.slug': runTypeSlug,
       },
     },
     {
       $group: {
         _id: '$player',
         totalPractice: {
-          $sum: { $cond: [{ $eq: ['$claimDetails.metadata.run-type', 'p'] }, 1, 0] },
+          $sum: { $cond: [{ $eq: ['$claimDetails.metadata.slug', practiceSlug] }, 1, 0] },
         },
         totalCompetitive: {
-          $sum: { $cond: [{ $eq: ['$claimDetails.metadata.run-type', 'c'] }, 1, 0] },
+          $sum: { $cond: [{ $eq: ['$claimDetails.metadata.slug', competitiveSlug] }, 1, 0] },
         },
         totalPracticeWins: {
           $sum: {
             $cond: [
-              { $and: [{ $eq: ['$name', 'game-won'] }, { $eq: ['$claimDetails.metadata.run-type', 'p'] }] },
+              { $and: [{ $eq: ['$name', 'game-won'] }, { $eq: ['$claimDetails.metadata.slug', practiceSlug] }] },
               1,
               0,
             ],
@@ -97,7 +102,7 @@ export async function computePhaseStats(
         totalPracticeLosses: {
           $sum: {
             $cond: [
-              { $and: [{ $eq: ['$name', 'game-lost'] }, { $eq: ['$claimDetails.metadata.run-type', 'p'] }] },
+              { $and: [{ $eq: ['$name', 'game-lost'] }, { $eq: ['$claimDetails.metadata.slug', practiceSlug] }] },
               1,
               0,
             ],
@@ -106,7 +111,7 @@ export async function computePhaseStats(
         totalCompetitiveWins: {
           $sum: {
             $cond: [
-              { $and: [{ $eq: ['$name', 'game-won'] }, { $eq: ['$claimDetails.metadata.run-type', 'c'] }] },
+              { $and: [{ $eq: ['$name', 'game-won'] }, { $eq: ['$claimDetails.metadata.slug', competitiveSlug] }] },
               1,
               0,
             ],
@@ -115,7 +120,7 @@ export async function computePhaseStats(
         totalCompetitiveLosses: {
           $sum: {
             $cond: [
-              { $and: [{ $eq: ['$name', 'game-lost'] }, { $eq: ['$claimDetails.metadata.run-type', 'c'] }] },
+              { $and: [{ $eq: ['$name', 'game-lost'] }, { $eq: ['$claimDetails.metadata.slug', competitiveSlug] }] },
               1,
               0,
             ],
@@ -141,7 +146,7 @@ export async function computePhaseStats(
               {
                 $and: [
                   { $eq: ['$name', 'difficulty-selected-easy'] },
-                  { $eq: ['$claimDetails.metadata.run-type', 'p'] },
+                  { $eq: ['$claimDetails.metadata.slug', practiceSlug] },
                 ],
               },
               1,
@@ -155,7 +160,7 @@ export async function computePhaseStats(
               {
                 $and: [
                   { $eq: ['$name', 'difficulty-selected-medium'] },
-                  { $eq: ['$claimDetails.metadata.run-type', 'p'] },
+                  { $eq: ['$claimDetails.metadata.slug', practiceSlug] },
                 ],
               },
               1,
@@ -169,7 +174,7 @@ export async function computePhaseStats(
               {
                 $and: [
                   { $eq: ['$name', 'difficulty-selected-hard'] },
-                  { $eq: ['$claimDetails.metadata.run-type', 'p'] },
+                  { $eq: ['$claimDetails.metadata.slug', practiceSlug] },
                 ],
               },
               1,
@@ -183,7 +188,7 @@ export async function computePhaseStats(
               {
                 $and: [
                   { $eq: ['$name', 'difficulty-selected-deadly'] },
-                  { $eq: ['$claimDetails.metadata.run-type', 'p'] },
+                  { $eq: ['$claimDetails.metadata.slug', practiceSlug] },
                 ],
               },
               1,
@@ -197,7 +202,7 @@ export async function computePhaseStats(
               {
                 $and: [
                   { $eq: ['$name', 'difficulty-selected-deepfrost'] },
-                  { $eq: ['$claimDetails.metadata.run-type', 'p'] },
+                  { $eq: ['$claimDetails.metadata.slug', practiceSlug] },
                 ],
               },
               1,
@@ -211,7 +216,7 @@ export async function computePhaseStats(
               {
                 $and: [
                   { $eq: ['$name', 'difficulty-selected-easy'] },
-                  { $eq: ['$claimDetails.metadata.run-type', 'c'] },
+                  { $eq: ['$claimDetails.metadata.slug', competitiveSlug] },
                 ],
               },
               1,
@@ -225,7 +230,7 @@ export async function computePhaseStats(
               {
                 $and: [
                   { $eq: ['$name', 'difficulty-selected-medium'] },
-                  { $eq: ['$claimDetails.metadata.run-type', 'c'] },
+                  { $eq: ['$claimDetails.metadata.slug', competitiveSlug] },
                 ],
               },
               1,
@@ -239,7 +244,7 @@ export async function computePhaseStats(
               {
                 $and: [
                   { $eq: ['$name', 'difficulty-selected-hard'] },
-                  { $eq: ['$claimDetails.metadata.run-type', 'c'] },
+                  { $eq: ['$claimDetails.metadata.slug', competitiveSlug] },
                 ],
               },
               1,
@@ -253,7 +258,7 @@ export async function computePhaseStats(
               {
                 $and: [
                   { $eq: ['$name', 'difficulty-selected-deadly'] },
-                  { $eq: ['$claimDetails.metadata.run-type', 'c'] },
+                  { $eq: ['$claimDetails.metadata.slug', competitiveSlug] },
                 ],
               },
               1,
@@ -267,7 +272,7 @@ export async function computePhaseStats(
               {
                 $and: [
                   { $eq: ['$name', 'difficulty-selected-deepfrost'] },
-                  { $eq: ['$claimDetails.metadata.run-type', 'c'] },
+                  { $eq: ['$claimDetails.metadata.slug', competitiveSlug] },
                 ],
               },
               1,

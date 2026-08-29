@@ -21,8 +21,20 @@ export const getLeagueBySlug = async (slug: string): Promise<ILeagueDoc | null> 
   return League.findOne({ slug }).exec();
 };
 
-export const getLeagueByShortId = async (shortId: string): Promise<ILeagueDoc | null> => {
-  return League.findOne({ 'display.shortId': shortId }).exec();
+// Resolve a league from a run identifier. Post-migration the identifier is
+// always the league slug (metadata.slug / cards.deckType), so this is a slug
+// lookup. Kept as a named helper for the ingestion/worker call sites.
+export const getLeagueByRunType = async (runType: string): Promise<ILeagueDoc | null> => {
+  if (!runType) return null;
+  return getLeagueBySlug(runType);
+};
+
+// Normalise a run identifier to a canonical league slug for query filters.
+// Returns the input unchanged when no league matches (so unknown/test values
+// still filter to themselves).
+export const resolveRunTypeSlug = async (input: string): Promise<string> => {
+  const league = await getLeagueBySlug(input);
+  return league?.slug ?? input;
 };
 
 export const getActiveLeagues = async (): Promise<ILeagueDoc[]> => {
@@ -53,43 +65,21 @@ export const removeMember = async (slug: string, playerName: string): Promise<IL
   return League.findOneAndUpdate({ slug }, { $pull: { members: playerName } }, { new: true }).exec();
 };
 
-// Pick a display shortId + runTypeId that no other league is using. shortId is
-// what the lobby uses to key decks/scoreboards and must be unique across
-// leagues; runTypeId is the numeric equivalent stored in the filter-mode
-// scoreboard. Built-in leagues occupy the single-letter ids (p/c/h/...), so we
-// derive a candidate from the slug and fall back to numeric suffixes on clash.
-const allocateDisplay = async (league: ILeagueDoc): Promise<ILeagueDisplay> => {
-  // Already allocated a real display (not the placeholder from create).
-  if (league.display?.shortId && league.display.runTypeId > 0) {
-    return league.display;
-  }
-
-  const leagues = await League.find({ slug: { $ne: league.slug } }).select('display').lean().exec();
-  const usedShortIds = new Set(leagues.map((l) => l.display?.shortId).filter(Boolean));
-  const usedRunTypeIds = new Set(leagues.map((l) => l.display?.runTypeId).filter((n) => typeof n === 'number'));
-
-  const base = league.slug.replace(/[^a-z0-9]/g, '');
-  let shortId = base.substring(0, 2) || 'l';
-  for (let n = 0; usedShortIds.has(shortId); n += 1) {
-    shortId = `${base.substring(0, 1)}${n}`;
-  }
-
-  // Custom leagues get runTypeIds well clear of the built-in ids (1/2/3/...).
-  let runTypeId = 100;
-  while (usedRunTypeIds.has(runTypeId)) {
-    runTypeId += 1;
-  }
-
+// Ensure a league has a datapack run mode (display.runTypeId). runTypeId tells
+// the dungeon datapack which mode of code to run: 1=practice, 2=competitive,
+// 3=hardcore. A newly-published custom league is a competitive-style league, so
+// it defaults to competitive mode (2). An already-set runTypeId is preserved.
+const allocateRunTypeId = (league: ILeagueDoc): ILeagueDisplay => {
+  const COMPETITIVE_MODE = 2;
   return {
-    shortId,
-    runTypeId,
+    runTypeId: league.display?.runTypeId && league.display.runTypeId > 0 ? league.display.runTypeId : COMPETITIVE_MODE,
     colour: league.display?.colour ?? 0xaaaaaa,
     material: league.display?.material ?? 'WHITE_SHULKER_BOX',
   };
 };
 
 // Publish a draft league so it becomes a selectable, playable mode. Fills in the
-// playable fields (display id, standard items, a shard→queue trade, and a deck)
+// playable fields (run mode, standard items, a shard→queue trade, and a deck)
 // only where they haven't been set, transitions the league to `active` so it
 // surfaces in GET /leagues (the lobby's league cache), and points its dungeon
 // type at the league's own latest restic snapshot via a `snapshot-source`
@@ -98,15 +88,18 @@ export const publishLeague = async (slug: string): Promise<ILeagueDoc | null> =>
   const league = await League.findOne({ slug }).exec();
   if (!league) return null;
 
-  const display = await allocateDisplay(league);
-  const prefix = display.shortId;
+  const display = allocateRunTypeId(league);
+  // Scoreboards are slug-keyed, so a published league is slug-native from birth:
+  // its item scoreboards use the slug as the prefix. display.runTypeId
+  // remain only for the numeric filter-mode scoreboard.
+  const scoreboardPrefix = league.slug;
 
   // Only seed items/trades/deck when the league doesn't already define them, so
   // republishing an edited league doesn't clobber customisations. `items` is a
   // Mongoose Map at runtime.
   const itemsMap = league.items as unknown as Map<string, unknown> | undefined;
   if (!itemsMap || itemsMap.size === 0) {
-    league.set('items', standardItems(prefix));
+    league.set('items', standardItems(scoreboardPrefix));
   }
 
   const hasQueueTrade = (league.trades || []).some((t) => t.target && (t.target as { type?: string }).type === 'queue');
@@ -117,8 +110,8 @@ export const publishLeague = async (slug: string): Promise<ILeagueDoc | null> =>
     ];
   }
 
-  if (!league.deck || !league.deck.prefix) {
-    league.deck = { prefix, defaultCards: league.deck?.defaultCards || [] };
+  if (!league.deck || !league.deck.defaultCards) {
+    league.deck = { defaultCards: league.deck?.defaultCards || [] };
   }
 
   league.display = display;
@@ -135,7 +128,7 @@ export const publishLeague = async (slug: string): Promise<ILeagueDoc | null> =>
     { upsert: true, new: true }
   ).exec();
 
-  logger.info(`Published league '${slug}' as playable mode (shortId=${display.shortId}, dungeon-type=${slug}, snapshot=restic:${slug})`);
+  logger.info(`Published league '${slug}' as playable mode (runTypeId=${display.runTypeId}, dungeon-type=${slug}, snapshot=restic:${slug})`);
   return league;
 };
 
@@ -146,7 +139,7 @@ export const seedDefaultLeagues = async (): Promise<void> => {
   }
 };
 
-// Phase states for the competitive league's initial seeding
+// Phase states for the season-2 (competitive) league's initial seeding
 const defaultCompetitivePhaseStates: { phase: number; state: PhaseState }[] = [
   { phase: 1, state: 'COMPLETED' },
   { phase: 2, state: 'COMPLETED' },
@@ -160,7 +153,7 @@ const defaultCompetitivePhaseStates: { phase: number; state: PhaseState }[] = [
 ];
 
 export const seedDefaultPhases = async (): Promise<void> => {
-  const leagueSlug = 'competitive';
+  const leagueSlug = 'season-2';
   const existing = await LeaguePhaseState.findOne({ leagueSlug }).exec();
   if (existing) {
     logger.info(`Phase states for '${leagueSlug}' already exist, skipping seed`);

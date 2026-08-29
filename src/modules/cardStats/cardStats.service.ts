@@ -1,4 +1,5 @@
 import Event from '../event/event.model';
+import { resolveRunTypeSlug } from '../league/league.service';
 
 // Maps old full-name card suffixes (kebab/snake) to shorthands
 const CARD_NAME_TO_SHORTHAND: Record<string, string> = {
@@ -44,7 +45,7 @@ export const getCardStats = async (runType?: string, since?: string, until?: str
     ],
   };
   const extra: Record<string, unknown> = {};
-  if (runType) extra['metadata.run-type'] = runType;
+  if (runType) extra['metadata.slug'] = await resolveRunTypeSlug(runType);
   const dateFilter: Record<string, Date> = {};
   if (since) dateFilter['$gte'] = new Date(since);
   if (until) dateFilter['$lt'] = new Date(until);

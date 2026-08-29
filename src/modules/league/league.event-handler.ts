@@ -1,20 +1,18 @@
-import { getLeagueByShortId } from './league.service';
+import { getLeagueByRunType } from './league.service';
 import { IEventAction, ILeagueDoc } from './league.interfaces';
 import Score from '../score/score.model';
 import Card from '../card/card.model';
 import logger from '../logger/logger';
-
-const RUN_TYPE_ID_MAP: Record<string, number> = { p: 1, c: 2, h: 3 };
 
 export async function executeLeagueEventHandlers(
   eventName: string,
   playerName: string,
   metadata: Map<string, string>
 ): Promise<void> {
-  const runType = metadata.get('run-type');
+  const runType = metadata.get('slug');
   if (!runType) return;
 
-  const league = await getLeagueByShortId(runType);
+  const league = await getLeagueByRunType(runType);
   if (!league) return;
 
   const matchingHandlers = league.eventHandlers.filter((h) => h.trigger.event === eventName);
@@ -50,18 +48,18 @@ async function executeAction(action: IEventAction, playerName: string, league: I
 }
 
 async function resetDeck(playerName: string, league: ILeagueDoc): Promise<void> {
-  const deckPrefix = league.deck.prefix;
-  logger.info(`[event-handler] Resetting deck '${deckPrefix}' for ${playerName}`);
-  await Card.deleteMany({ player: playerName, deckType: deckPrefix }).exec();
+  const deckType = league.slug;
+  logger.info(`[event-handler] Resetting deck '${deckType}' for ${playerName}`);
+  await Card.deleteMany({ player: playerName, deckType }).exec();
   await ensureDeckIsSeeded(playerName, league);
 }
 
 async function ensureDeckIsSeeded(playerName: string, league: ILeagueDoc): Promise<void> {
-  const existing = await Card.findOne({ player: playerName, deckType: league.deck.prefix }).exec();
+  const existing = await Card.findOne({ player: playerName, deckType: league.slug }).exec();
   if (!existing) {
-    logger.info(`[event-handler] Seeding default cards for ${playerName} in deck '${league.deck.prefix}'`);
+    logger.info(`[event-handler] Seeding default cards for ${playerName} in deck '${league.slug}'`);
     for (const cardName of league.deck.defaultCards) {
-      await Card.create({ name: cardName, player: playerName, server: 'lobby', deckType: league.deck.prefix });
+      await Card.create({ name: cardName, player: playerName, server: 'lobby', deckType: league.slug });
     }
   }
 }
@@ -91,7 +89,9 @@ async function storeBestScores(playerName: string, sourcePattern: string, target
 }
 
 async function setFilterMode(playerName: string, league: ILeagueDoc): Promise<void> {
-  const runTypeId = RUN_TYPE_ID_MAP[league.display.shortId] ?? league.display.shortId.charCodeAt(0);
+  // filter-mode-id stays numeric: use the league's own runTypeId. No hardcoded
+  // short-id -> id table.
+  const runTypeId = league.display.runTypeId;
   logger.info(`[event-handler] Setting filter-mode-id to ${runTypeId} for ${playerName}`);
   await Score.updateOne(
     { player: playerName, key: 'do2.inventory.filter-mode-id' },

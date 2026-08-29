@@ -43,16 +43,19 @@ export interface ITrade {
 // --- Display ---
 
 export interface ILeagueDisplay {
-  shortId: string;
+  // runTypeId is the datapack "mode of code to run" (1=practice, 2=competitive,
+  // 3=hardcore, ...), stored in the numeric do2.inventory.filter-mode-id
+  // scoreboard. All season-N competitive leagues share runTypeId 2.
   runTypeId: number;
   colour: number;
   material: string;
 }
 
 // --- Deck ---
+// One deck per league; its identifier is the league slug (Card.deckType == slug).
+// There is no separate deck prefix.
 
 export interface ILeagueDeck {
-  prefix: string;
   defaultCards: string[];
 }
 

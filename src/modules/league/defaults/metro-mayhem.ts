@@ -7,7 +7,6 @@ const metroMayhemLeague: ILeague = {
   owner: '4Ply',
 
   display: {
-    shortId: 'mm',
     runTypeId: 5,
     colour: 0xff5555,
     material: 'RED_SHULKER_BOX',
@@ -21,7 +20,6 @@ const metroMayhemLeague: ILeague = {
   trades: [],
 
   deck: {
-    prefix: 'mm',
     defaultCards: [],
   },
 

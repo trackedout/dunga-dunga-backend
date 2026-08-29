@@ -40,7 +40,6 @@ const tradeSchema = new mongoose.Schema(
 
 const displaySchema = new mongoose.Schema(
   {
-    shortId: { type: String, required: true },
     runTypeId: { type: Number, required: true },
     colour: { type: Number, required: true },
     material: { type: String, required: true },
@@ -50,7 +49,6 @@ const displaySchema = new mongoose.Schema(
 
 const deckSchema = new mongoose.Schema(
   {
-    prefix: { type: String, required: true },
     defaultCards: { type: [String], required: true },
   },
   { _id: false }

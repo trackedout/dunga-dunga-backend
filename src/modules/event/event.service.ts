@@ -13,13 +13,13 @@ import { notifyOps, notifyPlayer, sendTitle, playSound } from '../task';
 import { InstanceStates } from './instance.interfaces';
 import { Card } from '../card';
 import { Claim } from '../claim';
-import { ClaimFilters, ClaimStates, ClaimTypes, DungeonTypes, RunTypes } from '../claim/claim.interfaces';
+import { ClaimFilters, ClaimStates, ClaimTypes, DungeonTypes } from '../claim/claim.interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import { ClaimRelatedEvent, EventWithServer, notifyDiscord, notifyLobby, withClaimMetadata } from './discord';
 import { Score } from '../score';
-import { getLeagueByShortId, getActiveLeagues } from '../league/league.service';
+import { getLeagueBySlug, getActiveLeagues } from '../league/league.service';
 import { isBuilders, isDungeon, isSandbox } from '../server';
-import { ISingleScoreboardItem } from '../league/league.interfaces';
+import { ISingleScoreboardItem, ILeagueDoc } from '../league/league.interfaces';
 import { getEventMetadata } from '../utils';
 import { sendBugReportToDiscord } from './discordBugReporter';
 import { executeLeagueEventHandlers } from '../league/league.event-handler';
@@ -29,6 +29,9 @@ import { Lock } from '../lock';
 import { GameRegistry } from '../gameRegistry';
 import Party from '../party/party.model';
 import { PartyStates } from '../party/party.interfaces';
+
+// Fallback league slug when a queue event arrives without a resolvable slug.
+const DEFAULT_LEAGUE_SLUG = 'practice';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -162,7 +165,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
 
   const activeLeagues = await getActiveLeagues();
   for (const league of activeLeagues) {
-    await ensureDeckIsSeeded(eventBody.player, league.deck.prefix + '1');
+    await ensureDeckIsSeeded(eventBody.player, league);
   }
 
   for (const league of activeLeagues) {
@@ -409,17 +412,17 @@ function getNewStateBasedOnPlayerLocation(player: IPlayer, server: string) {
   return state;
 }
 
-async function ensureDeckIsSeeded(playerName: string, deckId: string) {
-  if (!(await Card.findOne({ player: playerName, deckType: deckId[0]! }).exec())) {
-    logger.warn(`${playerName} has no cards in ${deckId}, adding initial cards`);
-    await addDefaultCards(playerName, deckId);
+async function ensureDeckIsSeeded(playerName: string, league: ILeagueDoc) {
+  if (!(await Card.findOne({ player: playerName, deckType: league.slug }).exec())) {
+    logger.warn(`${playerName} has no cards in deck '${league.slug}', adding default cards`);
+    await addDefaultCards(playerName, league);
   }
 }
 
-async function addDefaultCards(playerName: string, deckId: string) {
-  await Card.create({ name: 'MOC', player: playerName, server: 'lobby', deckType: deckId[0]! });
-  await Card.create({ name: 'SNE', player: playerName, server: 'lobby', deckType: deckId[0]! });
-  await Card.create({ name: 'TRH', player: playerName, server: 'lobby', deckType: deckId[0]! });
+async function addDefaultCards(playerName: string, league: ILeagueDoc) {
+  for (const cardName of league.deck.defaultCards) {
+    await Card.create({ name: cardName, player: playerName, server: 'lobby', deckType: league.slug });
+  }
 }
 
 async function resetScoreboard(playerName: string, key: string, value: number) {
@@ -452,12 +455,14 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
   const logPrefix = '[Hardcore deck reset]';
   const prefix = `Intercepted '${eventBody.name}' event for ${playerName}`;
 
-  const runType = metadata.get('run-type');
-  if (runType !== 'h') {
+  const runIdentifier = metadata.get('slug');
+  const league = await getLeagueBySlug(runIdentifier ?? '');
+  if (league?.slug !== 'hardcore') {
     const msg = `${prefix} but this is not a hardcore run, skipping deck deletion`;
     logger.info(`${logPrefix} ${msg}`);
     return;
   }
+  const runType = league.slug;
 
   if (eventBody.name !== PlayerEvents.HARDCORE_DECK_RESET) {
     if (!metadata.get('start-time')) {
@@ -512,7 +517,7 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
     }
   ).exec();
 
-  await ensureDeckIsSeeded(eventBody.player, 'h1');
+  await ensureDeckIsSeeded(eventBody.player, league);
   await resetScoreboard(eventBody.player, 'do2.inventory.shards.hardcore', 64);
 }
 
@@ -691,6 +696,11 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
   const metadata = new Map(Object.entries(eventBody.metadata));
   const deckId = metadata.get('deck-id') || 'p1'; // TODO: Throw error if missing
 
+  // The identifier is the league slug. Resolve it canonically from the slug the
+  // client sent (falls back to practice if unknown). `slug` is the sole run
+  // identifier — there is no legacy `run-type` field.
+  const slug = (await getLeagueBySlug(metadata.get('slug') ?? ''))?.slug ?? DEFAULT_LEAGUE_SLUG;
+
   const runId = metadata.get('run-id') || uuidv4();
   const claim = await Claim.create({
     player: player.playerName,
@@ -699,14 +709,14 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     metadata: {
       'run-id': runId,
       'deck-id': deckId,
-      // TODO: Set the default based on deck ID, or just throw an error
-      'run-type': metadata.get('run-type') || RunTypes.PRACTICE,
+      slug,
 
       // Claim Filters
       [ClaimFilters.DUNGEON_TYPE]: metadata.get(ClaimFilters.DUNGEON_TYPE) || DungeonTypes.DEFAULT,
     },
   });
   metadata.set('run-id', runId);
+  metadata.set('slug', slug);
   eventBody.metadata = new Map(Object.entries(Object.fromEntries(metadata)));
   logger.debug(`New event metadata after setting run-id -> ${JSON.stringify(Object.fromEntries(eventBody.metadata), null, 4)}`);
 
@@ -912,7 +922,7 @@ async function performTrade(eventBody: NewCreatedEvent) {
   logger.debug(`Event metadata: ${JSON.stringify(eventBody.metadata, null, 4)}`);
   const metadata = new Map(Object.entries(eventBody.metadata));
   /*
-      "run-type" to trade.runType,
+      "slug" to trade.runType,
       "source-scoreboard" to trade.sourceScoreboardName,
       "source-inversion-scoreboard" to trade.sourceInversionScoreboardName,
       "source-count" to trade.sourceItemCount.toString(),
@@ -921,7 +931,7 @@ async function performTrade(eventBody: NewCreatedEvent) {
 
       Example:
       {
-        "run-type": "competitive",
+        "slug": "season-2",
         "source-scoreboard": "do2.inventory.shards.competitive",
         "source-inversion-scoreboard": "do2.inventory.shards.competitive",
         "source-count": "1",
@@ -930,11 +940,11 @@ async function performTrade(eventBody: NewCreatedEvent) {
       }
    */
 
-  const runType = metadata.get('run-type')[0].toLowerCase();
+  const runType = metadata.get('slug');
 
-  const league = await getLeagueByShortId(runType);
+  const league = await getLeagueBySlug(runType ?? '');
   if (!league) {
-    throw new ApiError(httpStatus.BAD_REQUEST, `League not found for run-type '${runType}'`);
+    throw new ApiError(httpStatus.BAD_REQUEST, `League not found for slug '${runType}'`);
   }
 
   const sourceScoreboard = metadata.get('source-scoreboard');
@@ -968,10 +978,10 @@ async function performTrade(eventBody: NewCreatedEvent) {
       throw new ApiError(httpStatus.PRECONDITION_FAILED, `Active claim already exists for this player`);
     }
 
-    const activeDeckId = league.deck.prefix + '1';
+    const activeDeckId = league.slug;
     const cardCount = await Card.countDocuments({
       player: playerName,
-      deckType: league.deck.prefix,
+      deckType: league.slug,
       hiddenInDecks: { $ne: activeDeckId },
     }).exec();
 
@@ -1072,16 +1082,16 @@ async function updateCardVisibility(eventBody: NewCreatedEvent) {
   const metadata = new Map(Object.entries(eventBody.metadata));
   /*
       metadata = mapOf(
-        "run-type" to deckIdToUpdate.shortRunType(),
+        "slug" to deckIdToUpdate,
         "deck-id" to deckIdToUpdate,
       ).plus(cardsToHide.map { "hide-card-${it.key}" to it.value.toString() })
    */
 
-  const runType = metadata.get('run-type');
+  const runType = metadata.get('slug');
   const deckId = metadata.get('deck-id');
 
   if (!runType || !deckId) {
-    throw new ApiError(httpStatus.NOT_FOUND, `At least one metadata field not found: [run-type, deck-id]`);
+    throw new ApiError(httpStatus.NOT_FOUND, `At least one metadata field not found: [slug, deck-id]`);
   }
 
   const cards = await Card.find({

@@ -8,7 +8,6 @@ const practiceLeague: ILeague = {
   owner: '4Ply',
 
   display: {
-    shortId: 'p',
     runTypeId: 1,
     colour: 0x55ff55,
     material: 'LIME_SHULKER_BOX',
@@ -31,12 +30,11 @@ const practiceLeague: ILeague = {
   ],
 
   deck: {
-    prefix: 'p',
     defaultCards: ['MOC', 'SNE', 'TRH'],
   },
 
   dungeon: {
-    type: 'season-2',
+    type: 'practice',
     claimFilters: {},
   },
 
