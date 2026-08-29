@@ -12,7 +12,10 @@ import { logger } from '../logger';
 export const createEvent = catchAsync(async (req: Request, res: Response) => {
   var sourceIP = config.env === 'development' ? req.body.sourceIP : null;
   sourceIP = sourceIP || req.ip?.split(':').slice(-1)[0];
-  if (req.body.server?.startsWith('d7')) {
+  // ECS-backed servers (dungeons d7xx, league sandboxes s4xx) are reached via a
+  // Kubernetes Endpoint named "{server}-ecs" whose IP the job-scheduler patches.
+  // Their real request IP is the pod-network gateway, so we must use the endpoint name.
+  if (req.body.server?.startsWith('d7') || req.body.server?.startsWith('s4')) {
     sourceIP = `${req.body.server}-ecs`;
   }
 
