@@ -14,7 +14,7 @@ import { IEvent, ServerEvents, SpammyEvents } from './modules/event/event.interf
 import { Claim } from './modules/claim';
 import { ClaimFilters, ClaimStates, ClaimTypes, IClaimDoc } from './modules/claim/claim.interfaces';
 import { notifyDiscord } from './modules/event/discord';
-import { getMetadata } from './modules/utils';
+import { getMetadata, getMapValue } from './modules/utils';
 import { cardService } from './modules/card';
 import { eventService } from './modules/event';
 import { Score } from './modules/score';
@@ -613,9 +613,8 @@ async function getShardScoreboardForRunType(runType: string | undefined): Promis
   }
 
   const league = await getLeagueByRunType(runType);
-  // league.items is a Mongoose Map — must use .get(), not bracket access.
-  const items = league?.items as unknown as Map<string, ISingleScoreboardItem> | undefined;
-  const shards = items?.get('shards');
+  // league.items is a Mongoose Map — read via the Map-safe helper.
+  const shards = getMapValue<ISingleScoreboardItem>(league?.items, 'shards');
   const scoreboard = shards?.scoreboard ?? null;
 
   shardScoreboardCache.set(runType, { value: scoreboard, expiry: Date.now() + SHARD_SCOREBOARD_CACHE_TTL_MS });

@@ -3,6 +3,7 @@ import LeaguePhaseState from './league-phase.model';
 import Config from '../config/config.model';
 import { ILeague, ILeagueDoc, ILeagueDisplay } from './league.interfaces';
 import { PhaseState } from './league-phase.interfaces';
+import { asMap } from '../utils';
 import { standardItems } from './defaults/items';
 import defaultLeagues from './defaults';
 import logger from '../logger/logger';
@@ -106,8 +107,8 @@ export const publishLeague = async (slug: string): Promise<ILeagueDoc | null> =>
   // Only seed items/trades/deck when the league doesn't already define them, so
   // republishing an edited league doesn't clobber customisations. `items` is a
   // Mongoose Map at runtime.
-  const itemsMap = league.items as unknown as Map<string, unknown> | undefined;
-  if (!itemsMap || itemsMap.size === 0) {
+  const itemsMap = asMap(league.items);
+  if (itemsMap.size === 0) {
     league.set('items', standardItems(scoreboardPrefix));
   }
 

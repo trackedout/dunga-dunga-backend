@@ -20,7 +20,7 @@ import { Score } from '../score';
 import { getLeagueBySlug, getActiveLeagues } from '../league/league.service';
 import { isBuilders, isDungeon, isSandbox } from '../server';
 import { ISingleScoreboardItem, ILeagueDoc } from '../league/league.interfaces';
-import { getEventMetadata } from '../utils';
+import { getEventMetadata, getMapValue } from '../utils';
 import { sendBugReportToDiscord } from './discordBugReporter';
 import { executeLeagueEventHandlers } from '../league/league.event-handler';
 import { invalidateClaimAndNotify, tryMovePlayerToDungeon } from '../../worker';
@@ -169,10 +169,9 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
   }
 
   for (const league of activeLeagues) {
-    // league.items is a Mongoose Map — must use .get(), not bracket access
-    // (bracket access silently returns undefined, so shards were never seeded).
-    const items = league.items as unknown as Map<string, ISingleScoreboardItem> | undefined;
-    const shardsItem = items?.get('shards');
+    // league.items is a Mongoose Map — read via the Map-safe helper (bracket
+    // access silently returns undefined, which previously broke shard seeding).
+    const shardsItem = getMapValue<ISingleScoreboardItem>(league.items, 'shards');
     if (shardsItem?.scoreboard && shardsItem?.startingAmount) {
       await ensureScoreboardIsSeeded(eventBody.player, shardsItem.scoreboard, shardsItem.startingAmount);
     }
@@ -711,7 +710,7 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     throw new ApiError(httpStatus.TOO_MANY_REQUESTS, `Please wait ${secondsRemaining}s before re-queueing (dungeon capacity was recently allocated)`);
   }
 
-  const metadata = new Map(Object.entries(eventBody.metadata));
+  const metadata = getEventMetadata(eventBody);
   const deckId = metadata.get('deck-id') || 'p1'; // TODO: Throw error if missing
 
   // The identifier is the league slug. Resolve it canonically from the slug the
@@ -950,7 +949,7 @@ async function performTrade(eventBody: NewCreatedEvent) {
   }
 
   logger.debug(`Event metadata: ${JSON.stringify(eventBody.metadata, null, 4)}`);
-  const metadata = new Map(Object.entries(eventBody.metadata));
+  const metadata = getEventMetadata(eventBody);
   /*
       "slug" to trade.runType,
       "source-scoreboard" to trade.sourceScoreboardName,
@@ -1109,7 +1108,7 @@ async function updateCardVisibility(eventBody: NewCreatedEvent) {
   }
 
   logger.debug(`Event metadata: ${JSON.stringify(eventBody.metadata, null, 4)}`);
-  const metadata = new Map(Object.entries(eventBody.metadata));
+  const metadata = getEventMetadata(eventBody);
   /*
       metadata = mapOf(
         "slug" to deckIdToUpdate,

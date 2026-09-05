@@ -3,6 +3,7 @@ import logger from '../logger/logger';
 import Score from '../score/score.model';
 import Event from '../event/event.model';
 import { getLeagueBySlug } from './league.service';
+import { asMap } from '../utils';
 
 interface PlayerAllocation {
   player: string;
@@ -38,8 +39,8 @@ export async function allocateShards(
   const excludedPlayers = new Set(league.phaseTransition?.excludedPlayers || []);
 
   // items is a Mongoose Map at runtime but typed as Record
-  const items = league.items as unknown as Map<string, any>;
-  const shardItem = items?.get('shards');
+  const items = asMap(league.items);
+  const shardItem = items.get('shards');
   if (!shardItem || !shardItem.scoreboard) {
     logger.error(`[allocate-shards] League "${leagueSlug}" has no shards scoreboard defined`);
     return;
@@ -47,7 +48,7 @@ export async function allocateShards(
 
   const shardKey: string = shardItem.scoreboard;
 
-  const emberItem = items?.get('embers');
+  const emberItem = items.get('embers');
   if (!emberItem || !emberItem.scoreboard) {
     logger.error(`[allocate-shards] League "${leagueSlug}" has no embers scoreboard defined`);
     return;
