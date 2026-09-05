@@ -27,12 +27,12 @@ const metroMayhemLeague: ILeague = {
     dungeonType: 'metro-mayhem',
     claimFilters: {},
     worldSource: 'restic',
-    minecraft: {},
+    minecraft: { version: '1.21.8' },
     datapacks: [
-      { repo: 'trackedout/Brilliance', asset: 'brilliance-datapack.zip', version: 'latest', enabled: true, authenticated: true },
+      { repo: 'trackedout/Brilliance', asset: 'brilliance-datapack.zip', version: 'latest', enabled: false, authenticated: true },
     ],
     mods: [
-      { repo: 'trackedout/agronet-fabric', asset: 'agronet-1.0.0.jar', version: 'latest', enabled: true, authenticated: true },
+      { repo: 'trackedout/agronet-fabric', asset: 'agronet-1.0.0.jar', version: 'latest', enabled: false, authenticated: true },
     ],
     resourcePack: {},
   },
