@@ -54,10 +54,49 @@ const deckSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const dungeonSchema = new mongoose.Schema(
+const minecraftSchema = new mongoose.Schema(
   {
-    type: { type: String, required: true, default: 'default' },
+    version: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+const assetSchema = new mongoose.Schema(
+  {
+    repo: { type: String, required: true },
+    asset: { type: String, required: true },
+    version: { type: String, default: 'latest' },
+    enabled: { type: Boolean, default: true },
+    authenticated: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
+
+const resourcePackSchema = new mongoose.Schema(
+  {
+    url: { type: String, default: '' },
+    sha1: { type: String, default: '' },
+    modernUrl: { type: String, default: '' },
+    modernSha1: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+// Authoritative per-league server config. Replaces the former `dungeon` block
+// (dungeon.type -> server.dungeonType) and absorbs the runtime knobs that were
+// previously loose per-dungeon-type Config docs. Projected into flat Config
+// docs on save (see league.service projectServerConfigs).
+const serverSchema = new mongoose.Schema(
+  {
+    dungeonType: { type: String, required: true, default: 'default' },
     claimFilters: { type: mongoose.Schema.Types.Mixed, default: {} },
+    // Default 'restic': a published league plays its own world; a missing
+    // snapshot is a hard failure (no fallthrough to the shared builders zip).
+    worldSource: { type: String, enum: ['restic', 's3-zip'], required: true, default: 'restic' },
+    minecraft: { type: minecraftSchema, default: () => ({}) },
+    datapacks: { type: [assetSchema], default: [] },
+    mods: { type: [assetSchema], default: [] },
+    resourcePack: { type: resourcePackSchema, default: () => ({}) },
   },
   { _id: false }
 );
@@ -205,8 +244,8 @@ const leagueSchema = new mongoose.Schema<ILeagueDoc, ILeagueModel>(
       type: deckSchema,
       required: true,
     },
-    dungeon: {
-      type: dungeonSchema,
+    server: {
+      type: serverSchema,
       required: true,
     },
     phases: {

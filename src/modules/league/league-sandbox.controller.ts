@@ -123,9 +123,18 @@ export const createLeagueWithSeed = catchAsync(async (req: Request, res: Respons
     deck: {
       defaultCards: [],
     },
-    dungeon: {
-      type: slug,
+    server: {
+      dungeonType: slug,
       claimFilters: {},
+      worldSource: 'restic' as const,
+      minecraft: {},
+      datapacks: [
+        { repo: 'trackedout/Brilliance', asset: 'brilliance-datapack.zip', version: 'latest', enabled: true, authenticated: true },
+      ],
+      mods: [
+        { repo: 'trackedout/agronet-fabric', asset: 'agronet-1.0.0.jar', version: 'latest', enabled: true, authenticated: true },
+      ],
+      resourcePack: {},
     },
     phases: [],
     phaseTransition: { autoTransition: false, allocation: { type: 'none' }, actions: [], excludedPlayers: [] },

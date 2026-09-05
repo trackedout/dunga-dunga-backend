@@ -23,9 +23,18 @@ const metroMayhemLeague: ILeague = {
     defaultCards: [],
   },
 
-  dungeon: {
-    type: 'metro-mayhem',
+  server: {
+    dungeonType: 'metro-mayhem',
     claimFilters: {},
+    worldSource: 'restic',
+    minecraft: {},
+    datapacks: [
+      { repo: 'trackedout/Brilliance', asset: 'brilliance-datapack.zip', version: 'latest', enabled: true, authenticated: true },
+    ],
+    mods: [
+      { repo: 'trackedout/agronet-fabric', asset: 'agronet-1.0.0.jar', version: 'latest', enabled: true, authenticated: true },
+    ],
+    resourcePack: {},
   },
 
   phases: [],

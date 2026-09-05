@@ -19,7 +19,7 @@ import { cardService } from './modules/card';
 import { eventService } from './modules/event';
 import { Score } from './modules/score';
 import Config from './modules/config/config.model';
-import { getLeagueByRunType } from './modules/league/league.service';
+import { getLeagueByRunType, getLeagueBySlug } from './modules/league/league.service';
 import { ISingleScoreboardItem } from './modules/league/league.interfaces';
 import { checkPhaseTransitions } from './modules/league/league.phase-automation';
 import {
@@ -916,12 +916,31 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
 
   logger.info(`Set dungeon-type config for ${dungeonName} to ${dungeonType}`);
 
-  // Look up mc-version for this game type
-  const mcVersionConfig = await Config.findOne({ entity: dungeonType, key: 'mc-version' }).exec();
-  const mcVersion = mcVersionConfig?.value || '';
+  // The league slug is the authoritative key for the server spec (multiple
+  // leagues can share a dungeonType, e.g. season-2). Thread it through so the
+  // entrypoint can fetch GET /leagues/<slug>/server-spec. Fall back to the
+  // dungeonType when a claim predates slug metadata.
+  const leagueSlug = metadata.get('slug') || dungeonType;
+  await Config.findOneAndUpdate(
+    { entity: dungeonName, key: 'league-slug' },
+    { entity: dungeonName, key: 'league-slug', value: leagueSlug },
+    { upsert: true, new: true }
+  );
+
+  // Resolve mc-version from the league's authoritative server spec. It must be
+  // known BEFORE launch because ecs.go injects it as the container VERSION env
+  // (the MC version can't change after the task starts).
+  const league = await getLeagueBySlug(leagueSlug);
+  const mcVersion = league?.server?.minecraft?.version || '';
 
   // Create task for job-scheduler to pick up
-  const taskArgs = [`launch-ecs-dungeon-${env}`, dungeonName, `player=${playerName}`, `dungeon-type=${dungeonType}`];
+  const taskArgs = [
+    `launch-ecs-dungeon-${env}`,
+    dungeonName,
+    `player=${playerName}`,
+    `dungeon-type=${dungeonType}`,
+    `league-slug=${leagueSlug}`,
+  ];
   if (mcVersion) {
     taskArgs.push(`mc-version=${mcVersion}`);
   }

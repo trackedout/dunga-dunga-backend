@@ -282,6 +282,59 @@ components:
         invites: []
         state: forming
 
+    LeagueAsset:
+      type: object
+      properties:
+        repo:
+          type: string
+        asset:
+          type: string
+        version:
+          type: string
+        enabled:
+          type: boolean
+        authenticated:
+          type: boolean
+
+    LeagueServer:
+      type: object
+      properties:
+        dungeonType:
+          type: string
+        claimFilters:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        worldSource:
+          type: string
+          enum: [restic, s3-zip]
+        minecraft:
+          type: object
+          properties:
+            version:
+              type: string
+        datapacks:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeagueAsset'
+        mods:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeagueAsset'
+        resourcePack:
+          type: object
+          properties:
+            url:
+              type: string
+            sha1:
+              type: string
+            modernUrl:
+              type: string
+            modernSha1:
+              type: string
+
     League:
       type: object
       properties:
@@ -355,17 +408,8 @@ components:
               type: array
               items:
                 type: string
-        dungeon:
-          type: object
-          properties:
-            type:
-              type: string
-            claimFilters:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  type: string
+        server:
+          $ref: '#/components/schemas/LeagueServer'
         phases:
           type: array
           items:

@@ -26,6 +26,10 @@ router
   .get(validate(leagueValidation.getLeagueBySlug), leagueController.getLeagueBySlug);
 
 router
+  .route('/:slug/server-spec')
+  .get(validate(leagueValidation.getLeagueBySlug), leagueController.getServerSpec);
+
+router
   .route('/:slug/publish')
   .post(validate(leagueValidation.publishLeague), leagueController.publishLeague);
 
@@ -208,6 +212,34 @@ export default router;
  *               $ref: '#/components/schemas/League'
  *       "404":
  *         description: Not found
+ */
+
+/**
+ * @swagger
+ * /leagues/{slug}/server-spec:
+ *   get:
+ *     summary: Get the authoritative server provisioning spec for a league
+ *     description: >
+ *       Returns the league's `server` block (worldSource, minecraft version,
+ *       datapacks[], mods[], resourcePack, dungeonType, claimFilters). Container
+ *       entrypoints fetch this by slug to drive world seeding and asset downloads.
+ *     operationId: leagueServerSpec
+ *     tags: [Leagues]
+ *     parameters:
+ *       - in: path
+ *         name: slug
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LeagueServer'
+ *       "404":
+ *         description: League not found
  */
 
 /**

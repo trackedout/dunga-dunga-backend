@@ -1,6 +1,5 @@
 import League from './league.model';
 import LeaguePhaseState from './league-phase.model';
-import Config from '../config/config.model';
 import { ILeague, ILeagueDoc, ILeagueDisplay } from './league.interfaces';
 import { PhaseState } from './league-phase.interfaces';
 import { asMap } from '../utils';
@@ -91,9 +90,9 @@ const allocateRunTypeId = (league: ILeagueDoc): ILeagueDisplay => {
 // Publish a draft league so it becomes a selectable, playable mode. Fills in the
 // playable fields (run mode, standard items, a shard→queue trade, and a deck)
 // only where they haven't been set, transitions the league to `active` so it
-// surfaces in GET /leagues (the lobby's league cache), and points its dungeon
-// type at the league's own latest restic snapshot via a `snapshot-source`
-// config of `restic:<slug>` (consumed by import-dungeon.sh).
+// surfaces in GET /leagues (the lobby's league cache), and sets its authoritative
+// `server` block (worldSource=restic by default: the league plays its own world,
+// fetched by the instance via GET /leagues/:slug/server-spec).
 export const publishLeague = async (slug: string): Promise<ILeagueDoc | null> => {
   const league = await League.findOne({ slug }).exec();
   if (!league) return null;
@@ -126,19 +125,26 @@ export const publishLeague = async (slug: string): Promise<ILeagueDoc | null> =>
 
   league.display = display;
   // The league plays its own world: dungeons of this type restore the league's
-  // latest restic snapshot rather than the shared builders snapshot.
-  league.dungeon = { type: slug, claimFilters: league.dungeon?.claimFilters || {} };
+  // latest restic snapshot rather than the shared builders snapshot. Preserve
+  // any existing server config; only fill in the authoritative defaults.
+  league.server = {
+    dungeonType: slug,
+    claimFilters: league.server?.claimFilters || {},
+    worldSource: league.server?.worldSource || 'restic',
+    minecraft: league.server?.minecraft || {},
+    datapacks: league.server?.datapacks || [
+      { repo: 'trackedout/Brilliance', asset: 'brilliance-datapack.zip', version: 'latest', enabled: true, authenticated: true },
+    ],
+    mods: league.server?.mods || [
+      { repo: 'trackedout/agronet-fabric', asset: 'agronet-1.0.0.jar', version: 'latest', enabled: true, authenticated: true },
+    ],
+    resourcePack: league.server?.resourcePack || {},
+  };
   league.state = 'active';
 
   await league.save();
 
-  await Config.findOneAndUpdate(
-    { entity: slug, key: 'snapshot-source' },
-    { entity: slug, key: 'snapshot-source', value: `restic:${slug}` },
-    { upsert: true, new: true }
-  ).exec();
-
-  logger.info(`Published league '${slug}' as playable mode (runTypeId=${display.runTypeId}, dungeon-type=${slug}, snapshot=restic:${slug})`);
+  logger.info(`Published league '${slug}' as playable mode (runTypeId=${display.runTypeId}, dungeonType=${slug}, worldSource=${league.server.worldSource})`);
   return league;
 };
 

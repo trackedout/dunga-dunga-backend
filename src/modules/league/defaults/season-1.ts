@@ -47,9 +47,18 @@ const season1League: ILeague = {
     defaultCards: ['MOC', 'SNE', 'TRH'],
   },
 
-  dungeon: {
-    type: 'season-1',
+  server: {
+    dungeonType: 'season-1',
     claimFilters: {},
+    worldSource: 's3-zip',
+    minecraft: {},
+    datapacks: [
+      { repo: 'trackedout/Brilliance', asset: 'brilliance-datapack.zip', version: 'latest', enabled: true, authenticated: true },
+    ],
+    mods: [
+      { repo: 'trackedout/agronet-fabric', asset: 'agronet-1.0.0.jar', version: 'latest', enabled: true, authenticated: true },
+    ],
+    resourcePack: {},
   },
 
   phases: [],

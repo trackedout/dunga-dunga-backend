@@ -60,11 +60,69 @@ export interface ILeagueDeck {
   defaultCards: string[];
 }
 
-// --- Dungeon Routing ---
+// --- Server (authoritative per-league runtime config) ---
+//
+// The league doc is the single source of truth for how a league's servers
+// (dungeons that play this league's world, and the build sandbox) are
+// provisioned. On save these fields are PROJECTED into the flat per-entity
+// `Config` docs (entity=<slug>) that the container entrypoints already read
+// (see league.service projectServerConfigs), so the runtime contract is
+// unchanged — humans edit the league doc, not the configs.
 
-export interface ILeagueDungeon {
-  type: string;
+// Where a dungeon of this league sources its world:
+//   - 'restic'      restore the league's own latest restic snapshot
+//                   (tracked-out-sandboxes-<env>/<slug>). If the snapshot is
+//                   missing the instance FAILS to start — there is no silent
+//                   fallthrough to the shared builders S3 zip.
+//   - 's3-zip'      pull the shared prebuilt dungeon world zip from the backups
+//                   S3 bucket (dungeon-latest.zip; the legacy path, opt-in for
+//                   the shared season worlds that have no restic repo of their own).
+export type WorldSource = 'restic' | 's3-zip';
+
+export interface ILeagueMinecraft {
+  // MC server version override (e.g. "1.21.8"); empty/undefined = image default.
+  version?: string;
+}
+
+// A downloadable release asset (datapack zip or mod jar) pulled from a GitHub
+// releases API at container start by download-release.sh. The image already
+// supports multiple of each: fast-start.sh copies every file in the datapack /
+// mod download dirs into the server, so a league can layer on extra
+// datapacks/mods without an image rebuild.
+export interface ILeagueAsset {
+  // GitHub repo in "owner/name" form, e.g. "trackedout/Brilliance".
+  repo: string;
+  // Release asset filename to download, e.g. "brilliance-datapack.zip".
+  asset: string;
+  // Release tag to pull ("latest" or a pinned tag).
+  version: string;
+  // Whether this asset is installed. Disabled entries are skipped.
+  enabled: boolean;
+  // Whether the download must send the GITHUB_TOKEN auth header (private repos
+  // / rate-limit relief). Public assets can set this false.
+  authenticated: boolean;
+}
+
+export interface ILeagueResourcePack {
+  url?: string;
+  sha1?: string;
+  modernUrl?: string;
+  modernSha1?: string;
+}
+
+export interface ILeagueServer {
+  // Replaces the former `dungeon.type`. The dungeon-type / queue-routing key
+  // for this league (equals the slug for a published league).
+  dungeonType: string;
+  // Claim routing filters (formerly dungeon.claimFilters).
   claimFilters: Record<string, string[]>;
+  worldSource: WorldSource;
+  minecraft: ILeagueMinecraft;
+  // Datapacks layered onto this league's world, in order.
+  datapacks: ILeagueAsset[];
+  // Mods installed on this league's servers (agronet is just one entry).
+  mods: ILeagueAsset[];
+  resourcePack: ILeagueResourcePack;
 }
 
 // --- Phase Config (schedule only, no mutable state) ---
@@ -165,7 +223,7 @@ export interface ILeague {
 
   deck: ILeagueDeck;
 
-  dungeon: ILeagueDungeon;
+  server: ILeagueServer;
 
   phases: IPhaseConfig[];
 

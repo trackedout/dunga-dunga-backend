@@ -30,9 +30,6 @@ import { GameRegistry } from '../gameRegistry';
 import Party from '../party/party.model';
 import { PartyStates } from '../party/party.interfaces';
 
-// Fallback league slug when a queue event arrives without a resolvable slug.
-const DEFAULT_LEAGUE_SLUG = 'practice';
-
 /**
  * Create an event, and potentially react to the event depending on DB state
  * @param {NewCreatedEvent} eventBody
@@ -716,20 +713,39 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
   const metadata = getEventMetadata(eventBody);
   const deckId = metadata.get('deck-id') || 'p1'; // TODO: Throw error if missing
 
-  // The identifier is the league slug. Resolve it canonically from the slug the
-  // client sent (falls back to practice if unknown). `slug` is the sole run
-  // identifier — there is no legacy `run-type` field.
-  const requestedLeague = await getLeagueBySlug(metadata.get('slug') ?? '');
-  const slug = requestedLeague?.slug ?? DEFAULT_LEAGUE_SLUG;
+  // The identifier is the league slug and is REQUIRED — fail hard if the client
+  // didn't send one rather than silently defaulting to a league. `slug` is the
+  // sole run identifier; there is no legacy `run-type` field.
+  const requestedSlug = metadata.get('slug');
+  if (!requestedSlug) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'joined-queue event is missing required `slug` metadata; cannot queue');
+  }
+  const requestedLeague = await getLeagueBySlug(requestedSlug);
+  if (!requestedLeague) {
+    throw new ApiError(httpStatus.NOT_FOUND, `No league found for slug '${requestedSlug}'; cannot queue`);
+  }
+  const slug = requestedLeague.slug;
 
   // Play is gated on league state: players can select and view an old season's
   // deck (the lobby cache serves all leagues), but only ACTIVE leagues can be
   // queued into. Completed/archived/draft leagues are rejected here with a
   // message rather than being hidden.
-  if (requestedLeague && requestedLeague.state !== 'active') {
+  if (requestedLeague.state !== 'active') {
     throw new ApiError(
       httpStatus.PRECONDITION_FAILED,
-      `'${requestedLeague.displayName ?? requestedLeague.slug}' has ended and can no longer be played. You can still view its deck, but pick an active league to play.`
+      `'${requestedLeague.displayName ?? requestedLeague.slug}' has ended and can no longer be played; you can still view its deck, but pick an active league to play`
+    );
+  }
+
+  // The backend is authoritative for the dungeon-type routing key: derive it from
+  // the resolved league's server block, NOT from client-sent metadata. Citadel
+  // only sends `slug`. Fail loudly if it can't be resolved rather than routing
+  // the claim to the wrong dungeon pool.
+  const dungeonType = requestedLeague.server?.dungeonType;
+  if (!dungeonType) {
+    throw new ApiError(
+      httpStatus.PRECONDITION_FAILED,
+      `Cannot resolve dungeon-type for league '${slug}': the league is missing a server.dungeonType, cannot queue`
     );
   }
 
@@ -743,8 +759,9 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
       'deck-id': deckId,
       slug,
 
-      // Claim Filters
-      [ClaimFilters.DUNGEON_TYPE]: metadata.get(ClaimFilters.DUNGEON_TYPE) || DungeonTypes.DEFAULT,
+      // Claim Filters — dungeon-type is derived from the league (above), not the
+      // client. It is the routing key matched against dungeon instances' claimFilters.
+      [ClaimFilters.DUNGEON_TYPE]: dungeonType,
     },
   });
   metadata.set('run-id', runId);
