@@ -34,7 +34,7 @@ const practiceLeague: ILeague = {
   },
 
   dungeon: {
-    type: 'practice',
+    type: 'season-2',
     claimFilters: {},
   },
 

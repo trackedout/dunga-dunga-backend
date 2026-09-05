@@ -43,7 +43,7 @@ const season3League: ILeague = {
   },
 
   dungeon: {
-    type: 'season-3',
+    type: 'season-2',
     claimFilters: {},
   },
 
