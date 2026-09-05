@@ -3,8 +3,12 @@ import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync';
 import * as leagueService from './league.service';
 
+// GET /leagues returns ALL leagues (not just active). The lobby + agronet
+// caches resolve leagues by slug/runTypeId and must see completed leagues so
+// old-season decks still render and old claims still map to a mode. Playability
+// is gated separately (at queue time), not by omitting the league here.
 export const getActiveLeagues = catchAsync(async (_req: Request, res: Response) => {
-  const leagues = await leagueService.getActiveLeagues();
+  const leagues = await leagueService.getAllLeagues();
   res.send({ results: leagues });
 });
 

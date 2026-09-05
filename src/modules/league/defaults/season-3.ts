@@ -17,7 +17,7 @@ const season3League: ILeague = {
   joinPolicy: 'auto',
 
   items: {
-    ...standardItems('season3'),
+    ...standardItems('season-3'),
   },
 
   trades: [

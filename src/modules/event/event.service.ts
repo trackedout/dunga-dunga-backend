@@ -714,7 +714,19 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
   // The identifier is the league slug. Resolve it canonically from the slug the
   // client sent (falls back to practice if unknown). `slug` is the sole run
   // identifier — there is no legacy `run-type` field.
-  const slug = (await getLeagueBySlug(metadata.get('slug') ?? ''))?.slug ?? DEFAULT_LEAGUE_SLUG;
+  const requestedLeague = await getLeagueBySlug(metadata.get('slug') ?? '');
+  const slug = requestedLeague?.slug ?? DEFAULT_LEAGUE_SLUG;
+
+  // Play is gated on league state: players can select and view an old season's
+  // deck (the lobby cache serves all leagues), but only ACTIVE leagues can be
+  // queued into. Completed/archived/draft leagues are rejected here with a
+  // message rather than being hidden.
+  if (requestedLeague && requestedLeague.state !== 'active') {
+    throw new ApiError(
+      httpStatus.PRECONDITION_FAILED,
+      `'${requestedLeague.displayName ?? requestedLeague.slug}' has ended and can no longer be played. You can still view its deck, but pick an active league to play.`
+    );
+  }
 
   const runId = metadata.get('run-id') || uuidv4();
   const claim = await Claim.create({

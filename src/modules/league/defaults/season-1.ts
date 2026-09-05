@@ -5,8 +5,7 @@ import { standardItems } from './items';
 // competitive runs are backfilled to the `season-1` slug (events/claims before
 // season 2's phase-1 start, 2026-03-15). No phase automation runs on it — it is
 // `completed` and kept only so `season-1` resolves to a real league doc for
-// lookups and stats. Like season 2, it points at the legacy `competitive-*`
-// scoreboards (the per-season scoreboard convention started with season 3).
+// lookups and stats.
 const season1League: ILeague = {
   slug: 'season-1',
   displayName: 'Season 1',
@@ -23,7 +22,7 @@ const season1League: ILeague = {
   joinPolicy: 'auto',
 
   items: {
-    ...standardItems('competitive'),
+    ...standardItems('season-1'),
   },
 
   trades: [

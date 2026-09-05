@@ -41,6 +41,15 @@ export const getActiveLeagues = async (): Promise<ILeagueDoc[]> => {
   return League.find({ state: 'active' }).exec();
 };
 
+// Every league regardless of state. The lobby/agronet league caches need this
+// so completed leagues (e.g. a finished competitive season) still resolve by
+// slug — players can select and view their old decks; playing is gated at queue
+// time. Deck/shard SEEDING deliberately still uses getActiveLeagues (you only
+// seed decks for active leagues).
+export const getAllLeagues = async (): Promise<ILeagueDoc[]> => {
+  return League.find({}).exec();
+};
+
 // Editors of a league are its builders (owner + builders.players). This is the
 // set allowed to build in the sandbox, publish, and run /do league play. There
 // is no separate "editors" list — builders.players IS the editor list.
