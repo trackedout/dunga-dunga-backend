@@ -174,7 +174,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
       await ensureScoreboardIsSeeded(eventBody.player, shardsItem.scoreboard, shardsItem.startingAmount);
     }
   }
-  await ensureScoreboardIsSeeded(eventBody.player, 'do2.inventory.filter-mode-id', 2); // run-mode
+  await ensureConfigIsSeeded(eventBody.player, 'filter-mode-slug', 'season-2'); // run-mode
 }
 
 async function warnPlayerIfUnsupportedVersion(eventBody: NewCreatedEvent) {
@@ -435,6 +435,21 @@ async function ensureScoreboardIsSeeded(playerName: string, key: string, default
   if (!(await Score.findOne({ player: playerName, key: key }).exec())) {
     logger.warn(`${playerName} does not have score value set for ${key}, setting it to ${defaultValue}`);
     await Score.create({ player: playerName, key: key, value: defaultValue });
+
+    await Task.create({
+      server: 'lobby',
+      type: 'update-inventory',
+      state: 'SCHEDULED',
+      targetPlayer: playerName,
+      sourceIP: '127.0.0.1',
+    });
+  }
+}
+
+async function ensureConfigIsSeeded(playerName: string, key: string, defaultValue: string) {
+  if (!(await Config.findOne({ entity: playerName, key: key }).exec())) {
+    logger.warn(`${playerName} does not have config value set for ${key}, setting it to ${defaultValue}`);
+    await Config.create({ entity: playerName, key: key, value: defaultValue });
 
     await Task.create({
       server: 'lobby',

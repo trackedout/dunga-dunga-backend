@@ -2,6 +2,7 @@ import { getLeagueByRunType } from './league.service';
 import { IEventAction, ILeagueDoc } from './league.interfaces';
 import Score from '../score/score.model';
 import Card from '../card/card.model';
+import Config from '../config/config.model';
 import logger from '../logger/logger';
 
 export async function executeLeagueEventHandlers(
@@ -89,13 +90,13 @@ async function storeBestScores(playerName: string, sourcePattern: string, target
 }
 
 async function setFilterMode(playerName: string, league: ILeagueDoc): Promise<void> {
-  // filter-mode-id stays numeric: use the league's own runTypeId. No hardcoded
-  // short-id -> id table.
-  const runTypeId = league.display.runTypeId;
-  logger.info(`[event-handler] Setting filter-mode-id to ${runTypeId} for ${playerName}`);
-  await Score.updateOne(
-    { player: playerName, key: 'do2.inventory.filter-mode-id' },
-    { $set: { value: runTypeId } },
+  // Run mode is the league slug, stored per-player in the `filter-mode-slug`
+  // config (the numeric filter-mode-id scoreboard was dropped — it was ambiguous
+  // since all season-N leagues share runTypeId 2). Citadel reads this config.
+  logger.info(`[event-handler] Setting filter-mode-slug to ${league.slug} for ${playerName}`);
+  await Config.updateOne(
+    { entity: playerName, key: 'filter-mode-slug' },
+    { $set: { value: league.slug } },
     { upsert: true }
   ).exec();
 }

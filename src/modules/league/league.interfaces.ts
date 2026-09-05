@@ -44,8 +44,9 @@ export interface ITrade {
 
 export interface ILeagueDisplay {
   // runTypeId is the datapack "mode of code to run" (1=practice, 2=competitive,
-  // 3=hardcore, ...), stored in the numeric do2.inventory.filter-mode-id
-  // scoreboard. All season-N competitive leagues share runTypeId 2.
+  // 3=hardcore, ...). It is NOT the run-mode identifier — that is the league slug
+  // (see the per-player `filter-mode-slug` config). All season-N competitive
+  // leagues share runTypeId 2.
   runTypeId: number;
   colour: number;
   material: string;
