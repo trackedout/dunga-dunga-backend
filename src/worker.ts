@@ -613,7 +613,9 @@ async function getShardScoreboardForRunType(runType: string | undefined): Promis
   }
 
   const league = await getLeagueByRunType(runType);
-  const shards = league?.items?.['shards'] as ISingleScoreboardItem | undefined;
+  // league.items is a Mongoose Map — must use .get(), not bracket access.
+  const items = league?.items as unknown as Map<string, ISingleScoreboardItem> | undefined;
+  const shards = items?.get('shards');
   const scoreboard = shards?.scoreboard ?? null;
 
   shardScoreboardCache.set(runType, { value: scoreboard, expiry: Date.now() + SHARD_SCOREBOARD_CACHE_TTL_MS });

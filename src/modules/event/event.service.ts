@@ -169,7 +169,10 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
   }
 
   for (const league of activeLeagues) {
-    const shardsItem = league.items['shards'] as ISingleScoreboardItem | undefined;
+    // league.items is a Mongoose Map — must use .get(), not bracket access
+    // (bracket access silently returns undefined, so shards were never seeded).
+    const items = league.items as unknown as Map<string, ISingleScoreboardItem> | undefined;
+    const shardsItem = items?.get('shards');
     if (shardsItem?.scoreboard && shardsItem?.startingAmount) {
       await ensureScoreboardIsSeeded(eventBody.player, shardsItem.scoreboard, shardsItem.startingAmount);
     }
