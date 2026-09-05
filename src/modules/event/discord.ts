@@ -471,6 +471,7 @@ export async function getRunDescription(runId: string, claim: IClaimDoc | null):
     items.push(
       ...[
         `**Run Type**: ${(await getFullRunType(claim.metadata.get('slug'))) || 'unknown'}`,
+        `**Run Filter**: ${claim.metadata.get('dungeon-type') || 'default'}`,
         // `**Deck ID**: ${claim.metadata.get('deck-id') || 'unknown'}`,
       ]
     );
