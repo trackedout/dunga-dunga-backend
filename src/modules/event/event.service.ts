@@ -579,10 +579,13 @@ async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) 
 
     // Only update state if the instance is not currently reserved/active
     // This prevents a server-online heartbeat from reverting a worker's reservation
-    const protectedStates = [InstanceStates.RESERVED, InstanceStates.AWAITING_PLAYER, InstanceStates.IN_USE];
-    if (!protectedStates.includes(existingInstance.state as any)) {
-      update.state = existingInstance.state;
-    }
+    // Always resolve to a defined target state. Leaving it undefined made the log
+    // report `state=undefined` and caused a spurious "update occurred" (since
+    // `existingInstance.state !== undefined` is always true) whenever an idle
+    // instance heartbeat (activePlayers=0) came in. Default: keep the current
+    // state (preserving any worker reservation); override to IN_USE only when
+    // players are actually connected.
+    update.state = existingInstance.state;
     if (eventBody.count > 0) {
       update.state = InstanceStates.IN_USE;
     }
