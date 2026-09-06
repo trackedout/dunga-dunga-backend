@@ -19,6 +19,14 @@ const season1League: ILeague = {
   },
 
   members: [],
+  // Season 1's build world is owned by the persistent `builders` server, which
+  // produces its restic snapshot. Block on-demand s4xx sandboxes so a second
+  // writer can't diverge from that snapshot.
+  builders: {
+    players: [],
+    idleTimeoutMinutes: 30,
+    preventSandboxing: true,
+  },
   joinPolicy: 'auto',
 
   items: {

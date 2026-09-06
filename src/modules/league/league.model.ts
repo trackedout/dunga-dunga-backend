@@ -177,6 +177,7 @@ const buildersSchema = new mongoose.Schema(
   {
     players: { type: [String], default: [] },
     idleTimeoutMinutes: { type: Number, default: 30 },
+    preventSandboxing: { type: Boolean, default: false },
     forkSource: {
       type: new mongoose.Schema(
         {

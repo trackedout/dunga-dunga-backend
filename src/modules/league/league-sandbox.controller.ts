@@ -35,6 +35,17 @@ export const launchSandbox = catchAsync(async (req: Request, res: Response) => {
     return;
   }
 
+  // A league whose build world is owned by a persistent build server
+  // (builders / builders2) must not get an on-demand sandbox — two writers
+  // would diverge from the persistent server's restic snapshot.
+  if (league.builders?.preventSandboxing) {
+    res.status(httpStatus.CONFLICT).send({
+      code: 409,
+      message: `League '${slug}' is built on a persistent build server; on-demand sandboxes are disabled`,
+    });
+    return;
+  }
+
   const existing = await sandboxService.getSandboxByLeague(slug);
   if (existing && existing.state !== 'STOPPED') {
     res.send(existing);
@@ -144,6 +155,7 @@ export const createLeagueWithSeed = catchAsync(async (req: Request, res: Respons
     builders: {
       players: req.body.builders?.players || [],
       idleTimeoutMinutes: req.body.builders?.idleTimeoutMinutes || 30,
+      preventSandboxing: req.body.builders?.preventSandboxing || false,
       forkSource,
     },
   };

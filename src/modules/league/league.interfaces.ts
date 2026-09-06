@@ -189,6 +189,12 @@ export interface IEventHandler {
 export interface ILeagueBuilders {
   players: string[];
   idleTimeoutMinutes: number;
+  // When true, this league's build world is owned by a persistent build server
+  // (builders / builders2) that produces the league's restic snapshot. Launching
+  // an on-demand s4xx sandbox would create a second writer against the same world
+  // and diverge from the persistent server's snapshot, so sandbox launch is
+  // refused for these leagues (e.g. season-1 / season-2).
+  preventSandboxing?: boolean;
   // Restic fork source: which repo (within the sandbox bucket) and snapshot the
   // league bootstraps its world from on first launch. `repo` is a repo name in
   // the sandbox bucket — "_base" for a fresh league, or another league's slug

@@ -14,6 +14,14 @@ const season3League: ILeague = {
   },
 
   members: [],
+  // Build world is owned by the persistent build server that produces this
+  // league's restic snapshot. Block on-demand s4xx sandboxes so a second writer
+  // can't diverge from that snapshot.
+  builders: {
+    players: [],
+    idleTimeoutMinutes: 30,
+    preventSandboxing: true,
+  },
   joinPolicy: 'auto',
 
   items: {

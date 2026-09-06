@@ -14,6 +14,14 @@ const season2League: ILeague = {
   },
 
   members: [],
+  // Season 2's build world is owned by the persistent `builders2` server, which
+  // produces its restic snapshot. Block on-demand s4xx sandboxes so a second
+  // writer can't diverge from that snapshot.
+  builders: {
+    players: [],
+    idleTimeoutMinutes: 30,
+    preventSandboxing: true,
+  },
   joinPolicy: 'auto',
 
   // Scoreboards are prefixed with the league slug. The legacy `competitive-*`
