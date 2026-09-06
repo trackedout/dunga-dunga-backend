@@ -57,6 +57,7 @@ const deckSchema = new mongoose.Schema(
 const minecraftSchema = new mongoose.Schema(
   {
     version: { type: String, default: '' },
+    protocol: { type: Number, default: 0 },
   },
   { _id: false }
 );

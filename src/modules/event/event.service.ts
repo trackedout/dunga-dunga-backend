@@ -737,6 +737,31 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     );
   }
 
+  // The player's Minecraft client must match the league's server version. Citadel
+  // forwards the client's network protocol (injected by the proxy) as
+  // `mc-protocol`; the league pins its expected protocol in server.minecraft.
+  // A league without an expected protocol opts out of the check.
+  const expectedProtocol = requestedLeague.server?.minecraft?.protocol;
+  if (expectedProtocol) {
+    const clientProtocolRaw = metadata.get('mc-protocol');
+    const clientProtocol = clientProtocolRaw ? Number(clientProtocolRaw) : NaN;
+    const leagueVersion = requestedLeague.server?.minecraft?.version || 'the required version';
+
+    if (!Number.isFinite(clientProtocol)) {
+      throw new ApiError(
+        httpStatus.PRECONDITION_FAILED,
+        `Could not determine your Minecraft version; join with ${leagueVersion} to play '${requestedLeague.displayName ?? slug}'`
+      );
+    }
+
+    if (clientProtocol !== expectedProtocol) {
+      throw new ApiError(
+        httpStatus.PRECONDITION_FAILED,
+        `Your Minecraft version doesn't match '${requestedLeague.displayName ?? slug}'; reconnect with ${leagueVersion} to play`
+      );
+    }
+  }
+
   // The backend is authoritative for the dungeon-type routing key: derive it from
   // the resolved league's server block, NOT from client-sent metadata. Citadel
   // only sends `slug`. Fail loudly if it can't be resolved rather than routing

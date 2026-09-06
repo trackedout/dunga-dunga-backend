@@ -27,7 +27,7 @@ const metroMayhemLeague: ILeague = {
     dungeonType: 'metro-mayhem',
     claimFilters: {},
     worldSource: 'restic',
-    minecraft: { version: '1.21.8' },
+    minecraft: { version: '1.21.8', protocol: 772 },
     datapacks: [
       { repo: 'trackedout/Brilliance', asset: 'brilliance-datapack.zip', version: 'latest', enabled: false, authenticated: true },
     ],

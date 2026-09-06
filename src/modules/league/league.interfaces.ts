@@ -82,6 +82,10 @@ export type WorldSource = 'restic' | 's3-zip';
 export interface ILeagueMinecraft {
   // MC server version override (e.g. "1.21.8"); empty/undefined = image default.
   version?: string;
+  // Network protocol number matching `version` (e.g. 763 for 1.20.1). When set,
+  // queuing is rejected unless the player's client reports this same protocol.
+  // Undefined/0 disables the check.
+  protocol?: number;
 }
 
 // A downloadable release asset (datapack zip or mod jar) pulled from a GitHub
