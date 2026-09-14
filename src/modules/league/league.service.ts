@@ -148,10 +148,21 @@ export const publishLeague = async (slug: string): Promise<ILeagueDoc | null> =>
   return league;
 };
 
+// Insert-only bootstrap of the source-defined leagues. The DB is the source of
+// truth for a league once it exists: leagues are edited via the management UI,
+// so an existing slug is NEVER overwritten here (otherwise a redeploy would
+// clobber web edits with the stale `defaults/` version). The `defaults/` files
+// only seed a fresh environment; to intentionally reset a league to its default
+// you delete its DB doc first.
 export const seedDefaultLeagues = async (): Promise<void> => {
   for (const league of defaultLeagues) {
-    await League.findOneAndUpdate({ slug: league.slug }, league, { upsert: true });
-    logger.info(`Synced default league '${league.slug}'`);
+    const existing = await League.findOne({ slug: league.slug }).select({ _id: 1 }).exec();
+    if (existing) {
+      logger.info(`Default league '${league.slug}' already exists, leaving DB copy authoritative`);
+      continue;
+    }
+    await League.create(league);
+    logger.info(`Seeded default league '${league.slug}'`);
   }
 };
 
