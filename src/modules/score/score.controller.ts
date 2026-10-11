@@ -51,3 +51,14 @@ export const deleteScore = catchAsync(async (req: Request, res: Response) => {
   await scoreService.deleteScore(filter);
   res.status(httpStatus.NO_CONTENT).send();
 });
+
+let scoreboardNamesCache: { data: string[]; ts: number } | null = null;
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
+export const getScoreboardNames = catchAsync(async (_req: Request, res: Response) => {
+  if (!scoreboardNamesCache || Date.now() - scoreboardNamesCache.ts > CACHE_TTL) {
+    scoreboardNamesCache = { data: await scoreService.getScoreboardNames(), ts: Date.now() };
+  }
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.send(scoreboardNamesCache.data);
+});

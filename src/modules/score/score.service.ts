@@ -79,6 +79,11 @@ export const queryScores = async (filter: Record<string, any>, options: IOptions
   return Score.paginate(filter, options);
 };
 
+export const getScoreboardNames = async (): Promise<string[]> => {
+  const names: string[] = await Score.distinct('key');
+  return names.sort();
+};
+
 export const getScoreById = async (id: mongoose.Types.ObjectId): Promise<IScoreDoc | null> => Score.findById(id);
 
 export const updateScoreById = async (scoreId: mongoose.Types.ObjectId, updateBody: UpdateScoreBody): Promise<IScoreDoc | null> => {

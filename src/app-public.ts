@@ -17,6 +17,7 @@ import statsRoute from './routes/v1/stats.route';
 import phasesRoute from './routes/v1/phases.route';
 import { feedController } from './modules/feed';
 import { eventController } from './modules/event';
+import { scoreController } from './modules/score';
 
 const ALLOWED_ORIGINS = config.publicCorsOrigins ?? [];
 
@@ -64,6 +65,7 @@ app.use('/ember/card-stats', cardStatsRoute);
 app.use('/ember/stats', statsRoute);
 app.use('/ember/phases', phasesRoute);
 app.get('/ember/events/names', eventController.getEventNames);
+app.get('/ember/scoreboards/names', scoreController.getScoreboardNames);
 
 app.use((_req, _res, next) => {
   next(new ApiError(httpStatus.NOT_FOUND, 'Not found'));
