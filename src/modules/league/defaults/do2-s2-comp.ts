@@ -1,22 +1,22 @@
 import { ILeague } from '../league.interfaces';
 import { standardItems } from './items';
 
-const season3League: ILeague = {
-  slug: 'season-3',
-  displayName: 'Season 3',
-  description: 'The third competitive season of Decked Out 2',
+const do2S2CompLeague: ILeague = {
+  slug: 'do2-s2-comp',
+  displayName: 'Season 2',
+  description: 'The second competitive season of Decked Out 2',
   owner: '4Ply',
 
   display: {
     runTypeId: 2,
-    colour: 0xff55ff,
-    material: 'MAGENTA_SHULKER_BOX',
+    colour: 0x55ffff,
+    material: 'CYAN_SHULKER_BOX',
   },
 
   members: [],
-  // Build world is owned by the persistent build server that produces this
-  // league's restic snapshot. Block on-demand s4xx sandboxes so a second writer
-  // can't diverge from that snapshot.
+  // Season 2's build world is owned by the persistent `builders2` server, which
+  // produces its restic snapshot. Block on-demand s4xx sandboxes so a second
+  // writer can't diverge from that snapshot.
   builders: {
     players: [],
     idleTimeoutMinutes: 30,
@@ -24,8 +24,11 @@ const season3League: ILeague = {
   },
   joinPolicy: 'auto',
 
+  // Scoreboards are prefixed with the league slug. The legacy `competitive-*`
+  // scoreboards are migrated to `do2-s2-comp-*` by the slug backfill; new play
+  // writes straight to `do2-s2-comp-*`.
   items: {
-    ...standardItems('season-3'),
+    ...standardItems('do2-s2-comp'),
   },
 
   trades: [
@@ -47,13 +50,14 @@ const season3League: ILeague = {
   ],
 
   deck: {
+    // deckType is the league slug (one deck per league).
     defaultCards: ['MOC', 'SNE', 'TRH'],
   },
 
   server: {
-    dungeonType: 'season-2',
+    dungeonType: 'do2-s2-comp',
     claimFilters: {},
-    worldSource: 'restic',
+    worldSource: 's3-zip',
     minecraft: {},
     datapacks: [
       { repo: 'trackedout/Brilliance', asset: 'brilliance-datapack.zip', version: 'latest', enabled: true, authenticated: true },
@@ -64,7 +68,17 @@ const season3League: ILeague = {
     resourcePack: {},
   },
 
-  phases: [],
+  phases: [
+    { phase: 1, start: '2026-03-15T00:00:00Z', end: '2026-03-28T21:00:00Z' },
+    { phase: 2, start: '2026-03-28T22:00:00Z', end: '2026-04-14T05:00:00Z' },
+    { phase: 3, start: '2026-04-14T06:00:00Z', end: '2026-04-25T21:00:00Z' },
+    { phase: 4, start: '2026-04-25T22:00:00Z', end: '2026-05-09T21:30:00Z' },
+    { phase: 5, start: '2026-05-09T22:00:00Z', end: '2026-06-06T21:00:00Z' },
+    { phase: 6, start: '2026-06-07T00:00:00Z', end: '2026-06-21T00:45:00Z' },
+    { phase: 7, start: '2026-06-21T01:30:00Z', end: '2026-07-04T22:00:00Z' },
+    { phase: 8, start: '2026-07-04T22:30:00Z', end: '2026-07-26T05:20:00Z' },
+    { phase: 9, start: '2026-07-26T05:30:00Z', end: '2026-08-15T21:00:00Z' },
+  ],
 
   phaseTransition: {
     autoTransition: true,
@@ -80,7 +94,7 @@ const season3League: ILeague = {
 
   eventHandlers: [],
 
-  state: 'active',
+  state: 'completed',
 };
 
-export default season3League;
+export default do2S2CompLeague;

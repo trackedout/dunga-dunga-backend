@@ -917,7 +917,7 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
   logger.info(`Set dungeon-type config for ${dungeonName} to ${dungeonType}`);
 
   // The league slug is the authoritative key for the server spec (multiple
-  // leagues can share a dungeonType, e.g. season-2). Thread it through so the
+  // leagues can share a dungeonType, e.g. do2-s2-comp). Thread it through so the
   // entrypoint can fetch GET /leagues/<slug>/server-spec. Fall back to the
   // dungeonType when a claim predates slug metadata.
   const leagueSlug = metadata.get('slug') || dungeonType;

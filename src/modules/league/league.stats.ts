@@ -24,8 +24,8 @@ export async function computePhaseStats(
   // league's slug and split practice/competitive by their slugs. No hardcoded
   // short codes.
   const runTypeSlug = league.slug;
-  const practiceSlug = (await getLeagueBySlug('practice'))?.slug ?? 'practice';
-  const competitiveSlug = (await getLeagueBySlug('season-2'))?.slug ?? 'season-2';
+  const practiceSlug = (await getLeagueBySlug('do2-s2-practice'))?.slug ?? 'do2-s2-practice';
+  const competitiveSlug = (await getLeagueBySlug('do2-s2-comp'))?.slug ?? 'do2-s2-comp';
   const outputCollection = `playerStatsPhase${phaseNumber}`;
   const db = mongoose.connection.db;
 

@@ -2,12 +2,12 @@ import { ILeague } from '../league.interfaces';
 import { standardItems } from './items';
 
 // Season 1 predates the league system. It is a historical/archival league: its
-// competitive runs are backfilled to the `season-1` slug (events/claims before
+// competitive runs are backfilled to the `do2-s1-comp` slug (events/claims before
 // season 2's phase-1 start, 2026-03-15). No phase automation runs on it — it is
-// `completed` and kept only so `season-1` resolves to a real league doc for
+// `completed` and kept only so `do2-s1-comp` resolves to a real league doc for
 // lookups and stats.
-const season1League: ILeague = {
-  slug: 'season-1',
+const do2S1CompLeague: ILeague = {
+  slug: 'do2-s1-comp',
   displayName: 'Season 1',
   description: 'The first competitive season of Decked Out 2',
   owner: '4Ply',
@@ -30,7 +30,7 @@ const season1League: ILeague = {
   joinPolicy: 'auto',
 
   items: {
-    ...standardItems('season-1'),
+    ...standardItems('do2-s1-comp'),
   },
 
   trades: [
@@ -56,7 +56,7 @@ const season1League: ILeague = {
   },
 
   server: {
-    dungeonType: 'season-1',
+    dungeonType: 'do2-s1-comp',
     claimFilters: {},
     worldSource: 's3-zip',
     minecraft: {},
@@ -85,4 +85,4 @@ const season1League: ILeague = {
   state: 'completed',
 };
 
-export default season1League;
+export default do2S1CompLeague;

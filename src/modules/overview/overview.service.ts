@@ -15,7 +15,7 @@ export const getOverview = async () => {
   const typeMap = new Map(dungeonTypeConfigs.map((c) => [c.entity, c.value]));
   const dungeonType = (name: string) => {
     const t = typeMap.get(name) ?? 'default';
-    return t === 'default' ? 'season-1' : t;
+    return t === 'default' ? 'do2-s1-comp' : t;
   };
 
   // Fetch all relevant claims (from dungeons + online players)

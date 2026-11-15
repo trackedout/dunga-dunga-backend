@@ -2,7 +2,7 @@ import { ILeague } from '../league.interfaces';
 import { standardItems } from './items';
 
 const practiceLeague: ILeague = {
-  slug: 'practice',
+  slug: 'do2-s2-practice',
   displayName: 'Practice',
   description: 'Unlimited practice runs with auto-replenishing shards',
   owner: '4Ply',
@@ -25,8 +25,8 @@ const practiceLeague: ILeague = {
   joinPolicy: 'auto',
 
   items: {
-    ...standardItems('practice'),
-    shards: { scoreboard: 'do2.inventory.shards.practice', startingAmount: 32 },
+    ...standardItems('do2-s2-practice'),
+    shards: { scoreboard: 'do2.inventory.shards.do2-s2-practice', startingAmount: 32 },
   },
 
   trades: [
@@ -42,7 +42,7 @@ const practiceLeague: ILeague = {
   },
 
   server: {
-    dungeonType: 'season-2',
+    dungeonType: 'do2-s2-comp',
     claimFilters: {},
     worldSource: 's3-zip',
     minecraft: {},
@@ -74,7 +74,7 @@ const practiceLeague: ILeague = {
         condition: { item: 'shards', below: 10 },
       },
       actions: [
-        { type: 'set-scoreboard', scoreboard: 'do2.inventory.shards.practice', value: 64 },
+        { type: 'set-scoreboard', scoreboard: 'do2.inventory.shards.do2-s2-practice', value: 64 },
       ],
     },
   ],

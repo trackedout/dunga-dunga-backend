@@ -173,7 +173,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
       await ensureScoreboardIsSeeded(eventBody.player, shardsItem.scoreboard, shardsItem.startingAmount);
     }
   }
-  await ensureConfigIsSeeded(eventBody.player, 'filter-mode-slug', 'season-2'); // run-mode
+  await ensureConfigIsSeeded(eventBody.player, 'filter-mode-slug', 'do2-s2-comp'); // run-mode
 }
 
 async function warnPlayerIfUnsupportedVersion(eventBody: NewCreatedEvent) {
@@ -471,7 +471,7 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
 
   const runIdentifier = metadata.get('slug');
   const league = await getLeagueBySlug(runIdentifier ?? '');
-  if (league?.slug !== 'hardcore') {
+  if (league?.slug !== 'do2-s2-hardcore') {
     const msg = `${prefix} but this is not a hardcore run, skipping deck deletion`;
     logger.info(`${logPrefix} ${msg}`);
     return;
@@ -500,7 +500,7 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
   } else if (eventBody.name === PlayerEvents.HARDCORE_DECK_RESET) {
     msg = `${prefix}, deleting their hardcore deck`;
 
-    const shards = await Score.findOne({ player: playerName, key: 'do2.inventory.shards.hardcore' }).exec();
+    const shards = await Score.findOne({ player: playerName, key: 'do2.inventory.shards.do2-s2-hardcore' }).exec();
     if (!shards) {
       await notifyPlayer(playerName, `<red>Hardcore mode has been enabled, good luck.</red>`);
     } else {
@@ -521,7 +521,7 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
     {
       player: playerName,
       key: {
-        $regex: /^hardcore-do2\./,
+        $regex: /^do2-s2-hardcore-do2\./,
       },
     },
     {
@@ -532,7 +532,7 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
   ).exec();
 
   await ensureDeckIsSeeded(eventBody.player, league);
-  await resetScoreboard(eventBody.player, 'do2.inventory.shards.hardcore', 64);
+  await resetScoreboard(eventBody.player, 'do2.inventory.shards.do2-s2-hardcore', 64);
 }
 
 async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
@@ -1005,7 +1005,7 @@ async function performTrade(eventBody: NewCreatedEvent) {
 
       Example:
       {
-        "slug": "season-2",
+        "slug": "do2-s2-comp",
         "source-scoreboard": "do2.inventory.shards.competitive",
         "source-inversion-scoreboard": "do2.inventory.shards.competitive",
         "source-count": "1",

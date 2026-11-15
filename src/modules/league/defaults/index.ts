@@ -1,11 +1,11 @@
-import season1League from './season-1';
-import season2League from './season-2';
-import season3League from './season-3';
+import do2S1CompLeague from './do2-s1-comp';
+import do2S2CompLeague from './do2-s2-comp';
+import do2S3CompLeague from './do2-s3-comp';
 import practiceLeague from './practice';
 import hardcoreLeague from './hardcore';
 import metroMayhemLeague from './metro-mayhem';
 import { ILeague } from '../league.interfaces';
 
-const defaultLeagues: ILeague[] = [season1League, season2League, season3League, practiceLeague, hardcoreLeague, metroMayhemLeague];
+const defaultLeagues: ILeague[] = [do2S1CompLeague, do2S2CompLeague, do2S3CompLeague, practiceLeague, hardcoreLeague, metroMayhemLeague];
 
 export default defaultLeagues;

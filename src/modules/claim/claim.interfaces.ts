@@ -19,7 +19,7 @@ export interface IClaim {
     metadata:
       deck-id=1
       run-id=123123-123-123-123-123
-      slug=practice
+      slug=do2-s2-practice
       tome-count=1
  */
 
@@ -29,7 +29,7 @@ export enum ClaimTypes {
 
 export enum DungeonTypes {
   DEFAULT = 'default',
-  SEASON_2 = 'season-2',
+  DO2_S2_COMP = 'do2-s2-comp',
 }
 
 export enum ClaimStates {

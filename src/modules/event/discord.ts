@@ -345,7 +345,7 @@ export async function getGameEndedEmbeds(event: EventWithServer & ClaimRelatedEv
       );
 
       const runLeague = await getLeagueByRunType(metadata.get('slug') ?? '');
-      if (runLeague?.slug !== 'season-2') {
+      if (runLeague?.slug !== 'do2-s2-comp') {
         fields.push(
           ...(await mapAndCountEvents({
             runId,

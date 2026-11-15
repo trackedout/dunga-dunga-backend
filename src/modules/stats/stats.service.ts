@@ -24,7 +24,7 @@ export const getStats = async (runType?: string, since?: string, until?: string,
     if (startDoc) dateFilter['$gte'] = new Date(startDoc.value);
     if (endDoc) dateFilter['$lte'] = new Date(endDoc.value);
     if (Object.keys(dateFilter).length) match['createdAt'] = dateFilter;
-    match['metadata.slug'] = 'season-2';
+    match['metadata.slug'] = 'do2-s2-comp';
   } else {
     if (runType) {
       match['metadata.slug'] = await resolveRunTypeSlug(runType);

@@ -166,7 +166,7 @@ export const seedDefaultLeagues = async (): Promise<void> => {
   }
 };
 
-// Phase states for the season-2 (competitive) league's initial seeding
+// Phase states for the do2-s2-comp (competitive) league's initial seeding
 const defaultCompetitivePhaseStates: { phase: number; state: PhaseState }[] = [
   { phase: 1, state: 'COMPLETED' },
   { phase: 2, state: 'COMPLETED' },
@@ -180,7 +180,7 @@ const defaultCompetitivePhaseStates: { phase: number; state: PhaseState }[] = [
 ];
 
 export const seedDefaultPhases = async (): Promise<void> => {
-  const leagueSlug = 'season-2';
+  const leagueSlug = 'do2-s2-comp';
   const existing = await LeaguePhaseState.findOne({ leagueSlug }).exec();
   if (existing) {
     logger.info(`Phase states for '${leagueSlug}' already exist, skipping seed`);

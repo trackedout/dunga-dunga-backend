@@ -2,7 +2,7 @@ import { ILeague } from '../league.interfaces';
 import { standardItems } from './items';
 
 const hardcoreLeague: ILeague = {
-  slug: 'hardcore',
+  slug: 'do2-s2-hardcore',
   displayName: 'Hardcore',
   description: 'High-stakes runs — lose your deck and progress on death',
   owner: '4Ply',
@@ -25,11 +25,11 @@ const hardcoreLeague: ILeague = {
   joinPolicy: 'auto',
 
   items: {
-    ...standardItems('hardcore'),
-    shards: { scoreboard: 'do2.inventory.shards.hardcore', startingAmount: 64 },
-    runs: { scoreboard: 'hardcore-do2.runs' },
-    wins: { scoreboard: 'hardcore-do2.wins' },
-    rustyRepairs: { scoreboard: 'hardcore-do2.rustyrepairs' },
+    ...standardItems('do2-s2-hardcore'),
+    shards: { scoreboard: 'do2.inventory.shards.do2-s2-hardcore', startingAmount: 64 },
+    runs: { scoreboard: 'do2-s2-hardcore-do2.runs' },
+    wins: { scoreboard: 'do2-s2-hardcore-do2.wins' },
+    rustyRepairs: { scoreboard: 'do2-s2-hardcore-do2.rustyrepairs' },
   },
 
   trades: [
@@ -45,7 +45,7 @@ const hardcoreLeague: ILeague = {
   },
 
   server: {
-    dungeonType: 'season-2',
+    dungeonType: 'do2-s2-comp',
     claimFilters: {},
     worldSource: 's3-zip',
     minecraft: {},
@@ -75,9 +75,9 @@ const hardcoreLeague: ILeague = {
       trigger: { event: 'game-lost' },
       actions: [
         { type: 'reset-deck' },
-        { type: 'reset-scoreboard', scoreboard: 'do2.inventory.shards.hardcore', value: 64 },
-        { type: 'reset-scoreboards', pattern: 'hardcore-do2\\..*', value: 0 },
-        { type: 'store-best-scores', sourcePattern: 'hardcore-do2\\.', targetPrefix: 'leaderboard-hardcore-do2.' },
+        { type: 'reset-scoreboard', scoreboard: 'do2.inventory.shards.do2-s2-hardcore', value: 64 },
+        { type: 'reset-scoreboards', pattern: 'do2-s2-hardcore-do2\\..*', value: 0 },
+        { type: 'store-best-scores', sourcePattern: 'do2-s2-hardcore-do2\\.', targetPrefix: 'leaderboard-do2-s2-hardcore-do2.' },
         { type: 'set-filter-mode' },
       ],
     },

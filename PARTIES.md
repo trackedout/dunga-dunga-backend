@@ -135,7 +135,7 @@ SNAPSHOT_SOURCE="$(curl -s "${DUNGA_API}/configs?entity=${DUNGEON_TYPE}&key=snap
 
 if [[ -n "${SNAPSHOT_SOURCE}" ]]; then
   SOURCE="s3://${S3_BACKUP_BUCKET}/${SNAPSHOT_SOURCE}"
-elif [[ "${DUNGEON_TYPE}" == "season-2" ]]; then
+elif [[ "${DUNGEON_TYPE}" == "do2-s2-comp" ]]; then
   SOURCE="s3://${S3_BACKUP_BUCKET}/snapshots/builders2/"
 else
   SOURCE="s3://${S3_BACKUP_BUCKET}/snapshots/builders/"
