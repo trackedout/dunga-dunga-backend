@@ -25,8 +25,8 @@ const practiceLeague: ILeague = {
   joinPolicy: 'auto',
 
   items: {
-    ...standardItems('do2-s2-practice'),
-    shards: { scoreboard: 'do2.inventory.shards.do2-s2-practice', startingAmount: 32 },
+    ...standardItems(),
+    shards: { scoreboard: 'do2.inventory.shards', startingAmount: 32 },
   },
 
   trades: [
@@ -74,7 +74,7 @@ const practiceLeague: ILeague = {
         condition: { item: 'shards', below: 10 },
       },
       actions: [
-        { type: 'set-scoreboard', scoreboard: 'do2.inventory.shards.do2-s2-practice', value: 64 },
+        { type: 'set-scoreboard', scoreboard: 'do2.inventory.shards', value: 64 },
       ],
     },
   ],

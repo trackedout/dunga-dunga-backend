@@ -18,7 +18,7 @@ export const createScores = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getScores = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.query, ['player', 'prefixFilter']);
+  const filter = pick(req.query, ['player', 'slug', 'prefixFilter']);
   if (filter.prefixFilter) {
     filter.key = new RegExp(`^${filter.prefixFilter}`);
     delete(filter.prefixFilter);
@@ -47,7 +47,7 @@ export const updateScore = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const deleteScore = catchAsync(async (req: Request, res: Response) => {
-  const filter = pick(req.body, ['id', 'name', 'player', 'deckId']);
+  const filter = pick(req.body, ['player', 'slug', 'key']);
   await scoreService.deleteScore(filter);
   res.status(httpStatus.NO_CONTENT).send();
 });

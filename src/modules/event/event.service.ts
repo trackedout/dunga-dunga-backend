@@ -170,7 +170,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
     // access silently returns undefined, which previously broke shard seeding).
     const shardsItem = getMapValue<ISingleScoreboardItem>(league.items, 'shards');
     if (shardsItem?.scoreboard && shardsItem?.startingAmount) {
-      await ensureScoreboardIsSeeded(eventBody.player, shardsItem.scoreboard, shardsItem.startingAmount);
+      await ensureScoreboardIsSeeded(eventBody.player, league.slug, shardsItem.scoreboard, shardsItem.startingAmount);
     }
   }
   await ensureConfigIsSeeded(eventBody.player, 'filter-mode-slug', 'do2-s2-comp'); // run-mode
@@ -424,16 +424,16 @@ async function addDefaultCards(playerName: string, league: ILeagueDoc) {
   }
 }
 
-async function resetScoreboard(playerName: string, key: string, value: number) {
-  await Score.deleteOne({ player: playerName, key: key }).exec();
+async function resetScoreboard(playerName: string, slug: string, key: string, value: number) {
+  await Score.deleteOne({ player: playerName, slug, key }).exec();
 
-  await ensureScoreboardIsSeeded(playerName, key, value);
+  await ensureScoreboardIsSeeded(playerName, slug, key, value);
 }
 
-async function ensureScoreboardIsSeeded(playerName: string, key: string, defaultValue: number) {
-  if (!(await Score.findOne({ player: playerName, key: key }).exec())) {
-    logger.warn(`${playerName} does not have score value set for ${key}, setting it to ${defaultValue}`);
-    await Score.create({ player: playerName, key: key, value: defaultValue });
+async function ensureScoreboardIsSeeded(playerName: string, slug: string, key: string, defaultValue: number) {
+  if (!(await Score.findOne({ player: playerName, slug, key }).exec())) {
+    logger.warn(`${playerName} does not have score value set for ${slug}/${key}, setting it to ${defaultValue}`);
+    await Score.create({ player: playerName, slug, key, value: defaultValue });
 
     await Task.create({
       server: 'lobby',
@@ -461,6 +461,12 @@ async function ensureConfigIsSeeded(playerName: string, key: string, defaultValu
 }
 
 
+
+const HARDCORE_SHARDS_KEY = 'do2.inventory.shards';
+
+// A run's own scores. Excludes do2.inventory.* (the shard balance is managed
+// separately) and anything that is not a do2.* scoreboard (advancements, leaderboards).
+const RUN_SCORES_PATTERN = /^do2\.(?!inventory\.)/;
 
 export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWithServer) {
   const playerName = eventBody.player;
@@ -500,7 +506,7 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
   } else if (eventBody.name === PlayerEvents.HARDCORE_DECK_RESET) {
     msg = `${prefix}, deleting their hardcore deck`;
 
-    const shards = await Score.findOne({ player: playerName, key: 'do2.inventory.shards.do2-s2-hardcore' }).exec();
+    const shards = await Score.findOne({ player: playerName, slug: runType, key: HARDCORE_SHARDS_KEY }).exec();
     if (!shards) {
       await notifyPlayer(playerName, `<red>Hardcore mode has been enabled, good luck.</red>`);
     } else {
@@ -520,8 +526,9 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
   await Score.updateMany(
     {
       player: playerName,
+      slug: runType,
       key: {
-        $regex: /^do2-s2-hardcore-do2\./,
+        $regex: RUN_SCORES_PATTERN,
       },
     },
     {
@@ -532,7 +539,7 @@ export async function resetHardcoreDeck(eventBody: ClaimRelatedEvent & EventWith
   ).exec();
 
   await ensureDeckIsSeeded(eventBody.player, league);
-  await resetScoreboard(eventBody.player, 'do2.inventory.shards.do2-s2-hardcore', 64);
+  await resetScoreboard(eventBody.player, runType, HARDCORE_SHARDS_KEY, 64);
 }
 
 async function createDungeonInstanceRecordIfMissing(eventBody: NewCreatedEvent) {
@@ -1006,8 +1013,8 @@ async function performTrade(eventBody: NewCreatedEvent) {
       Example:
       {
         "slug": "do2-s2-comp",
-        "source-scoreboard": "do2.inventory.shards.competitive",
-        "source-inversion-scoreboard": "do2.inventory.shards.competitive",
+        "source-scoreboard": "do2.inventory.shards",
+        "source-inversion-scoreboard": "do2.inventory.shards",
         "source-count": "1",
         "target-scoreboard": "queue",
         "target-count": "1"
@@ -1029,6 +1036,7 @@ async function performTrade(eventBody: NewCreatedEvent) {
 
   const sourceScore = await Score.findOne({
     player: playerName,
+    slug: league.slug,
     key: sourceScoreboard,
   }).exec();
 
@@ -1078,6 +1086,7 @@ async function performTrade(eventBody: NewCreatedEvent) {
     if (sourceScoreboard !== sourceInversionScoreboard) {
       let sourceInversionScore = await Score.findOne({
         player: playerName,
+        slug: league.slug,
         key: sourceInversionScoreboard,
       }).exec();
 
@@ -1096,6 +1105,7 @@ async function performTrade(eventBody: NewCreatedEvent) {
       if (!sourceInversionScore) {
         await Score.create({
           player: playerName,
+          slug: league.slug,
           key: sourceInversionScoreboard,
           value: sourceCount,
         });
@@ -1127,11 +1137,13 @@ async function performTrade(eventBody: NewCreatedEvent) {
 
   let targetScore = await Score.findOne({
     player: playerName,
+    slug: league.slug,
     key: targetScoreboard,
   }).exec();
   if (!targetScore) {
     await Score.create({
       player: playerName,
+      slug: league.slug,
       key: targetScoreboard,
       value: targetCount,
     });

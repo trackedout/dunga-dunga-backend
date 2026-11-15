@@ -24,11 +24,11 @@ const do2S2CompLeague: ILeague = {
   },
   joinPolicy: 'auto',
 
-  // Scoreboards are prefixed with the league slug. The legacy `competitive-*`
-  // scoreboards are migrated to `do2-s2-comp-*` by the slug backfill; new play
-  // writes straight to `do2-s2-comp-*`.
+  // Scores live in this league's own namespace (slug), so scoreboard names are
+  // unprefixed. The legacy `competitive-*` scoreboards are migrated into the
+  // namespace by the slug backfill.
   items: {
-    ...standardItems('do2-s2-comp'),
+    ...standardItems(),
   },
 
   trades: [

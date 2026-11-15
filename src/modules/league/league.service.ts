@@ -98,17 +98,13 @@ export const publishLeague = async (slug: string): Promise<ILeagueDoc | null> =>
   if (!league) return null;
 
   const display = allocateRunTypeId(league);
-  // Scoreboards are slug-keyed, so a published league is slug-native from birth:
-  // its item scoreboards use the slug as the prefix. display.runTypeId
-  // remain only for the numeric filter-mode scoreboard.
-  const scoreboardPrefix = league.slug;
 
   // Only seed items/trades/deck when the league doesn't already define them, so
   // republishing an edited league doesn't clobber customisations. `items` is a
   // Mongoose Map at runtime.
   const itemsMap = asMap(league.items);
   if (itemsMap.size === 0) {
-    league.set('items', standardItems(scoreboardPrefix));
+    league.set('items', standardItems());
   }
 
   const hasQueueTrade = (league.trades || []).some((t) => t.target && (t.target as { type?: string }).type === 'queue');

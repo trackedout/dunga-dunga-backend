@@ -32,13 +32,13 @@ async function executeAction(action: IEventAction, playerName: string, league: I
       await resetDeck(playerName, league);
       break;
     case 'reset-scoreboard':
-      await resetScoreboard(playerName, action.scoreboard!, action.value!);
+      await resetScoreboard(playerName, league.slug, action.scoreboard!, action.value!);
       break;
     case 'reset-scoreboards':
-      await resetScoreboards(playerName, action.pattern!, action.value!);
+      await resetScoreboards(playerName, league.slug, action.pattern!, action.value!);
       break;
     case 'store-best-scores':
-      await storeBestScores(playerName, action.sourcePattern!, action.targetPrefix!);
+      await storeBestScores(playerName, league.slug, action.sourcePattern!, action.targetPrefix!);
       break;
     case 'set-filter-mode':
       await setFilterMode(playerName, league);
@@ -65,26 +65,28 @@ async function ensureDeckIsSeeded(playerName: string, league: ILeagueDoc): Promi
   }
 }
 
-async function resetScoreboard(playerName: string, scoreboard: string, value: number): Promise<void> {
-  logger.info(`[event-handler] Resetting scoreboard '${scoreboard}' to ${value} for ${playerName}`);
-  await Score.updateOne({ player: playerName, key: scoreboard }, { $set: { value } }, { upsert: true }).exec();
+// Every score action is scoped to the league's own namespace (slug), so a
+// handler can never touch another league's scores.
+async function resetScoreboard(playerName: string, slug: string, scoreboard: string, value: number): Promise<void> {
+  logger.info(`[event-handler] Resetting scoreboard '${slug}/${scoreboard}' to ${value} for ${playerName}`);
+  await Score.updateOne({ player: playerName, slug, key: scoreboard }, { $set: { value } }, { upsert: true }).exec();
 }
 
-async function resetScoreboards(playerName: string, pattern: string, value: number): Promise<void> {
-  logger.info(`[event-handler] Resetting scoreboards matching '${pattern}' to ${value} for ${playerName}`);
-  await Score.updateMany({ player: playerName, key: { $regex: new RegExp(pattern) } }, { $set: { value } }).exec();
+async function resetScoreboards(playerName: string, slug: string, pattern: string, value: number): Promise<void> {
+  logger.info(`[event-handler] Resetting scoreboards in '${slug}' matching '${pattern}' to ${value} for ${playerName}`);
+  await Score.updateMany({ player: playerName, slug, key: { $regex: new RegExp(pattern) } }, { $set: { value } }).exec();
 }
 
-async function storeBestScores(playerName: string, sourcePattern: string, targetPrefix: string): Promise<void> {
-  logger.info(`[event-handler] Storing best scores for ${playerName} (source: '${sourcePattern}', target: '${targetPrefix}')`);
-  const scores = await Score.find({ player: playerName, key: { $regex: new RegExp(sourcePattern) } }).exec();
+async function storeBestScores(playerName: string, slug: string, sourcePattern: string, targetPrefix: string): Promise<void> {
+  logger.info(`[event-handler] Storing best scores in '${slug}' for ${playerName} (source: '${sourcePattern}', target: '${targetPrefix}')`);
+  const scores = await Score.find({ player: playerName, slug, key: { $regex: new RegExp(sourcePattern) } }).exec();
 
   for (const score of scores) {
     const targetKey = score.key.replace(new RegExp(sourcePattern), targetPrefix);
-    const existing = await Score.findOne({ player: playerName, key: targetKey }).exec();
+    const existing = await Score.findOne({ player: playerName, slug, key: targetKey }).exec();
 
     if (!existing || score.value > existing.value) {
-      await Score.updateOne({ player: playerName, key: targetKey }, { $set: { value: score.value } }, { upsert: true }).exec();
+      await Score.updateOne({ player: playerName, slug, key: targetKey }, { $set: { value: score.value } }, { upsert: true }).exec();
     }
   }
 }

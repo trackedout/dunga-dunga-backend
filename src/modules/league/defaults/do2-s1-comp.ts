@@ -30,7 +30,7 @@ const do2S1CompLeague: ILeague = {
   joinPolicy: 'auto',
 
   items: {
-    ...standardItems('do2-s1-comp'),
+    ...standardItems(),
   },
 
   trades: [

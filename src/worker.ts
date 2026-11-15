@@ -586,8 +586,12 @@ async function refundShardForClaim(claim: IClaimDoc, metadata: Map<string, any>)
   logger.info(`Refunding shard (runType: ${runType}) for ${playerName}'s run ${runId}`);
 
   const shardScoreboardKey = await getShardScoreboardForRunType(runType);
+  if (!runType || !shardScoreboardKey) {
+    logger.error(`Unable to refund shard to ${playerName}: no shard scoreboard for league '${runType}'`);
+    return;
+  }
   // Increase scoreboard by one
-  await Score.updateOne({ player: playerName, key: shardScoreboardKey }, { $inc: { value: 1 } });
+  await Score.updateOne({ player: playerName, slug: runType, key: shardScoreboardKey }, { $inc: { value: 1 } });
 
   await createItemRefundedEvent(playerName, 'SHARD', metadata);
   logger.info(`Refunded shard to ${playerName} (runType: ${runType})`);

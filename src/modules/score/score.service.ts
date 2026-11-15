@@ -24,13 +24,21 @@ export const createScores = async (scores: NewCreatedScore[]): Promise<IScoreDoc
   }
   const playerName = scores[0]!!.player;
 
+  const slugs = [...new Set(scores.map((s) => s.slug))];
+  const created: IScoreDoc[] = [];
+  for (const slug of slugs) {
+    created.push(...(await createScoresInNamespace(playerName, slug, scores.filter((s) => s.slug === slug))));
+  }
+  return created;
+};
+
+async function createScoresInNamespace(playerName: string, slug: string, scores: NewCreatedScore[]): Promise<IScoreDoc[]> {
+  const keys = scores.map((s) => s.key);
+
   // First find existing scores, then log an event showing the score diff (score-modified)
-  const existingScores = await Score.find({
-    player: playerName,
-    key: scores.map((s) => s.key),
-  });
+  const existingScores = await Score.find({ player: playerName, slug, key: { $in: keys } });
   for (const existingScore of existingScores) {
-    const newScore = scores.find(s => s.key === existingScore.key);
+    const newScore = scores.find((s) => s.key === existingScore.key);
     if (!newScore) {
       continue;
     }
@@ -40,7 +48,7 @@ export const createScores = async (scores: NewCreatedScore[]): Promise<IScoreDoc
       continue;
     }
 
-    logger.info(`Emitting '${PlayerEvents.SCORE_MODIFIED}' event for ${playerName} - ${existingScore.key}: ${existingScore.value} -> ${newScore.value} (diff: ${diff})`);
+    logger.info(`Emitting '${PlayerEvents.SCORE_MODIFIED}' event for ${playerName} - ${slug}/${existingScore.key}: ${existingScore.value} -> ${newScore.value} (diff: ${diff})`);
     logger.debug(`New score: ${JSON.stringify(newScore, null, 4)}`);
 
     await eventService.createEvent({
@@ -58,6 +66,7 @@ export const createScores = async (scores: NewCreatedScore[]): Promise<IScoreDoc
       metadata: new Map([
         ...getMetadata(newScore.metadata),
         ...getMetadata({
+          slug,
           'score-key': existingScore.key,
           'score-original-value': `${existingScore.value}`,
           'score-new-value': `${newScore.value}`,
@@ -67,13 +76,10 @@ export const createScores = async (scores: NewCreatedScore[]): Promise<IScoreDoc
     });
   }
 
-  await Score.deleteMany({
-    player: playerName,
-    key: scores.map((s) => s.key),
-  });
+  await Score.deleteMany({ player: playerName, slug, key: { $in: keys } });
 
   return Score.create(scores);
-};
+}
 
 export const queryScores = async (filter: Record<string, any>, options: IOptions): Promise<QueryResult> => {
   return Score.paginate(filter, options);
@@ -99,7 +105,7 @@ export const updateScoreById = async (scoreId: mongoose.Types.ObjectId, updateBo
 export const deleteScore = async (filter: DeleteScore): Promise<IScoreDoc | null> => {
   const score = await Score.findOne(filter).exec();
   if (!score) {
-    throw new ApiError(httpStatus.NOT_FOUND, `Score not found for filter ${filter}`);
+    throw new ApiError(httpStatus.NOT_FOUND, `Score not found for ${filter.player} in ${filter.slug}: ${filter.key}`);
   }
   await score.deleteOne();
   return score;

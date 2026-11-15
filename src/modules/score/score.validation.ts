@@ -4,6 +4,7 @@ import { NewCreatedScore } from './score.interfaces';
 
 const createScoreBody: Record<keyof NewCreatedScore, any> = {
   player: Joi.string().required().min(1),
+  slug: Joi.string().required().min(1),
   key: Joi.string().required().min(3),
   value: Joi.number().required().min(0),
   metadata: Joi.any(),
@@ -20,6 +21,7 @@ export const createScores = {
 export const getScores = {
   query: Joi.object().keys({
     player: Joi.string().required(),
+    slug: Joi.string(),
     prefixFilter: Joi.string(),
 
     sortBy: Joi.string(),
@@ -50,10 +52,8 @@ export const updateScore = {
 
 export const deleteScore = {
   body: Joi.object().keys({
-    id: Joi.string(),
-    name: Joi.string(),
     player: Joi.string().required(),
-    deckId: Joi.string().required(),
-    server: Joi.string(),
+    slug: Joi.string().required(),
+    key: Joi.string().required(),
   }),
 };

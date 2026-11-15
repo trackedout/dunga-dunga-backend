@@ -25,11 +25,11 @@ const hardcoreLeague: ILeague = {
   joinPolicy: 'auto',
 
   items: {
-    ...standardItems('do2-s2-hardcore'),
-    shards: { scoreboard: 'do2.inventory.shards.do2-s2-hardcore', startingAmount: 64 },
-    runs: { scoreboard: 'do2-s2-hardcore-do2.runs' },
-    wins: { scoreboard: 'do2-s2-hardcore-do2.wins' },
-    rustyRepairs: { scoreboard: 'do2-s2-hardcore-do2.rustyrepairs' },
+    ...standardItems(),
+    shards: { scoreboard: 'do2.inventory.shards', startingAmount: 64 },
+    runs: { scoreboard: 'do2.runs' },
+    wins: { scoreboard: 'do2.wins' },
+    rustyRepairs: { scoreboard: 'do2.rustyrepairs' },
   },
 
   trades: [
@@ -75,9 +75,9 @@ const hardcoreLeague: ILeague = {
       trigger: { event: 'game-lost' },
       actions: [
         { type: 'reset-deck' },
-        { type: 'reset-scoreboard', scoreboard: 'do2.inventory.shards.do2-s2-hardcore', value: 64 },
-        { type: 'reset-scoreboards', pattern: 'do2-s2-hardcore-do2\\..*', value: 0 },
-        { type: 'store-best-scores', sourcePattern: 'do2-s2-hardcore-do2\\.', targetPrefix: 'leaderboard-do2-s2-hardcore-do2.' },
+        { type: 'reset-scoreboard', scoreboard: 'do2.inventory.shards', value: 64 },
+        { type: 'reset-scoreboards', pattern: '^do2\\.(?!inventory\\.)', value: 0 },
+        { type: 'store-best-scores', sourcePattern: '^do2\\.(?!inventory\\.)', targetPrefix: 'leaderboard-do2.' },
         { type: 'set-filter-mode' },
       ],
     },

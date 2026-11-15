@@ -107,6 +107,9 @@ components:
           type: string
         player:
           type: string
+        slug:
+          type: string
+          description: League namespace the score belongs to
         key:
           type: string
         value:
@@ -117,12 +120,12 @@ components:
             type: string
       example:
         player: 4Ply
+        slug: do2-s2-practice
         key: do2.wins
         value: 1
         metadata:
           deck-id: 1
           run-id: 123123-123-123-123-123
-          slug: practice
           world-age: 123123123
 
     Config:

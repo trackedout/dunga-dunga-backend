@@ -58,6 +58,11 @@ export default router;
  *           type: string
  *         description: Player
  *       - in: query
+ *         name: slug
+ *         schema:
+ *           type: string
+ *         description: Only return scores in this league namespace (e.g. do2-s2-comp)
+ *       - in: query
  *         name: sortBy
  *         schema:
  *           type: string

@@ -57,9 +57,9 @@ export async function allocateShards(
   const emberKey: string = emberItem.scoreboard;
 
   // Get all players with shards in this league
-  const shardScores = await Score.find({ key: shardKey }).exec();
+  const shardScores = await Score.find({ slug: league.slug, key: shardKey }).exec();
   // Get all players' ember scores
-  const emberScores = await Score.find({ key: emberKey }).exec();
+  const emberScores = await Score.find({ slug: league.slug, key: emberKey }).exec();
   const emberMap = new Map(emberScores.map((s) => [s.player, s.value]));
 
   // Get competitive run counts from the latest phase stats

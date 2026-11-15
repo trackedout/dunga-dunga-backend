@@ -11,6 +11,11 @@ const scoreSchema = new mongoose.Schema<IScoreDoc, IScoreModel>(
       trim: true,
       index: true,
     },
+    slug: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     key: {
       type: String,
       required: true,
@@ -33,6 +38,10 @@ const scoreSchema = new mongoose.Schema<IScoreDoc, IScoreModel>(
   }
 );
 
+// Legacy scores from before namespacing have no slug, so the uniqueness
+// constraint only applies to scores that have one.
+scoreSchema.index({ slug: 1, player: 1, key: 1 }, { unique: true, partialFilterExpression: { slug: { $type: 'string' } } });
+scoreSchema.index({ slug: 1, key: 1, value: 1 });
 scoreSchema.index({ player: 1, key: 1 });
 scoreSchema.index({ player: 1, key: 1, value: 1 });
 scoreSchema.index({ key: 1, value: 1 });

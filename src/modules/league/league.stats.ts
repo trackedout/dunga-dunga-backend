@@ -2,6 +2,10 @@ import mongoose from 'mongoose';
 import logger from '../logger/logger';
 import { getLeagueBySlug } from './league.service';
 
+// Tomes submitted to the shop are counted from trade-requested events, which
+// name the scoreboard they spent from.
+const TOMES_SCOREBOARD = 'do2.lifetime.escaped.tomes';
+
 /**
  * Computes player stats for a league phase by running an aggregation pipeline
  * on the events collection, filtering by the league's canonical run-type slug.
@@ -56,7 +60,7 @@ export async function computePhaseStats(
         },
         $or: [
           { name: { $regex: /^game-(won|lost)$/ } },
-          { name: 'trade-requested', 'metadata.source-scoreboard': 'competitive-do2.lifetime.escaped.tomes' },
+          { name: 'trade-requested', 'metadata.source-scoreboard': TOMES_SCOREBOARD, 'metadata.slug': competitiveSlug },
           { name: { $regex: /^difficulty-selected-.*/ } },
         ],
       },
@@ -132,7 +136,8 @@ export async function computePhaseStats(
               {
                 $and: [
                   { $eq: ['$name', 'trade-requested'] },
-                  { $eq: ['$metadata.source-scoreboard', 'competitive-do2.lifetime.escaped.tomes'] },
+                  { $eq: ['$metadata.source-scoreboard', TOMES_SCOREBOARD] },
+                  { $eq: ['$metadata.slug', competitiveSlug] },
                 ],
               },
               { $toInt: '$metadata.source-count' },
