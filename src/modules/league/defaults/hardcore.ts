@@ -4,7 +4,7 @@ import { standardItems } from './items';
 const hardcoreLeague: ILeague = {
   slug: 'do2-s2-hardcore',
   displayName: 'Hardcore',
-  description: 'High-stakes runs — lose your deck and progress on death',
+  description: 'High-stakes runs; lose your deck and progress on death',
   owner: '4Ply',
 
   display: {

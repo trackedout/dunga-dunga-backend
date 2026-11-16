@@ -80,7 +80,8 @@ const do2S3CompLeague: ILeague = {
 
   eventHandlers: [],
 
-  state: 'active',
+  // Not started yet: neither playable nor offered as a run mode until it goes active
+  state: 'draft',
 };
 
 export default do2S3CompLeague;

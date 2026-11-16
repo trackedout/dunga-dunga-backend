@@ -50,7 +50,8 @@ const metroMayhemLeague: ILeague = {
 
   eventHandlers: [],
 
-  state: 'active',
+  // Not released yet: neither playable nor offered as a run mode until it goes active
+  state: 'draft',
 };
 
 export default metroMayhemLeague;

@@ -4,8 +4,8 @@ import { standardItems } from './items';
 // Season 1 predates the league system. It is a historical/archival league: its
 // competitive runs are backfilled to the `do2-s1-comp` slug (events/claims before
 // season 2's phase-1 start, 2026-03-15). No phase automation runs on it — it is
-// `completed` and kept only so `do2-s1-comp` resolves to a real league doc for
-// lookups and stats.
+// `archived` (neither playable nor offered as a run mode) and kept only so
+// `do2-s1-comp` resolves to a real league doc for lookups and stats.
 const do2S1CompLeague: ILeague = {
   slug: 'do2-s1-comp',
   displayName: 'Season 1',
@@ -82,7 +82,7 @@ const do2S1CompLeague: ILeague = {
 
   eventHandlers: [],
 
-  state: 'completed',
+  state: 'archived',
 };
 
 export default do2S1CompLeague;
