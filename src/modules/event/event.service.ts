@@ -173,7 +173,7 @@ async function createPlayerRecordIfMissing(eventBody: NewCreatedEvent) {
       await ensureScoreboardIsSeeded(eventBody.player, league.slug, shardsItem.scoreboard, shardsItem.startingAmount);
     }
   }
-  await ensureConfigIsSeeded(eventBody.player, 'filter-mode-slug', 'do2-s2-comp'); // run-mode
+  await ensureConfigIsSeeded(eventBody.player, 'filter-mode-slug', 'do2-s2-practice'); // run-mode
 }
 
 async function warnPlayerIfUnsupportedVersion(eventBody: NewCreatedEvent) {
