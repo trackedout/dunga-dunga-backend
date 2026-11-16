@@ -121,6 +121,11 @@ export interface ILeagueServer {
   // Claim routing filters (formerly dungeon.claimFilters).
   claimFilters: Record<string, string[]>;
   worldSource: WorldSource;
+  // Only used when worldSource is 's3-zip': the world zip to pull, either a
+  // full "s3://bucket/key" URI or a key relative to the backups bucket (e.g.
+  // "snapshots/builders2/dungeon-latest.zip"). Unset keeps the legacy
+  // per-dungeon-type prefix.
+  worldZip?: string;
   minecraft: ILeagueMinecraft;
   // Datapacks layered onto this league's world, in order.
   datapacks: ILeagueAsset[];

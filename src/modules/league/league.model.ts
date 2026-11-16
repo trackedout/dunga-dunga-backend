@@ -94,6 +94,7 @@ const serverSchema = new mongoose.Schema(
     // Default 'restic': a published league plays its own world; a missing
     // snapshot is a hard failure (no fallthrough to the shared builders zip).
     worldSource: { type: String, enum: ['restic', 's3-zip'], required: true, default: 'restic' },
+    worldZip: { type: String },
     minecraft: { type: minecraftSchema, default: () => ({}) },
     datapacks: { type: [assetSchema], default: [] },
     mods: { type: [assetSchema], default: [] },
