@@ -215,46 +215,6 @@ components:
         message:
           type: string
 
-    GameRegistryEntry:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        displayName:
-          type: string
-        minPlayers:
-          type: integer
-        maxPlayers:
-          type: integer
-        permission:
-          type: string
-        tokenCost:
-          type: integer
-        tokenType:
-          type: string
-        enabled:
-          type: boolean
-        snapshotSource:
-          type: string
-        resourcePackUrl:
-          type: string
-        resourcePackSha1:
-          type: string
-        datapackVersion:
-          type: string
-      example:
-        name: metro-mayhem
-        displayName: Metro Mayhem
-        minPlayers: 1
-        maxPlayers: 8
-        permission: tracked-out.game.metro-mayhem
-        tokenCost: 0
-        enabled: true
-        snapshotSource: snapshots/games/metro-mayhem/
-        datapackVersion: latest
-
     Party:
       type: object
       properties:
@@ -262,8 +222,9 @@ components:
           type: string
         leader:
           type: string
-        game:
+        slug:
           type: string
+          description: League the party plays
         members:
           type: array
           items:
@@ -278,7 +239,7 @@ components:
           type: string
       example:
         leader: 4Ply
-        game: metro-mayhem
+        slug: do2-s2-practice
         members:
           - 4Ply
           - TangoTek
@@ -337,6 +298,15 @@ components:
               type: string
             modernSha1:
               type: string
+
+    LeagueParty:
+      type: object
+      description: Party size limits, leader included. A league with maxPlayers 1 does not offer parties
+      properties:
+        minPlayers:
+          type: integer
+        maxPlayers:
+          type: integer
 
     League:
       type: object
@@ -413,6 +383,8 @@ components:
                 type: string
         server:
           $ref: '#/components/schemas/LeagueServer'
+        party:
+          $ref: '#/components/schemas/LeagueParty'
         phases:
           type: array
           items:

@@ -4,7 +4,7 @@ import { objectId } from '../validate/custom.validation';
 export const createParty = {
   body: Joi.object().keys({
     leader: Joi.string().required().min(1),
-    game: Joi.string().required().min(1),
+    slug: Joi.string().required().min(1),
   }),
 };
 
@@ -42,15 +42,6 @@ export const leaveParty = {
 };
 
 export const kickPlayer = {
-  params: Joi.object().keys({
-    id: Joi.string().custom(objectId).required(),
-  }),
-  body: Joi.object().keys({
-    player: Joi.string().required().min(1),
-  }),
-};
-
-export const queueParty = {
   params: Joi.object().keys({
     id: Joi.string().custom(objectId).required(),
   }),

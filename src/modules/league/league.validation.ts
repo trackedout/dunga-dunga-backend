@@ -19,6 +19,10 @@ export const upsertLeague = {
     trades: Joi.array(),
     deck: Joi.object().required(),
     server: Joi.object().required(),
+    party: Joi.object().keys({
+      minPlayers: Joi.number().integer().min(1).required(),
+      maxPlayers: Joi.number().integer().min(Joi.ref('minPlayers')).required(),
+    }),
     phaseTransition: Joi.object(),
     scoring: Joi.object().allow(null),
     eventHandlers: Joi.array(),

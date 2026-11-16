@@ -205,6 +205,15 @@ export interface ILeagueBuilders {
   };
 }
 
+// --- Party ---
+
+// How many players a party for this league may hold, leader included. A league
+// with maxPlayers 1 does not offer parties.
+export interface ILeagueParty {
+  minPlayers: number;
+  maxPlayers: number;
+}
+
 // --- Join Policy ---
 
 export type JoinPolicy = 'auto' | 'open' | 'invite-only' | 'approval';
@@ -234,6 +243,8 @@ export interface ILeague {
   deck: ILeagueDeck;
 
   server: ILeagueServer;
+
+  party?: ILeagueParty;
 
   phases: IPhaseConfig[];
 

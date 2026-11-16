@@ -11,7 +11,7 @@ const partySchema = new mongoose.Schema<IPartyDoc, IPartyModel>(
       trim: true,
       index: true,
     },
-    game: {
+    slug: {
       type: String,
       required: true,
       trim: true,

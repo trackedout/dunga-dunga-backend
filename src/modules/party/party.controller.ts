@@ -5,8 +5,8 @@ import ApiError from '../errors/ApiError';
 import * as partyService from './party.service';
 
 export const createParty = catchAsync(async (req: Request, res: Response) => {
-  const { leader, game } = req.body;
-  const party = await partyService.createParty(leader, game);
+  const { leader, slug } = req.body;
+  const party = await partyService.createParty(leader, slug);
   res.status(httpStatus.CREATED).send(party);
 });
 
@@ -54,12 +54,6 @@ export const kickPlayer = catchAsync(async (req: Request, res: Response) => {
   }
   const result = await partyService.kickPlayer(partyId, party.leader, player);
   res.send(result);
-});
-
-export const queueParty = catchAsync(async (req: Request, res: Response) => {
-  const { player } = req.body;
-  const party = await partyService.queueParty(req.params['id'] as string, player);
-  res.send(party);
 });
 
 export const disbandParty = catchAsync(async (req: Request, res: Response) => {

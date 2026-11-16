@@ -26,9 +26,15 @@ import { executeLeagueEventHandlers } from '../league/league.event-handler';
 import { invalidateClaimAndNotify, tryMovePlayerToDungeon } from '../../worker';
 import { Config } from '../config';
 import { Lock } from '../lock';
-import { GameRegistry } from '../gameRegistry';
 import Party from '../party/party.model';
 import { PartyStates } from '../party/party.interfaces';
+import {
+  getPartyReadyToQueue,
+  markPartyQueued,
+  partyClaimMetadata,
+  partyLimits,
+  partyPlayersOf,
+} from '../party/party.service';
 
 /**
  * Create an event, and potentially react to the event depending on DB state
@@ -234,31 +240,21 @@ async function invalidateActiveClaimsForPlayer(playerName: string, reason: strin
     // If this claim belongs to a party, disband it and reset all members
     const partyId = claim.metadata?.get('party-id');
     if (partyId) {
-      const partyPlayersStr = claim.metadata?.get('party-players');
-      const remainingMembers = partyPlayersStr
-        ? partyPlayersStr.split(',').filter((m: string) => m.length > 0 && m !== playerName)
-        : [];
+      // invalidateClaimAndNotify has already sent waiting members back to the lobby
+      const remainingMembers = partyPlayersOf(claim.metadata?.get('party-players')).filter((m) => m !== playerName);
 
       await Party.updateOne({ _id: partyId }, { state: PartyStates.DISBANDED }).exec();
 
-      if (remainingMembers.length > 0) {
-        await Players.updateMany(
-          { playerName: { $in: remainingMembers } },
-          { state: QueueStates.IN_LOBBY, activeClaimId: '' }
-        ).exec();
-
-        // Notify remaining members
-        for (const memberName of remainingMembers) {
-          const member = await Players.findOne({ playerName: memberName }).exec();
-          await Task.create({
-            server: member?.server || 'lobby',
-            type: 'message-player',
-            state: 'SCHEDULED',
-            targetPlayer: memberName,
-            arguments: [`<red>Party disbanded: ${playerName} left</red>`],
-            sourceIP: '127.0.0.1',
-          });
-        }
+      for (const memberName of remainingMembers) {
+        const member = await Players.findOne({ playerName: memberName }).exec();
+        await Task.create({
+          server: member?.server || 'lobby',
+          type: 'message-player',
+          state: 'SCHEDULED',
+          targetPlayer: memberName,
+          arguments: [`<red>Party disbanded: ${playerName} left</red>`],
+          sourceIP: '127.0.0.1',
+        });
       }
 
       logger.info(`Disbanded party ${partyId} because claim owner '${playerName}' left (${reason})`);
@@ -278,32 +274,21 @@ async function handlePartyMemberLeaving(playerName: string, reason: string) {
   }).exec();
 
   for (const claim of partyClaims) {
-    const partyPlayersStr = claim.metadata?.get('party-players');
-    if (!partyPlayersStr) continue;
-
-    const partyPlayers = partyPlayersStr.split(',').filter((m: string) => m.length > 0);
+    const partyPlayers = partyPlayersOf(claim.metadata?.get('party-players'));
     if (!partyPlayers.includes(playerName)) continue;
 
-    const dungeonType = claim.metadata?.get('dungeon-type') || '';
     const partyId = claim.metadata?.get('party-id') || '';
 
     // Remove the leaving player from the list
     const remainingPlayers = partyPlayers.filter((p: string) => p !== playerName);
 
-    // Look up game registry for minPlayers
-    const gameEntry = await GameRegistry.findOne({ name: dungeonType }).exec();
-    const minPlayers = gameEntry?.minPlayers || 1;
+    const { minPlayers } = partyLimits(await getLeagueBySlug(claim.metadata?.get('slug') ?? ''));
 
     if (remainingPlayers.length < minPlayers) {
       // Not enough players remaining — invalidate the claim and disband
       logger.warn(`Party claim ${claim._id} has insufficient players after '${playerName}' left (${remainingPlayers.length}/${minPlayers}). Invalidating`);
+      // This also sends waiting members back to the lobby
       await invalidateClaimAndNotify(claim, `${reason} (party below minimum players)`);
-
-      // Reset remaining members to in-lobby
-      await Players.updateMany(
-        { playerName: { $in: remainingPlayers } },
-        { state: QueueStates.IN_LOBBY, activeClaimId: '' }
-      ).exec();
 
       // Disband the party and notify remaining members
       if (partyId) {
@@ -781,6 +766,9 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     );
   }
 
+  // A party leader's members come along on the leader's claim
+  const party = await getPartyReadyToQueue(player.playerName, slug);
+
   const runId = metadata.get('run-id') || uuidv4();
   const claim = await Claim.create({
     player: player.playerName,
@@ -790,6 +778,7 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
       'run-id': runId,
       'deck-id': deckId,
       slug,
+      ...(party ? partyClaimMetadata(party) : {}),
 
       // Claim Filters — dungeon-type is derived from the league (above), not the
       // client. It is the routing key matched against dungeon instances' claimFilters.
@@ -809,6 +798,10 @@ async function addPlayerToQueue(eventBody: NewCreatedEvent) {
     lastQueuedAt: new Date(),
   });
   logger.info(`Placed ${player.playerName} in the dungeon queue with Deck #${eventBody.count}`);
+
+  if (party) {
+    await markPartyQueued(party, claim.id);
+  }
 }
 
 async function markDungeonAvailable(eventBody: NewCreatedEvent) {
@@ -1059,6 +1052,9 @@ async function performTrade(eventBody: NewCreatedEvent) {
     ) {
       throw new ApiError(httpStatus.PRECONDITION_FAILED, `Active claim already exists for this player`);
     }
+
+    // Fail before the queue cost is taken if the player's party cannot queue
+    await getPartyReadyToQueue(playerName, league.slug);
 
     const activeDeckId = league.slug;
     const cardCount = await Card.countDocuments({

@@ -26,10 +26,6 @@ router
   .post(validate(partyValidation.kickPlayer), partyController.kickPlayer);
 
 router
-  .route('/:id/queue')
-  .post(validate(partyValidation.queueParty), partyController.queueParty);
-
-router
   .route('/:id')
   .delete(validate(partyValidation.disbandParty), partyController.disbandParty);
 
@@ -39,7 +35,7 @@ export default router;
  * @swagger
  * tags:
  *   name: Parties
- *   description: Party management for minigames
+ *   description: Parties that play a league run together
  */
 
 /**
@@ -73,7 +69,7 @@ export default router;
  *
  *   post:
  *     summary: Create a party
- *     description: Create a new party for a minigame.
+ *     description: Create a new party for a league that supports parties.
  *     operationId: partiesPost
  *     tags: [Parties]
  *     requestBody:
@@ -84,12 +80,13 @@ export default router;
  *             type: object
  *             required:
  *               - leader
- *               - game
+ *               - slug
  *             properties:
  *               leader:
  *                 type: string
- *               game:
+ *               slug:
  *                 type: string
+ *                 description: League the party plays
  *     responses:
  *       "201":
  *         description: Created
@@ -211,41 +208,6 @@ export default router;
  *     summary: Kick a player from the party
  *     description: Leader removes a player from the party.
  *     operationId: partiesKickPost
- *     tags: [Parties]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Party ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - player
- *             properties:
- *               player:
- *                 type: string
- *     responses:
- *       "200":
- *         description: OK
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Party'
- */
-
-/**
- * @swagger
- * /parties/{id}/queue:
- *   post:
- *     summary: Queue the party
- *     description: Leader starts the queue. Creates a claim and sets all members to in-queue.
- *     operationId: partiesQueuePost
  *     tags: [Parties]
  *     parameters:
  *       - in: path

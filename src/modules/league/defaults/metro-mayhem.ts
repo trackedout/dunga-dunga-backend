@@ -37,6 +37,8 @@ const metroMayhemLeague: ILeague = {
     resourcePack: {},
   },
 
+  party: { minPlayers: 1, maxPlayers: 10 },
+
   phases: [],
 
   phaseTransition: {

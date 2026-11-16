@@ -10,11 +10,12 @@ export enum PartyStates {
 
 export interface IParty {
   leader: string;
-  game: string;
+  // League the party plays
+  slug: string;
   members: string[];
   invites: string[];
   state: PartyStates;
-  claimId: string;
+  claimId?: string | undefined;
 }
 
 export interface IPartyDoc extends IParty, Document {

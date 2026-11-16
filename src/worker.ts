@@ -22,6 +22,7 @@ import Config from './modules/config/config.model';
 import { getLeagueByRunType, getLeagueBySlug } from './modules/league/league.service';
 import { ISingleScoreboardItem } from './modules/league/league.interfaces';
 import { checkPhaseTransitions } from './modules/league/league.phase-automation';
+import { partyPlayersOf, releasePartyMembersFromClaim } from './modules/party/party.service';
 import {
   isBuilders,
   isFargateDungeon,
@@ -113,38 +114,42 @@ async function movePlayerToDungeon(player: IPlayerDoc, lobbyServer: string, targ
   // Prevent automatic teleportation attempts for 15 seconds
   await takeLock('move-to-dungeon', `${targetServer}/${playerName}`, 15);
 
-  // Check if this is a party claim and send all party members
+  await Task.create({
+    server: lobbyServer,
+    type: 'bungee-message',
+    state: 'SCHEDULED',
+    arguments: ['ConnectOther', playerName, targetServer],
+    sourceIP: '127.0.0.1',
+  });
+
+  // The leader's party members follow them into the dungeon
   const claim = await Claim.findById(player.activeClaimId).exec();
-  const partyPlayers = claim?.metadata?.get('party-players');
+  if (claim && claim.player === playerName) {
+    await movePartyMembersToDungeon(claim, targetServer);
+  }
+}
 
-  if (partyPlayers) {
-    const members = partyPlayers.split(',').filter((m: string) => m.length > 0);
-    logger.info(`Party claim detected. Sending all party members to ${targetServer}: ${members.join(', ')}`);
+async function movePartyMembersToDungeon(claim: IClaimDoc, targetServer: string) {
+  const memberNames = partyPlayersOf(claim.metadata?.get('party-players')).filter((m) => m !== claim.player);
+  if (memberNames.length === 0) {
+    return;
+  }
 
-    for (const memberName of members) {
-      const memberPlayer = await Players.findOne({ playerName: memberName }).exec();
-      const memberServer = memberPlayer?.server || lobbyServer;
+  // Only members still waiting on this claim, not ones who left for another server
+  const members = await Players.find({
+    playerName: { $in: memberNames },
+    activeClaimId: claim.id,
+    state: { $in: [QueueStates.IN_QUEUE, QueueStates.IN_TRANSIT_TO_DUNGEON] },
+  }).exec();
+  logger.info(`Sending ${claim.player}'s party to ${targetServer}: ${members.map((m) => m.playerName).join(', ')}`);
 
-      await Task.create({
-        server: memberServer,
-        type: 'bungee-message',
-        state: 'SCHEDULED',
-        arguments: ['ConnectOther', memberName, targetServer],
-        sourceIP: '127.0.0.1',
-      });
-
-      await Players.updateOne(
-        { playerName: memberName },
-        { state: QueueStates.IN_TRANSIT_TO_DUNGEON }
-      ).exec();
-    }
-  } else {
-    // Single player — original behavior
+  for (const member of members) {
+    await member.updateOne({ state: QueueStates.IN_TRANSIT_TO_DUNGEON }).exec();
     await Task.create({
-      server: lobbyServer,
+      server: member.server || 'lobby',
       type: 'bungee-message',
       state: 'SCHEDULED',
-      arguments: ['ConnectOther', playerName, targetServer],
+      arguments: ['ConnectOther', member.playerName, targetServer],
       sourceIP: '127.0.0.1',
     });
   }
@@ -220,6 +225,11 @@ async function attemptToAssignPlayerToDungeon(player: IPlayerDoc) {
   const claim = await Claim.findById(activeClaimId);
   if (!claim) {
     throw new Error(`${playerName} is in queue without an active claim`);
+  }
+
+  if (claim.player !== playerName) {
+    logger.debug(`${playerName} is waiting on ${claim.player}'s party claim ${claim.id}, not assigning a dungeon`);
+    return;
   }
 
   const dungeons: IInstanceDoc[] = await DungeonInstance.find({
@@ -539,6 +549,11 @@ export async function invalidateClaimAndNotify(claim: IClaimDoc, message: string
   // This generates 'item-refunded-<name>' events
   await refundClaim(claim, claimMetadata);
 
+  const releasedMembers = await releasePartyMembersFromClaim(claim);
+  for (const memberName of releasedMembers) {
+    await notifyPlayer(memberName, `<red>Your party's run was cancelled: ${message}`);
+  }
+
   await notifyDiscord({
     name: ServerEvents.CLAIM_INVALIDATED,
     player: claim.player,
@@ -831,7 +846,8 @@ async function launchFargateDungeonIfNeeded(player: IPlayerDoc, claim: IClaimDoc
   const queuedForType = await Promise.all(
     queuedPlayers.map(async (p) => {
       const playerClaim = await Claim.findById(p.activeClaimId);
-      if (!playerClaim) return false;
+      // Party members share their leader's claim and dungeon
+      if (!playerClaim || playerClaim.player !== p.playerName) return false;
       const claimMeta = getMetadata(playerClaim.metadata);
       return (claimMeta.get('dungeon-type') || 'default') === dungeonType;
     })

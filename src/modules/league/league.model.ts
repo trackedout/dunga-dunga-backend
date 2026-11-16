@@ -191,6 +191,14 @@ const buildersSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const partySchema = new mongoose.Schema(
+  {
+    minPlayers: { type: Number, required: true, default: 1, min: 1 },
+    maxPlayers: { type: Number, required: true, default: 1, min: 1 },
+  },
+  { _id: false }
+);
+
 const leagueSchema = new mongoose.Schema<ILeagueDoc, ILeagueModel>(
   {
     slug: {
@@ -249,6 +257,10 @@ const leagueSchema = new mongoose.Schema<ILeagueDoc, ILeagueModel>(
     server: {
       type: serverSchema,
       required: true,
+    },
+    party: {
+      type: partySchema,
+      default: () => ({}),
     },
     phases: {
       type: [phaseConfigSchema],

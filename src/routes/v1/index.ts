@@ -9,7 +9,6 @@ import tasksRoute from './tasks.route';
 import statusRoute from './status.route';
 import configRoute from './config.route';
 import instanceRoute from './instance.route';
-import gameRegistryRoute from './gameRegistry.route';
 import partyRoute from './party.route';
 import leagueRoute from './league.route';
 import config from '../../config/config';
@@ -57,10 +56,6 @@ const defaultIRoute: IRoute[] = [
   {
     path: '/instances',
     route: instanceRoute,
-  },
-  {
-    path: '/game-registry',
-    route: gameRegistryRoute,
   },
   {
     path: '/parties',

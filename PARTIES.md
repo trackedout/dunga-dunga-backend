@@ -1,225 +1,101 @@
-# Party Queue System
+# Parties
 
-The party queue system allows players to form groups and queue together for minigames. Unlike standard Decked Out 2 dungeon runs (single-player), party games support multiple players in the same instance.
+A party is a group of players who play one league run together. The leader
+queues as usual; when the leader passes through the dungeon door, the rest of
+the party is sent into the same dungeon.
 
-## Collections
+## Which leagues offer parties
 
-### `gameRegistry`
-
-Defines available minigames. Adding a new document here (plus a snapshot in S3 and a `snapshot-source` config) is all that's needed to register a new game — no code changes required.
+A league's `party` block sets the party size, leader included:
 
 ```js
-{
-  name: "metro-mayhem",             // unique, used as the dungeon-type value
-  displayName: "Metro Mayhem",
-  minPlayers: 1,                    // 1 = solo queueable, 2+ = requires party
-  maxPlayers: 8,
-  permission: "tracked-out.game.metro-mayhem",  // LuckPerms permission required to create a party
-  tokenCost: 0,                     // 0 = free, >0 = costs tokens
-  tokenType: null,                  // e.g. "party-token" if tokenCost > 0
-  enabled: true,
-  snapshotSource: "snapshots/games/metro-mayhem/",
-  resourcePackUrl: null,            // optional override
-  resourcePackSha1: null,
-  datapackVersion: "latest",
-}
+party: { minPlayers: 1, maxPlayers: 10 }
 ```
 
-### `parties`
+A league without a `party` block is solo only (`{ minPlayers: 1, maxPlayers: 1 }`).
+Parties can be created only for an `active` league whose `maxPlayers` is above 1.
+Today that is `do2-s2-practice` and `metro-mayhem` (1 to 10 players);
+`metro-mayhem` is still `draft`, so it offers parties once it goes active.
 
-Tracks active party state. Created when a player runs `/party create`, disbanded when the game ends or the leader disbands.
+Change the limits by editing the league doc. The `defaults/` files only seed
+a fresh database.
+
+## `parties` collection
 
 ```js
 {
   leader: "PlayerName",
-  game: "metro-mayhem",             // references gameRegistry.name
+  slug: "do2-s2-practice",          // the league the party plays
   members: ["PlayerName", "Player2"],
   invites: ["Player3"],             // pending invites
-  state: "forming",                 // forming → queued → in-game → disbanded
-  claimId: null,                    // set when leader queues
+  state: "forming",                 // forming -> queued -> forming (after the run) ... -> disbanded
+  claimId: null,                    // the leader's dungeon claim while queued
 }
 ```
 
-## API Endpoints
+A queued party goes back to `forming` once its claim is no longer pending,
+acquired or in use (the run finished or was cancelled), so the same group can
+queue again. That check runs whenever the party is read.
 
-### Game Registry
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/v1/game-registry` | List enabled minigames (returns `{ results: [...] }`) |
-| GET | `/v1/game-registry/:name` | Get a specific minigame config |
-| POST | `/v1/game-registry` | Upsert a minigame (admin) |
-
-### Parties
+## API
 
 | Method | Path | Body | Description |
 |--------|------|------|-------------|
-| POST | `/v1/parties` | `{ leader, game }` | Create a party |
-| GET | `/v1/parties?player=X` | — | Get player's active party |
+| POST | `/v1/parties` | `{ leader, slug }` | Create a party for a league |
+| GET | `/v1/parties?player=X` | | Get a player's active party |
 | POST | `/v1/parties/:id/invite` | `{ player }` | Invite a player |
 | POST | `/v1/parties/:id/join` | `{ player }` | Accept an invite |
-| POST | `/v1/parties/:id/leave` | `{ player }` | Leave the party |
+| POST | `/v1/parties/:id/leave` | `{ player }` | Leave (the leader leaving disbands) |
 | POST | `/v1/parties/:id/kick` | `{ player }` | Kick a member (leader only) |
-| POST | `/v1/parties/:id/queue` | `{ player }` | Queue up (leader only) |
-| DELETE | `/v1/parties/:id` | — | Disband (leader only) |
+| DELETE | `/v1/parties/:id` | | Disband (leader only) |
 
-## Queue Flow
+There is no party queue endpoint: the leader queues through the normal
+`trade-requested` / `joined-queue` flow.
 
-```
-1. /party create metro-mayhem
-   → Validates LuckPerms permission
-   → Creates party (state: forming)
+## Queue flow
 
-2. /party invite Player2
-   → Adds to invites list
-   → Player2 sees: "Player1 invited you to play Metro Mayhem! /party join Player1"
+1. `/party create do2-s2-practice` creates a `forming` party. Citadel only
+   offers leagues the player can select as a run mode and that allow parties.
+2. `/party invite Player2`, then Player2 runs `/party join Player1`.
+3. The leader queues as usual. Before the queue cost is taken and again when
+   the claim is created, `getPartyReadyToQueue` checks that:
+   - the player queueing is the leader (a member cannot queue alone while in a party)
+   - the party is `forming` and its league is the one being queued
+   - it has at least `minPlayers` members, all in the lobby
+4. The leader's claim gets `party-id` and `party-players` metadata. Members
+   are set to `in-queue` with `activeClaimId` pointing at the leader's claim,
+   and the party becomes `queued`.
+5. The worker assigns a dungeon to the claim owner only; members waiting on
+   someone else's claim are skipped, and are not counted when deciding
+   whether to launch a Fargate dungeon.
+6. When the leader passes through the door (or is sent straight in with
+   `skip-door`), `movePlayerToDungeon` connects the leader and then every
+   member still waiting on that claim.
+7. On the dungeon, agronet loads the claim for whoever joins first. Every
+   player in `party-players` shares the claim's context (slug, run id); the
+   leader's deck is handed out to the leader only.
 
-3. /party join Player1  (Player2 runs this)
-   → Moves from invites to members
-   → All members notified
+## Leaving and cancellation
 
-4. /party queue  (leader only)
-   → Validates members.length >= minPlayers
-   → Validates all members are in-lobby
-   → Creates a Claim:
-       player: leader
-       type: dungeon
-       state: pending
-       metadata: { dungeon-type: game, party-id, party-players: "P1,P2", run-type: party }
-   → Sets all members' state to in-queue
-   → Party state → queued
+- **Leader leaves the lobby or the network while queued:** the claim is
+  invalidated, waiting members go back to the lobby, and the party is disbanded.
+- **Member leaves the lobby or the network:** they are removed from
+  `party-players`. If fewer than `minPlayers` remain, the claim is invalidated.
+- **`/party leave` or `/party kick` while queued:** the player is removed from
+  `party-players` and returned to the lobby; the run continues without them.
+- **`/party disband` while queued:** members are returned to the lobby and the
+  leader's run continues solo.
+- **Any claim invalidation** (dungeon unhealthy, lease expired, ...) sends
+  members still waiting on the claim back to the lobby and tells them why.
 
-5. Worker picks up leader (in-queue with activeClaimId)
-   → Same assignQueuedPlayersToDungeons path as solo dungeons
-   → Finds instance matching claimFilters for dungeon-type
-   → If none available, launches Fargate (writes dungeon-type config for the game)
-
-6. Instance ready
-   → Worker detects party-players in claim metadata
-   → Sends bungee-message Connect tasks for ALL party members
-   → All teleported simultaneously
-
-7. Game ends (all players leave the instance)
-   → Claim invalidated/finalized
-   → Party state → disbanded
-```
-
-## Claim Integration
-
-The party system reuses the existing claim/instance infrastructure:
-
-- A party queue creates a **single claim** owned by the leader
-- The claim's `dungeon-type` metadata value is the game name (e.g. `metro-mayhem`)
-- Instance matching uses the existing `claimFilters` mechanism
-- Fargate launch uses the existing `launchFargateDungeonIfNeeded` path
-- The only difference: at teleport time, `party-players` metadata triggers multi-player Connect
-
-## Claim Invalidation & Party Cleanup
-
-When a player leaves the lobby or disconnects:
-
-- **If they own the claim (leader)**: claim invalidated → party disbanded → remaining members reset to in-lobby and notified
-- **If they're a non-leader member**: removed from `party-players` metadata
-  - If remaining players < `gameRegistry.minPlayers` → claim invalidated, party disbanded, members notified
-  - If still enough players → party continues without them, members notified
-
-## Dungeon Boot (davybones)
-
-### `import-dungeon.sh`
-
-The dungeon boot script reads the game's snapshot source from the config API:
-
-```bash
-DUNGEON_TYPE="$(curl "${DUNGA_API}/configs?entity=${DUNGEON}&key=dungeon-type" | jq -r '.value // "default"')"
-SNAPSHOT_SOURCE="$(curl -s "${DUNGA_API}/configs?entity=${DUNGEON_TYPE}&key=snapshot-source" | jq -r '.value // ""')"
-
-if [[ -n "${SNAPSHOT_SOURCE}" ]]; then
-  SOURCE="s3://${S3_BACKUP_BUCKET}/${SNAPSHOT_SOURCE}"
-elif [[ "${DUNGEON_TYPE}" == "do2-s2-comp" ]]; then
-  SOURCE="s3://${S3_BACKUP_BUCKET}/snapshots/builders2/"
-else
-  SOURCE="s3://${S3_BACKUP_BUCKET}/snapshots/builders/"
-fi
-```
-
-### `builders-entrypoint.sh`
-
-Conditionally loads agronet based on a per-game config:
-
-```bash
-NEEDS_AGRONET=$(fetch_config "needs-agronet" "${DUNGEON_TYPE}" "true")
-```
-
-## Citadel Plugin (Lobby)
-
-### Commands
+## Citadel commands
 
 | Command | Description |
 |---------|-------------|
-| `/party create <game>` | Create a party (tab-completes game names) |
+| `/party create <league>` | Create a party (tab-completes leagues that allow parties) |
 | `/party invite <player>` | Invite a player |
-| `/party join <leader>` | Accept invite from a specific leader |
-| `/party leave` | Leave current party |
+| `/party join <leader>` | Accept an invite from a leader |
+| `/party leave` | Leave the party |
 | `/party kick <player>` | Kick a member (leader only) |
-| `/party queue` | Start queue (leader only) |
 | `/party disband` | Disband (leader only) |
-| `/party info` | Show party state |
-
-### Generated Client
-
-The citadel plugin uses `PartiesApi` and `GameRegistryApi` from the generated OpenAPI client (`org.trackedout.client.apis`). Regenerate with:
-
-```bash
-cd ~/tracked-out && bash generate-models.sh
-```
-
-This requires dunga-dunga to be running on `localhost:3000` (port-forward if needed).
-
-### Game Registry Cache
-
-`GameRegistryCache` refreshes every 5 minutes from the API and provides tab completion for `/party create`. The `@gameNames` async completion is registered in `Citadel.kt`.
-
-## Setting Up a New Minigame
-
-1. Insert into `gameRegistry`:
-   ```js
-   db.gameRegistry.insertOne({
-     name: "my-game",
-     displayName: "My Game",
-     minPlayers: 2,
-     maxPlayers: 4,
-     permission: "tracked-out.game.my-game",
-     tokenCost: 0,
-     enabled: true,
-     snapshotSource: "snapshots/games/my-game/",
-     datapackVersion: "latest",
-     createdAt: new Date(),
-     updatedAt: new Date()
-   })
-   ```
-
-2. Add snapshot source config:
-   ```js
-   db.configs.insertOne({
-     entity: "my-game",
-     key: "snapshot-source",
-     value: "snapshots/games/my-game/",
-     createdAt: new Date(),
-     updatedAt: new Date()
-   })
-   ```
-
-3. Upload world to S3:
-   ```bash
-   aws s3 cp world.zip s3://tracked-out-backups-dev/snapshots/games/my-game/dungeon-latest.zip
-   ```
-
-4. Grant permission to players:
-   ```
-   lp group default permission set tracked-out.game.my-game true
-   ```
-
-5. (Optional) Disable agronet for this game:
-   ```js
-   db.configs.insertOne({ entity: "my-game", key: "needs-agronet", value: "false", createdAt: new Date(), updatedAt: new Date() })
-   ```
+| `/party info` | Show the party |
