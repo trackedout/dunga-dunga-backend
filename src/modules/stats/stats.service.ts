@@ -1,6 +1,6 @@
 import Event from '../event/event.model';
 import Config from '../config/config.model';
-import { resolveRunTypeSlug } from '../league/league.service';
+import { slugFilterForRunType } from '../league/league.service';
 
 const cache = new Map<string, { data: unknown; ts: number }>();
 const CACHE_TTL = 5 * 60 * 1000;
@@ -27,7 +27,7 @@ export const getStats = async (runType?: string, since?: string, until?: string,
     match['metadata.slug'] = 'do2-s2-comp';
   } else {
     if (runType) {
-      match['metadata.slug'] = await resolveRunTypeSlug(runType);
+      match['metadata.slug'] = await slugFilterForRunType(runType);
     }
     const dateFilter: Record<string, Date> = {};
     if (since) dateFilter['$gte'] = new Date(since);

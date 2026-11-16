@@ -1,5 +1,5 @@
 import Event from '../event/event.model';
-import { resolveRunTypeSlug } from '../league/league.service';
+import { slugFilterForRunType } from '../league/league.service';
 
 // Aggregation expression: use killer if known, else strip player name from death-message
 const effectiveKiller = {
@@ -35,7 +35,7 @@ export const getKillers = async (limit: number, runType?: string, since?: string
       { 'metadata.death-message': { $exists: true, $nin: ['', null] } },
     ],
   };
-  if (runType) match['metadata.slug'] = await resolveRunTypeSlug(runType);
+  if (runType) match['metadata.slug'] = await slugFilterForRunType(runType);
   const dateFilter: Record<string, Date> = {};
   if (since) dateFilter['$gte'] = new Date(since);
   if (until) dateFilter['$lt'] = new Date(until);
@@ -88,7 +88,7 @@ export const getKillerDetail = async (killer: string, runType?: string, since?: 
       },
     ],
   };
-  if (runType) match['metadata.slug'] = await resolveRunTypeSlug(runType);
+  if (runType) match['metadata.slug'] = await slugFilterForRunType(runType);
   const dateFilter: Record<string, Date> = {};
   if (since) dateFilter['$gte'] = new Date(since);
   if (until) dateFilter['$lt'] = new Date(until);

@@ -1,7 +1,7 @@
 import Claim from '../claim/claim.model';
 import Config from '../config/config.model';
 import Event from '../event/event.model';
-import { resolveRunTypeSlug } from '../league/league.service';
+import { slugFilterForRunType } from '../league/league.service';
 
 const FEED_CACHE_TTL_MS = 10_000;
 const feedCache = new Map<string, { result: unknown; expiresAt: number }>();
@@ -97,7 +97,7 @@ async function _fetchFeed(options: FeedOptions, cacheKey: string): Promise<FeedR
     matchStage['metadata.slug'] = 'do2-s2-comp';
   } else if (options.runType) {
     // Accept both short codes and full names; normalise to the canonical slug.
-    matchStage['metadata.slug'] = await resolveRunTypeSlug(options.runType);
+    matchStage['metadata.slug'] = await slugFilterForRunType(options.runType);
   }
   if (options.outcome === 'win') matchStage['metadata.game-won'] = 'true';
   if (options.outcome === 'loss' || options.outcome === 'invalid') {

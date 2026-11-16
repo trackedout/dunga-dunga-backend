@@ -29,12 +29,22 @@ export const getLeagueByRunType = async (runType: string): Promise<ILeagueDoc | 
   return getLeagueBySlug(runType);
 };
 
-// Normalise a run identifier to a canonical league slug for query filters.
-// Returns the input unchanged when no league matches (so unknown/test values
-// still filter to themselves).
-export const resolveRunTypeSlug = async (input: string): Promise<string> => {
+// Build the metadata.slug filter for a run-type query parameter. An unknown
+// value is returned unchanged, so unknown/test values still filter to themselves.
+// The API filters runs by a league slug, or by a run mode code that spans every
+// league of that mode: p = practice, c = competitive (all seasons), h = hardcore.
+// The mode of a league is its display.runTypeId.
+const RUN_MODE_TYPE_IDS: Record<string, number> = { p: 1, c: 2, h: 3 };
+
+export const slugFilterForRunType = async (input: string): Promise<string | { $in: string[] }> => {
   const league = await getLeagueBySlug(input);
-  return league?.slug ?? input;
+  if (league) return league.slug;
+
+  const runTypeId = RUN_MODE_TYPE_IDS[input];
+  if (runTypeId === undefined) return input;
+
+  const leagues = await League.find({ 'display.runTypeId': runTypeId }).select({ slug: 1 }).lean().exec();
+  return { $in: leagues.map((l) => l.slug) };
 };
 
 export const getActiveLeagues = async (): Promise<ILeagueDoc[]> => {
