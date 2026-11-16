@@ -90,12 +90,18 @@ There is no party queue endpoint: the leader queues through the normal
 
 ## Citadel commands
 
+`/party` with no action lists the actions that apply to the player, and tab
+completion offers only those: `create`/`join` outside a party, `info`/`leave`
+for a member, and `info`/`invite` (while forming)/`kick` (with other
+members)/`disband` for the leader. Creating or joining a party switches the
+player's run mode, and so their inventory, to the party's league.
+
 | Command | Description |
 |---------|-------------|
 | `/party create <league>` | Create a party (tab-completes leagues that allow parties) |
 | `/party invite <player>` | Invite a player |
 | `/party join <leader>` | Accept an invite from a leader |
-| `/party leave` | Leave the party |
+| `/party leave` | Leave the party (members only; the leader disbands) |
 | `/party kick <player>` | Kick a member (leader only) |
 | `/party disband` | Disband (leader only) |
 | `/party info` | Show the party |
