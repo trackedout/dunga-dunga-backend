@@ -42,7 +42,8 @@ export async function getSelectedDeck(playerName: String, deckType: String) {
   }
 
   // TODO: Support last deck selection for multiple deck types
-  return `${deckType}1`;
+  // A deck is identified by its league slug, which is also the deck type
+  return `${deckType}`;
 }
 
 export const getCard = catchAsync(async (req: Request, res: Response) => {
